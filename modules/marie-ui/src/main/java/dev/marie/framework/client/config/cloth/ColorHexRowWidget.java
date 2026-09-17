@@ -45,13 +45,13 @@ public final class ColorHexRowWidget extends TooltipListEntry<Integer> {
         this.label = label;
         this.startArgb = MarieColors.resolveColor(key);
         this.initialHex = formatRgbHex(startArgb);
-        this.hexBox = new EditBox(Minecraft.getInstance().font, 0, 0, 96, 18, Component.translatable("config.marielib.colors.hex"));
+        this.hexBox = new EditBox(Minecraft.getInstance().font, 0, 0, 96, 18, Component.translatable("config.marieslib.colors.hex"));
         this.hexBox.setMaxLength(7);
         this.hexBox.setFilter(ColorHexRowWidget::hexInputFilter);
-        this.hexBox.setHint(Component.translatable("config.marielib.colors.hexHint"));
+        this.hexBox.setHint(Component.translatable("config.marieslib.colors.hexHint"));
         this.hexBox.setValue(initialHex);
         this.hexBox.setResponder(this::onHexChanged);
-        this.resetButton = Button.builder(Component.translatable("config.marielib.colors.reset"), b -> onReset())
+        this.resetButton = Button.builder(Component.translatable("config.marieslib.colors.reset"), b -> onReset())
                 .bounds(0, 0, 56, 18)
                 .build();
         setErrorSupplier(this::computeError);
@@ -78,9 +78,9 @@ public final class ColorHexRowWidget extends TooltipListEntry<Integer> {
             return Optional.empty();
         }
         if (hexBox.getValue().trim().isEmpty()) {
-            return Optional.of(Component.translatable("config.marielib.colors.error.empty"));
+            return Optional.of(Component.translatable("config.marieslib.colors.error.empty"));
         }
-        return Optional.of(Component.translatable("config.marielib.colors.error.invalid"));
+        return Optional.of(Component.translatable("config.marieslib.colors.error.invalid"));
     }
 
     private void onHexChanged(String s) {

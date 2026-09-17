@@ -70,6 +70,12 @@ public final class ScaleConfigPanel {
     /** This frame's overall rendered bounding box, for the outside-panel early-out in mouseClicked/mouseScrolled. */
     private Bounds lastPanelBounds = new Bounds(0, 0, 0, 0);
 
+    /** componentId of the slider currently held from mouseClicked, or null when no drag is in progress. */
+    private String draggingComponentId;
+
+    /** Which of that entry's two tracks is held — true for contentScale, false for paddingScale. */
+    private boolean draggingContentTrack;
+
     public ScaleConfigPanel(List<ScaleConfigEntry> entries, PersistenceProvider persistence, Anchor anchor) {
         this.entries = entries;
         this.persistence = persistence;
@@ -197,15 +203,52 @@ public final class ScaleConfigPanel {
         if (button == 0) {
             for (CardLayout layout : lastLayout) {
                 if (layout.textTrack().contains((int) mouseX, (int) mouseY)) {
-                    saveContentScale(layout.entry().componentId(), valueAt(mouseX, layout.textTrack()));
+                    draggingComponentId = layout.entry().componentId();
+                    draggingContentTrack = true;
+                    saveContentScale(draggingComponentId, valueAt(mouseX, layout.textTrack()));
                     break;
                 }
                 if (layout.paddingTrack().contains((int) mouseX, (int) mouseY)) {
-                    savePaddingScale(layout.entry().componentId(), valueAt(mouseX, layout.paddingTrack()));
+                    draggingComponentId = layout.entry().componentId();
+                    draggingContentTrack = false;
+                    savePaddingScale(draggingComponentId, valueAt(mouseX, layout.paddingTrack()));
                     break;
                 }
             }
         }
+        return true;
+    }
+
+    /**
+     * Continues updating the slider grabbed in {@link #mouseClicked} from the drag's live X, as
+     * long as button 0 is still held — matching the track under the initial click rather than
+     * whatever's under the cursor now, so a fast drag past the card's edges (or outside {@link
+     * #lastPanelBounds} entirely) keeps controlling the same slider instead of losing it.
+     */
+    public boolean mouseDragged(double mouseX, double mouseY, int button) {
+        if (button != 0 || draggingComponentId == null) {
+            return false;
+        }
+        for (CardLayout layout : lastLayout) {
+            if (!layout.entry().componentId().equals(draggingComponentId)) {
+                continue;
+            }
+            if (draggingContentTrack) {
+                saveContentScale(draggingComponentId, valueAt(mouseX, layout.textTrack()));
+            } else {
+                savePaddingScale(draggingComponentId, valueAt(mouseX, layout.paddingTrack()));
+            }
+            break;
+        }
+        return true;
+    }
+
+    /** Releases whatever slider {@link #mouseClicked}/{@link #mouseDragged} were holding, if any. */
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (button != 0 || draggingComponentId == null) {
+            return false;
+        }
+        draggingComponentId = null;
         return true;
     }
 

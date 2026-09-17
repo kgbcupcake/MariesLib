@@ -91,5 +91,10 @@
   "config.marieslib.presets.saveDialog.save": "Save",
   "config.marieslib.scaleconfig.textScale": "Text Scale",
   "config.marieslib.scaleconfig.padding": "Padding",
+  "config.marieslib.colors.hex": "Hex Color",
+  "config.marieslib.colors.hexHint": "#RRGGBB",
+  "config.marieslib.colors.reset": "Reset",
+  "config.marieslib.colors.error.empty": "Hex color cannot be empty",
+  "config.marieslib.colors.error.invalid": "Invalid hex color (expected #RRGGBB)",
   "marieslib.commandcenter.title": "Command Center"
 }
