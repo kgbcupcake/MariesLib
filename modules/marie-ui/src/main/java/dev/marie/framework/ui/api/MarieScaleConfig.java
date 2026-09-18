@@ -17,9 +17,12 @@ import java.util.List;
  * <p>{@link #create} builds the panel; MarieLib does not own a screen for it. The returned {@link
  * ScaleConfigPanel} is a plain object, not a {@code Screen} — the caller's own host screen owns
  * the instance, decides when it's visible, and must call {@link ScaleConfigPanel#render}/{@link
- * ScaleConfigPanel#mouseClicked}/{@link ScaleConfigPanel#mouseScrolled} itself every frame while
+ * ScaleConfigPanel#mouseClicked}/{@link ScaleConfigPanel#mouseDragged}/{@link
+ * ScaleConfigPanel#mouseReleased}/{@link ScaleConfigPanel#mouseScrolled} itself every frame while
  * it should be interactive (typically forwarding from the host screen's own {@code render}/{@code
- * mouseClicked}/{@code mouseScrolled}).
+ * mouseClicked}/{@code mouseDragged}/{@code mouseReleased}/{@code mouseScrolled}) — entries render
+ * collapsed as tabs by default, and {@code mouseDragged}/{@code mouseReleased} drive repositioning
+ * and resizing the single open window.
  *
  * <pre>{@code
  * // in the host screen's field initializers:
@@ -35,6 +38,10 @@ import java.util.List;
  * if (scaleConfigPanel.mouseClicked(mouseX, mouseY, button)) {
  *     return true;
  * }
+ * if (scaleConfigPanel.mouseDragged(mouseX, mouseY, button)) {
+ *     return true;
+ * }
+ * scaleConfigPanel.mouseReleased(mouseX, mouseY, button);
  * }</pre>
  */
 @ApiStatus.Experimental

@@ -3,6 +3,7 @@ package dev.marie.framework.api.value;
 import dev.marie.framework.api.ApiStatus;
 
 import javax.annotation.Nullable;
+import java.util.List;
 
 /**
  * Defines a custom value that can be registered with the MarieLib system.
@@ -16,6 +17,7 @@ public final class ValueDefinition {
     private final String id;
     private final String displayName;
     private final int color;
+    private final int tooltipColor;
     @Nullable
     private final Integer colorOverride;
     private final float defaultDecayRate;
@@ -26,11 +28,15 @@ public final class ValueDefinition {
     private final ValueRenderer customRenderer;
     private final boolean beneficial;
     private final double amountScale;
+    @Nullable
+    private final String icon;
+    private final List<String> tags;
 
     private ValueDefinition(
             String id,
             String displayName,
             int color,
+            int tooltipColor,
             @Nullable Integer colorOverride,
             float defaultDecayRate,
             float criticalThreshold,
@@ -38,11 +44,14 @@ public final class ValueDefinition {
             float excessThreshold,
             @Nullable ValueRenderer customRenderer,
             boolean beneficial,
-            double amountScale
+            double amountScale,
+            @Nullable String icon,
+            List<String> tags
     ) {
         this.id = id;
         this.displayName = displayName;
         this.color = color;
+        this.tooltipColor = tooltipColor;
         this.colorOverride = colorOverride;
         this.defaultDecayRate = defaultDecayRate;
         this.criticalThreshold = criticalThreshold;
@@ -51,6 +60,8 @@ public final class ValueDefinition {
         this.customRenderer = customRenderer;
         this.beneficial = beneficial;
         this.amountScale = amountScale;
+        this.icon = icon;
+        this.tags = tags;
     }
 
     /**
@@ -92,6 +103,16 @@ public final class ValueDefinition {
     @ApiStatus.Stable
     public int getColor() {
         return color;
+    }
+
+    /**
+     * Returns the ARGB color used for rendering this value's tooltip.
+     *
+     * @return the tooltip color as a packed ARGB integer
+     */
+    @ApiStatus.Stable
+    public int getTooltipColor() {
+        return tooltipColor;
     }
 
     @Nullable
@@ -173,6 +194,17 @@ public final class ValueDefinition {
         return amountScale;
     }
 
+    @Nullable
+    @ApiStatus.Stable
+    public String getIcon() {
+        return icon;
+    }
+
+    @ApiStatus.Stable
+    public List<String> getTags() {
+        return tags;
+    }
+
     /**
      * Builder for constructing {@link ValueDefinition} instances.
      */
@@ -182,6 +214,7 @@ public final class ValueDefinition {
         private final String id;
         private String displayName = "";
         private int color = 0xFFFFFFFF;
+        private int tooltipColor = 0xFFFFFFFF;
         private Integer colorOverride = null;
         private float defaultDecayRate = 0.001f;
         private float criticalThreshold = 0.1f;
@@ -191,6 +224,9 @@ public final class ValueDefinition {
         private ValueRenderer customRenderer;
         private boolean beneficial = true;
         private double amountScale = 1.0;
+        @Nullable
+        private String icon = null;
+        private List<String> tags = List.of();
 
         private Builder(String id) {
             this.id = id;
@@ -218,6 +254,18 @@ public final class ValueDefinition {
         public Builder color(int color) {
             this.color = color;
             this.colorOverride = color;
+            return this;
+        }
+
+        /**
+         * Sets the ARGB color used for tooltip rendering.
+         *
+         * @param tooltipColor the packed ARGB color integer
+         * @return this builder for chaining
+         */
+        @ApiStatus.Stable
+        public Builder tooltipColor(int tooltipColor) {
+            this.tooltipColor = tooltipColor;
             return this;
         }
 
@@ -302,6 +350,20 @@ public final class ValueDefinition {
             return this;
         }
 
+        /** Sets the icon for this value. Default: null. */
+        @ApiStatus.Stable
+        public Builder icon(@Nullable String icon) {
+            this.icon = icon;
+            return this;
+        }
+
+        /** Sets the food-tag list for this value, defensively copied. Default: empty list. */
+        @ApiStatus.Stable
+        public Builder tags(List<String> tags) {
+            this.tags = List.copyOf(tags);
+            return this;
+        }
+
         /**
          * Builds and returns the immutable {@link ValueDefinition}.
          *
@@ -323,6 +385,7 @@ public final class ValueDefinition {
                     id,
                     displayName,
                     color,
+                    tooltipColor,
                     colorOverride,
                     defaultDecayRate,
                     criticalThreshold,
@@ -330,7 +393,9 @@ public final class ValueDefinition {
                     excessThreshold,
                     customRenderer,
                     beneficial,
-                    amountScale
+                    amountScale,
+                    icon,
+                    tags
             );
         }
     }

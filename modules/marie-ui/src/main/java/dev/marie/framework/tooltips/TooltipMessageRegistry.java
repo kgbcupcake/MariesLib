@@ -21,6 +21,7 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Player/modpack-dev-editable tooltip message overrides, keyed explicitly by {@code modId}.
@@ -30,11 +31,13 @@ import java.util.Optional;
  * so it works for any consumer mod regardless of whether that mod ever registers a
  * {@code MarieContext}.
  * <p>
- * <b>Priority / Override Stack (lowest to highest):</b>
+ * <b>Priority / Override Stack (highest to lowest):</b>
  * <ol>
- *   <li>No override (caller falls back to its own default)</li>
- *   <li>{@code config/<modId>/tooltips/tooltip_messages.json} (modpack creator override)</li>
+ *   <li>Runtime override (set via {@link #registerExternal}, e.g. by a KubeJS script;
+ *       survives config/datapack reloads)</li>
  *   <li>{@code data/<modId>/marie/tooltips/tooltip_messages.json} (datapack override)</li>
+ *   <li>{@code config/<modId>/tooltips/tooltip_messages.json} (modpack creator override)</li>
+ *   <li>No override (caller falls back to its own default)</li>
  * </ol>
  * Both tiers share the same JSON shape:
  * <pre>{@code
@@ -53,11 +56,16 @@ public final class TooltipMessageRegistry {
 
     private static final Map<String, OverrideTiers> CONFIG_CACHE = new HashMap<>();
     private static final Map<String, OverrideTiers> DATAPACK_CACHE = new HashMap<>();
+    private static final Map<String, Map<String, String>> EXTERNALLY_REGISTERED = new ConcurrentHashMap<>();
 
     private TooltipMessageRegistry() {}
 
     @ApiStatus.Experimental
     public static Optional<String> get(String modId, String key) {
+        Optional<String> fromExternal = lookupNonBlank(EXTERNALLY_REGISTERED.get(modId), key);
+        if (fromExternal.isPresent()) {
+            return fromExternal;
+        }
         Optional<String> fromDatapack = lookupNonBlank(DATAPACK_CACHE.get(modId), key);
         if (fromDatapack.isPresent()) {
             return fromDatapack;
@@ -68,6 +76,10 @@ public final class TooltipMessageRegistry {
 
     @ApiStatus.Experimental
     public static Optional<String> getForItem(String modId, String itemId, String key) {
+        Optional<String> fromExternalItem = lookupNonBlank(EXTERNALLY_REGISTERED.get(modId), itemId);
+        if (fromExternalItem.isPresent()) {
+            return fromExternalItem;
+        }
         Optional<String> fromDatapackItem = lookupItemNonBlank(DATAPACK_CACHE.get(modId), itemId);
         if (fromDatapackItem.isPresent()) {
             return fromDatapackItem;
@@ -78,6 +90,26 @@ public final class TooltipMessageRegistry {
             return fromConfigItem;
         }
         return get(modId, key);
+    }
+
+    /**
+     * Sets a runtime tooltip message override for {@code key} under {@code modId}, e.g. from a
+     * KubeJS script. Takes priority over both the datapack and config tiers, and survives
+     * {@link #reload} and {@link #loadFromDatapack} calls. Overwrites any existing runtime value
+     * for the same {@code modId}/{@code key} rather than throwing.
+     */
+    @ApiStatus.Experimental
+    public static void registerExternal(String modId, String key, String message) {
+        EXTERNALLY_REGISTERED.computeIfAbsent(modId, m -> new ConcurrentHashMap<>()).put(key, message);
+    }
+
+    /** Clears a single runtime override previously set via {@link #registerExternal}. */
+    @ApiStatus.Experimental
+    public static void removeExternal(String modId, String key) {
+        Map<String, String> messages = EXTERNALLY_REGISTERED.get(modId);
+        if (messages != null) {
+            messages.remove(key);
+        }
     }
 
     /**
