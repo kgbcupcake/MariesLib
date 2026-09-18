@@ -91,5 +91,6 @@
   "config.marieslib.presets.saveDialog.save": "Save",
   "config.marieslib.scaleconfig.textScale": "Text Scale",
   "config.marieslib.scaleconfig.padding": "Padding",
+  "config.marieslib.scaleconfig.moveContent": "Move Text and Icons",
   "marieslib.commandcenter.title": "Command Center"
 }

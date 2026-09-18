@@ -30,6 +30,7 @@ public final class LightTheme implements Theme {
         COLORS.put(ThemeKey.EDIT_BANNER_TEXT, 0xFF101010);
         COLORS.put(ThemeKey.EDIT_BANNER_BACKGROUND, 0xCCFFFFFF);
         COLORS.put(ThemeKey.DASHED_PREVIEW, 0xFF1E7A63);
+        COLORS.put(ThemeKey.SUBBOX_GLOW, 0xFFB8860B);
     }
 
     private LightTheme() {}

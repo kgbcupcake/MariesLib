@@ -92,13 +92,43 @@ public final class GuiGraphicsRenderContext implements RenderContext {
     }
 
     @Override
+    public void drawGlow(int x, int y, int width, int height, int argbColor) {
+        int alpha = (argbColor >>> 24) & 0xFF;
+        int rgb = argbColor & 0x00FFFFFF;
+        int[] falloff = {100, 65, 35, 15};
+        for (int ring = 0; ring < falloff.length; ring++) {
+            int ringAlpha = alpha * falloff[ring] / 100;
+            int ringColor = (ringAlpha << 24) | rgb;
+            int rx = x - ring;
+            int ry = y - ring;
+            int rw = width + ring * 2;
+            int rh = height + ring * 2;
+            graphics.fill(rx, ry, rx + rw, ry + 1, ringColor);
+            graphics.fill(rx, ry + rh - 1, rx + rw, ry + rh, ringColor);
+            graphics.fill(rx, ry + 1, rx + 1, ry + rh - 1, ringColor);
+            graphics.fill(rx + rw - 1, ry + 1, rx + rw, ry + rh - 1, ringColor);
+        }
+    }
+
+    @Override
     public void drawText(String text, int x, int y, int argbColor, float scale) {
+        // pushPose/popPose MUST be paired even if drawString throws partway through (e.g. a
+        // malformed component/font-provider edge case) — GuiGraphics' PoseStack is the same shared
+        // instance every RenderGuiEvent.Post subscriber this frame draws through. An unmatched
+        // pushPose here leaves that translate+scale applied to every later fill()/drawString()/
+        // renderItem() call for the rest of the frame (fill() applies the current pose transform to
+        // its quad), which is exactly how a tiny rect can end up stretched into a full-screen quad —
+        // see the matching comment on drawItem below, and GuiGraphicsRenderContext#resetClip's
+        // analogous reasoning for the scissor stack.
         PoseStack pose = graphics.pose();
         pose.pushPose();
-        pose.translate(x, y, 0);
-        pose.scale(scale, scale, 1f);
-        graphics.drawString(minecraft.font, text, 0, 0, argbColor, false);
-        pose.popPose();
+        try {
+            pose.translate(x, y, 0);
+            pose.scale(scale, scale, 1f);
+            graphics.drawString(minecraft.font, text, 0, 0, argbColor, false);
+        } finally {
+            pose.popPose();
+        }
     }
 
     @Override
@@ -108,12 +138,24 @@ public final class GuiGraphicsRenderContext implements RenderContext {
 
     @Override
     public void drawItem(ItemStack stack, int x, int y, float scale) {
+        // Same pairing requirement as drawText above: graphics.renderItem() resolves the stack's
+        // BakedModel and can throw (a transiently-unbaked/unregistered item id — plausible for a
+        // Nourished nutrient icon resolved mid-sync while values are updating rapidly, e.g. while
+        // eating). Without this try/finally, that throw skips popPose(), leaving this translate+scale
+        // baked into GuiGraphics' shared PoseStack for every remaining fill()/drawString()/
+        // renderItem() call this frame (fill() draws its quad through the current pose transform) —
+        // a small bar/icon fill elsewhere can then be stretched into covering the whole screen, which
+        // self-heals next successful call and re-corrupts on the next throw, producing the rapid
+        // full-screen black flashing reported while eating repeatedly retriggers the same edge case.
         PoseStack pose = graphics.pose();
         pose.pushPose();
-        pose.translate(x, y, 0);
-        pose.scale(scale, scale, 1f);
-        graphics.renderItem(stack, 0, 0);
-        pose.popPose();
+        try {
+            pose.translate(x, y, 0);
+            pose.scale(scale, scale, 1f);
+            graphics.renderItem(stack, 0, 0);
+        } finally {
+            pose.popPose();
+        }
     }
 
     @Override
@@ -165,6 +207,21 @@ public final class GuiGraphicsRenderContext implements RenderContext {
         } else {
             int[] parent = clipStack.peek();
             graphics.enableScissor(parent[0], parent[1], parent[2], parent[3]);
+        }
+    }
+
+    /**
+     * Resets the scissor stack to empty and disables scissoring, regardless of how many
+     * {@link #pushClip} calls are outstanding. Call this once per frame after a consumer's
+     * render pass completes (in a {@code finally} block around it) so that an exception thrown
+     * by that consumer between a {@link #pushClip}/{@link #popClip} pair — e.g. a HUD overlay
+     * whose backing data mutates mid-render — can never leave the GL scissor rect clamped for
+     * the rest of the frame.
+     */
+    public void resetClip() {
+        if (!clipStack.isEmpty()) {
+            clipStack.clear();
+            graphics.disableScissor();
         }
     }
 

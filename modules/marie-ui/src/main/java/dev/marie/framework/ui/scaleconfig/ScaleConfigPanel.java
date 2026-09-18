@@ -42,7 +42,7 @@ public final class ScaleConfigPanel {
     private static final int ROW_GAP = 5;
 
     private static final int CARD_HEIGHT = CARD_PADDING + HEADER_HEIGHT + ROW_GAP
-            + 2 * (ROW_LABEL_HEIGHT + LABEL_TRACK_GAP + SLIDER_HEIGHT) + ROW_GAP + CARD_PADDING;
+            + 2 * (ROW_LABEL_HEIGHT + LABEL_TRACK_GAP + SLIDER_HEIGHT) + ROW_GAP + ROW_LABEL_HEIGHT + ROW_GAP + CARD_PADDING;
 
     /** Collapsed-tab row height — same anchor-stacking approach as the open card once used, just shorter. */
     private static final int TAB_HEIGHT = 18;
@@ -234,6 +234,7 @@ public final class ScaleConfigPanel {
         int track1Y = row1Y + ROW_LABEL_HEIGHT + LABEL_TRACK_GAP;
         int row2Y = track1Y + SLIDER_HEIGHT + ROW_GAP;
         int track2Y = row2Y + ROW_LABEL_HEIGHT + LABEL_TRACK_GAP;
+        int row3Y = track2Y + SLIDER_HEIGHT + ROW_GAP;
         Bounds textTrack = new Bounds(trackX, track1Y, trackW, SLIDER_HEIGHT);
         Bounds paddingTrack = new Bounds(trackX, track2Y, trackW, SLIDER_HEIGHT);
         // Click/drag hit-testing uses these, not the drawn track directly — the track itself is a
@@ -242,12 +243,15 @@ public final class ScaleConfigPanel {
         // track, so a press anywhere in the row (label included) starts the drag.
         Bounds textRowHit = new Bounds(trackX, row1Y, trackW, (track1Y + SLIDER_HEIGHT) - row1Y);
         Bounds paddingRowHit = new Bounds(trackX, row2Y, trackW, (track2Y + SLIDER_HEIGHT) - row2Y);
+        // No track/scrub for this row — a single click flips it — so its hit region is just its own label height.
+        Bounds moveContentRowHit = new Bounds(trackX, row3Y, trackW, ROW_LABEL_HEIGHT);
         Bounds headerBounds = new Bounds(windowBounds.x(), windowBounds.y(), windowBounds.width(), CARD_PADDING + HEADER_HEIGHT);
         Bounds collapseButton = new Bounds(
                 windowBounds.x() + windowBounds.width() - CARD_PADDING - COLLAPSE_BUTTON_SIZE,
                 windowBounds.y() + (CARD_PADDING + HEADER_HEIGHT - COLLAPSE_BUTTON_SIZE) / 2,
                 COLLAPSE_BUTTON_SIZE, COLLAPSE_BUTTON_SIZE);
-        return new WindowLayout(entry, accent, windowBounds, row1Y, textTrack, textRowHit, row2Y, paddingTrack, paddingRowHit, headerBounds, collapseButton);
+        return new WindowLayout(entry, accent, windowBounds, row1Y, textTrack, textRowHit, row2Y, paddingTrack, paddingRowHit,
+                row3Y, moveContentRowHit, headerBounds, collapseButton);
     }
 
     private void drawWindow(RenderContext context, WindowLayout layout) {
@@ -274,6 +278,8 @@ public final class ScaleConfigPanel {
                 contentScale, textSecondary, layout.accentColor());
         drawSliderRow(context, "config.marieslib.scaleconfig.padding", window.x() + CARD_PADDING, layout.row2Y(), layout.paddingTrack(),
                 paddingScale, textSecondary, layout.accentColor());
+        drawToggleRow(context, "config.marieslib.scaleconfig.moveContent", window.x() + CARD_PADDING, layout.row3Y(), layout.moveContentRowHit(),
+                isMoveContentEnabled(componentId), textSecondary, layout.accentColor());
 
         boolean resizingThis = componentId.equals(resizingWindowComponentId);
         context.drawResizeHandle(window.x() + window.width() - DraggableResizable.RESIZE_HANDLE_SIZE,
@@ -295,6 +301,14 @@ public final class ScaleConfigPanel {
                 / (ContentScaleController.SCALE_STORAGE_MAX - ContentScaleController.SCALE_STORAGE_MIN));
         int trackBg = context.theme().color(ThemeKey.BAR_BACKGROUND);
         context.drawBar(track.x(), track.y(), track.width(), track.height(), fillPct, trackBg, accent);
+    }
+
+    /** A single-line "label ... ON/OFF" row with no track/scrub — a click anywhere in {@code rowHit} just flips the state, handled in {@link #handleWindowClick}. */
+    private void drawToggleRow(RenderContext context, String labelKey, int labelX, int labelY, Bounds rowHit,
+                                boolean enabled, int textColor, int accent) {
+        context.drawText(Component.translatable(labelKey).getString(), labelX, labelY, textColor, 0.8f);
+        String state = enabled ? "ON" : "OFF";
+        context.drawText(state, rowHit.x() + rowHit.width() - 24, labelY, enabled ? accent : textColor, 0.8f);
     }
 
     /**
@@ -352,6 +366,10 @@ public final class ScaleConfigPanel {
             draggingSliderIsPadding = true;
             draggingSliderTrack = window.paddingTrack();
             draggingSliderLiveValue = valueAt(mouseX, draggingSliderTrack);
+            return;
+        }
+        if (window.moveContentRowHit().contains(mx, my)) {
+            toggleMoveContent(window.entry().componentId());
             return;
         }
         if (DraggableResizable.handleBounds(windowBounds).contains(mx, my)) {
@@ -575,10 +593,33 @@ public final class ScaleConfigPanel {
         return componentId + "#window";
     }
 
+    private static String moveContentKey(String componentId) {
+        return componentId + "#moveContent";
+    }
+
+    /**
+     * Whether {@code componentId}'s "Move Text and Icons" toggle is currently on — a host panel
+     * polls this each frame (while its own edit mode/scale-config panel is visible) to decide
+     * whether dragging its content should translate the content instead of the whole component.
+     * Storage reuses {@link ComponentState#collapsed()} as a generic boolean flag under this
+     * dedicated {@code #moveContent}-suffixed key — unrelated to any window's own collapsed state,
+     * same as how other callers repurpose a {@code ComponentState} field for an unrelated single
+     * value rather than inventing a new record shape for one boolean/int pair.
+     */
+    public boolean isMoveContentEnabled(String componentId) {
+        return persistence.load(moveContentKey(componentId)).map(ComponentState::collapsed).orElse(false);
+    }
+
+    private void toggleMoveContent(String componentId) {
+        boolean enabled = isMoveContentEnabled(componentId);
+        persistence.save(moveContentKey(componentId), new ComponentState(0, 0, 0, 0, !enabled, false, false, 0));
+    }
+
     private record TabLayout(ScaleConfigEntry entry, Bounds tabBounds) {}
 
     private record WindowLayout(ScaleConfigEntry entry, int accentColor, Bounds windowBounds,
                                  int row1Y, Bounds textTrack, Bounds textRowHit,
                                  int row2Y, Bounds paddingTrack, Bounds paddingRowHit,
+                                 int row3Y, Bounds moveContentRowHit,
                                  Bounds headerBounds, Bounds collapseButtonBounds) {}
 }

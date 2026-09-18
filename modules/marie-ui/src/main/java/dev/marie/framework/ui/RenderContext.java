@@ -32,6 +32,13 @@ public interface RenderContext {
     void drawDashedBorder(int x, int y, int width, int height, int argbColor);
 
     /**
+     * Draws a soft highlight ring around a rectangle — distinct from {@link #drawBorder}'s flat
+     * single-pixel border, this marks a component as draggable/movable without implying a resize
+     * handle.
+     */
+    void drawGlow(int x, int y, int width, int height, int argbColor);
+
+    /**
      * Fills and borders a rectangle with 1px diagonal-notched corners — the classic pixel-art
      * "rounded rect" fake used throughout Minecraft GUIs: the outermost corner pixel is left
      * untouched (transparent) and the pixel diagonally inset from it is drawn in

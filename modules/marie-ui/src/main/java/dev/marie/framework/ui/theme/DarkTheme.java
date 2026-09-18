@@ -30,6 +30,7 @@ public final class DarkTheme implements Theme {
         COLORS.put(ThemeKey.EDIT_BANNER_TEXT, 0xFFFFFFFF);
         COLORS.put(ThemeKey.EDIT_BANNER_BACKGROUND, 0xCC000000);
         COLORS.put(ThemeKey.DASHED_PREVIEW, 0xFF6CFFD0);
+        COLORS.put(ThemeKey.SUBBOX_GLOW, 0xFFE8B84B);
     }
 
     private DarkTheme() {}
