@@ -1,21 +1,31 @@
 package dev.marie.framework.ui.scaleconfig;
 
+import dev.marie.framework.ui.PersistenceProvider;
 import dev.marie.framework.ui.RenderContext;
 import dev.marie.framework.ui.component.MarieComponent;
 import dev.marie.framework.ui.geometry.Bounds;
+import dev.marie.framework.ui.toolbox.ModuleOptionRows;
+import dev.marie.framework.ui.toolbox.OptionLayout;
 
 /**
- * Hosting/forwarding for a {@link ScaleConfigEntry}'s optional content: sizes the open window to it,
- * draws it below the window header, and forwards input to it. Every method is a no-op returning
- * false/unchanged for an entry without content, so {@link ScaleConfigPanel} calls these
- * unconditionally and keeps its built-in rows as the fallback.
+ * Hosting/forwarding for the content shown in a {@link ScaleConfigPanel} window: builds the default
+ * content, sizes the window to it, draws it below the window header, and forwards input to it. Every
+ * entry is hosted — an entry without caller-supplied content gets the default Text Scale / Padding /
+ * Move Text and Icons rows, built from the same toolbox widgets a custom panel uses.
  */
 final class HostedWindow {
 
-    /** Hit region for the built-in rows of a hosted window, which must never respond. */
-    static final Bounds NO_HIT = new Bounds(0, 0, 0, 0);
-
     private HostedWindow() {}
+
+    /** The default window content for an entry with none of its own: Text Scale, Padding and a Move Text and Icons toggle over {@code persistence}. */
+    static MarieComponent defaultContent(PersistenceProvider persistence, String componentId) {
+        OptionLayout layout = new OptionLayout(componentId);
+        layout.addTab("");
+        ModuleOptionRows.addTextScale(layout, persistence, componentId);
+        ModuleOptionRows.addPadding(layout, persistence, componentId);
+        ModuleOptionRows.addMoveTextToggle(layout, persistence, componentId);
+        return layout;
+    }
 
     /** The area below the window header where the content is drawn. */
     private static Bounds body(Bounds window) {
@@ -26,27 +36,19 @@ final class HostedWindow {
     }
 
     /**
-     * {@code window} grown to the content's preferred height (capped at the window maximum), for the
-     * size a hosted window <em>first opens at</em>. It is deliberately not a minimum: the player can
-     * resize the window smaller afterwards and the content scrolls instead of being forced open.
+     * {@code window} grown to the content's preferred height, for the size a window <em>first opens at</em>
+     * (the render-time clamp keeps it on screen). It is deliberately not a minimum: the player can resize the
+     * window smaller afterwards and the content scrolls instead of being forced open.
      */
-    static Bounds fit(ScaleConfigEntry entry, Bounds window) {
-        MarieComponent content = entry.content();
-        if (content == null) {
-            return window;
-        }
+    static Bounds fit(MarieComponent content, Bounds window) {
         int needed = ScaleConfigPanel.CARD_PADDING + ScaleConfigPanel.HEADER_HEIGHT + ScaleConfigPanel.ROW_GAP
                 + content.constraint().preferredSize().height() + ScaleConfigPanel.CARD_PADDING;
-        int height = Math.max(window.height(), Math.min(needed, ScaleConfigPanel.MAX_WINDOW_HEIGHT));
+        int height = Math.max(window.height(), needed);
         return new Bounds(window.x(), window.y(), window.width(), height);
     }
 
-    /** Draws the content clipped to the window body; false if the entry has none. */
-    static boolean render(RenderContext context, ScaleConfigEntry entry, Bounds window) {
-        MarieComponent content = entry.content();
-        if (content == null) {
-            return false;
-        }
+    /** Draws the content clipped to the window body. */
+    static void render(RenderContext context, MarieComponent content, Bounds window) {
         Bounds body = body(window);
         context.pushClip(body.x(), body.y(), body.width(), body.height());
         try {
@@ -54,27 +56,21 @@ final class HostedWindow {
         } finally {
             context.popClip();
         }
-        return true;
     }
 
-    static boolean mouseClicked(ScaleConfigEntry entry, Bounds window, double mouseX, double mouseY) {
-        MarieComponent content = entry.content();
-        return content != null && body(window).contains((int) mouseX, (int) mouseY) && content.mouseClicked(mouseX, mouseY, 0);
+    static boolean mouseClicked(MarieComponent content, Bounds window, double mouseX, double mouseY) {
+        return body(window).contains((int) mouseX, (int) mouseY) && content.mouseClicked(mouseX, mouseY, 0);
     }
 
-    static boolean mouseDragged(ScaleConfigEntry entry, double mouseX, double mouseY, int button) {
-        MarieComponent content = entry.content();
-        return content != null && content.mouseDragged(mouseX, mouseY, button, 0, 0);
+    static boolean mouseDragged(MarieComponent content, double mouseX, double mouseY, int button) {
+        return content.mouseDragged(mouseX, mouseY, button, 0, 0);
     }
 
-    static boolean mouseReleased(ScaleConfigEntry entry, double mouseX, double mouseY, int button) {
-        MarieComponent content = entry.content();
-        return content != null && content.mouseReleased(mouseX, mouseY, button);
+    static boolean mouseReleased(MarieComponent content, double mouseX, double mouseY, int button) {
+        return content.mouseReleased(mouseX, mouseY, button);
     }
 
-    static boolean mouseScrolled(ScaleConfigEntry entry, Bounds window, double mouseX, double mouseY, double scrollX, double scrollY) {
-        MarieComponent content = entry.content();
-        return content != null && body(window).contains((int) mouseX, (int) mouseY)
-                && content.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+    static boolean mouseScrolled(MarieComponent content, Bounds window, double mouseX, double mouseY, double scrollX, double scrollY) {
+        return body(window).contains((int) mouseX, (int) mouseY) && content.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 }

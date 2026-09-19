@@ -3,6 +3,7 @@ package dev.marie.framework.ui.api;
 import dev.marie.framework.api.ApiStatus;
 import dev.marie.framework.ui.PersistenceProvider;
 import dev.marie.framework.ui.geometry.Anchor;
+import dev.marie.framework.ui.modulesettings.MoveFlags;
 import dev.marie.framework.ui.scaleconfig.ScaleConfigEntry;
 import dev.marie.framework.ui.scaleconfig.ScaleConfigPanel;
 
@@ -60,5 +61,19 @@ public final class MarieScaleConfig {
      */
     public static ScaleConfigPanel create(List<ScaleConfigEntry> entries, PersistenceProvider persistence, Anchor anchor) {
         return new ScaleConfigPanel(entries, persistence, anchor);
+    }
+
+    /**
+     * Whether {@code componentId}'s "Move Text and Icons" flag is on in {@code persistence} — the same
+     * value {@link ScaleConfigPanel#isMoveContentEnabled} reads back and the panel's own toggle (and
+     * the toolbox's move toggles) write, for code that has the store but no panel instance.
+     */
+    public static boolean isMoveContentEnabled(PersistenceProvider persistence, String componentId) {
+        return MoveFlags.isOn(persistence, componentId);
+    }
+
+    /** Sets the flag {@link #isMoveContentEnabled} reads; same stored key and format the panel's toggle uses. */
+    public static void setMoveContentEnabled(PersistenceProvider persistence, String componentId, boolean enabled) {
+        MoveFlags.set(persistence, componentId, enabled);
     }
 }

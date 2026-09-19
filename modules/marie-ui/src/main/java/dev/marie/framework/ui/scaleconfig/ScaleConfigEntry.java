@@ -9,8 +9,9 @@ import javax.annotation.Nullable;
 /**
  * One card of {@link ScaleConfigPanel}: a component id, its display label, an optional accent color
  * — null falls back to the panel's cycling palette — and optional hosted content. With content
- * (see {@link #withContent}) the entry's open window shows that component instead of the built-in
- * Text Scale/Padding/Move Text and Icons rows, and sizes itself to its preferred height.
+ * (see {@link #withContent}) the entry's open window shows that component; without it, the window shows a
+ * default Text Scale/Padding/Move Text and Icons panel over the entry's persisted scales. Either way the
+ * window first opens at the content's preferred height.
  */
 @ApiStatus.Experimental
 public record ScaleConfigEntry(String componentId, Component label, @Nullable Integer accentColor, @Nullable MarieComponent content) {

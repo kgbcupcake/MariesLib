@@ -92,5 +92,17 @@
   "config.marieslib.scaleconfig.textScale": "Text Scale",
   "config.marieslib.scaleconfig.padding": "Padding",
   "config.marieslib.scaleconfig.moveContent": "Move Text and Icons",
+  "config.marieslib.moduleoptions.tab.layout": "Layout",
+  "config.marieslib.moduleoptions.tab.behavior": "Behavior",
+  "config.marieslib.moduleoptions.tab.appearance": "Appearance",
+  "config.marieslib.moduleoptions.textSize": "Text size",
+  "config.marieslib.moduleoptions.iconSize": "Icon size",
+  "config.marieslib.moduleoptions.moveText": "Move Text",
+  "config.marieslib.moduleoptions.moveIcons": "Move Icons",
+  "config.marieslib.moduleoptions.moveBars": "Move Bars",
+  "config.marieslib.moduleoptions.barSize": "Bar size",
+  "config.marieslib.moduleoptions.textBrightness": "Text brightness",
+  "config.marieslib.moduleoptions.iconBrightness": "Icon brightness",
+  "config.marieslib.moduleoptions.backgroundOpacity": "Background opacity",
   "marieslib.commandcenter.title": "Command Center"
 }

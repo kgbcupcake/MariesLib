@@ -1,9 +1,11 @@
 package dev.marie.framework.ui.api;
 
 import dev.marie.framework.api.ApiStatus;
+import dev.marie.framework.ui.PersistenceProvider;
 import dev.marie.framework.ui.component.MarieComponent;
 import dev.marie.framework.ui.toolbox.BooleanSetter;
 import dev.marie.framework.ui.toolbox.CycleOption;
+import dev.marie.framework.ui.toolbox.ModuleOptionRows;
 import dev.marie.framework.ui.toolbox.OptionLayout;
 import dev.marie.framework.ui.toolbox.SliderOption;
 import dev.marie.framework.ui.toolbox.ToggleOption;
@@ -76,6 +78,30 @@ public final class MarieToolbox {
         /** Choice button over {@code labels}, bound to an index into it; a click advances and wraps. */
         public PanelBuilder cycle(String label, String[] labels, IntSupplier indexGetter, IntConsumer indexSetter, Runnable onCommit) {
             layout.addRow(new CycleOption(label, labels, indexGetter, indexSetter, onCommit));
+            return this;
+        }
+
+        /** Adds the shared Padding slider, over the module's own {@code persistence} store under {@code panelId}. */
+        public PanelBuilder padding(PersistenceProvider persistence, String panelId) {
+            ModuleOptionRows.addPadding(layout, persistence, panelId);
+            return this;
+        }
+
+        /** Adds independent Text size and Icon size sliders over {@code persistence} — see {@link MarieModuleSettings#textScale}/{@link MarieModuleSettings#iconScale} for reading them back. */
+        public PanelBuilder textAndIconSizes(PersistenceProvider persistence, String panelId) {
+            ModuleOptionRows.addSizes(layout, persistence, panelId);
+            return this;
+        }
+
+        /** Adds a Bar size slider (bar length and thickness, and the value text at the bar's end) over {@code persistence}; read it back with {@link MarieModuleSettings#barScale}. */
+        public PanelBuilder barSize(PersistenceProvider persistence, String panelId) {
+            ModuleOptionRows.addBarSize(layout, persistence, panelId);
+            return this;
+        }
+
+        /** Adds the "Move Text", "Move Icons" and "Move Bars" toggles (mutually exclusive) over {@code persistence}; see {@link MarieModuleSettings#isMoveBarsEnabled}. */
+        public PanelBuilder moveToggles(PersistenceProvider persistence, String panelId) {
+            ModuleOptionRows.addMoveToggles(layout, persistence, panelId);
             return this;
         }
 
