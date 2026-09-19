@@ -202,12 +202,9 @@ public final class GuiGraphicsRenderContext implements RenderContext {
             return;
         }
         clipStack.pop();
-        if (clipStack.isEmpty()) {
-            graphics.disableScissor();
-        } else {
-            int[] parent = clipStack.peek();
-            graphics.enableScissor(parent[0], parent[1], parent[2], parent[3]);
-        }
+        // GuiGraphics keeps its own scissor stack: enableScissor pushes an entry, disableScissor pops
+        // one and restores the parent region itself.
+        graphics.disableScissor();
     }
 
     /**
@@ -219,8 +216,8 @@ public final class GuiGraphicsRenderContext implements RenderContext {
      * the rest of the frame.
      */
     public void resetClip() {
-        if (!clipStack.isEmpty()) {
-            clipStack.clear();
+        while (!clipStack.isEmpty()) {
+            clipStack.pop();
             graphics.disableScissor();
         }
     }
