@@ -100,6 +100,8 @@
   "config.marieslib.moduleoptions.moveText": "Move Text",
   "config.marieslib.moduleoptions.moveIcons": "Move Icons",
   "config.marieslib.moduleoptions.moveBars": "Move Bars",
+  "config.marieslib.moduleoptions.moveAll": "Move All",
+  "config.marieslib.moduleoptions.resetPositions": "Reset Positions",
   "config.marieslib.moduleoptions.barSize": "Bar size",
   "config.marieslib.moduleoptions.textBrightness": "Text brightness",
   "config.marieslib.moduleoptions.iconBrightness": "Icon brightness",

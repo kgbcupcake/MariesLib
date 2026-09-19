@@ -61,6 +61,11 @@ public final class ModuleOffsets {
         return panelId + ".bars";
     }
 
+    /** Id whose {@link MoveFlags} flag is this module's "move all" mode (text, icons and bars together). */
+    public static String moveAllFlagId(String panelId) {
+        return panelId + ".all";
+    }
+
     /** Id whose {@link MoveFlags} flag is this module's "move icons" mode. */
     public static String moveIconsFlagId(String panelId) {
         return panelId + ".icons";

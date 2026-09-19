@@ -58,11 +58,11 @@ public final class ModuleOptionRows {
                 ContentScaleController.SCALE_STORAGE_MIN, ContentScaleController.SCALE_STORAGE_MAX, SCALE_STEP, ALREADY_SAVED));
     }
 
-    /** "Move Text", "Move Icons" and "Move Bars" toggles; turning any on turns the other two off (one drag mode at a time). */
+    /** "Move Text", "Move Icons", "Move Bars" and "Move All" toggles; turning any on turns the others off (one drag mode at a time). */
     public static void addMoveToggles(OptionLayout layout, PersistenceProvider p, String id) {
-        String[] flags = {id, ModuleOffsets.moveIconsFlagId(id), ModuleOffsets.moveBarsFlagId(id)};
+        String[] flags = {id, ModuleOffsets.moveIconsFlagId(id), ModuleOffsets.moveBarsFlagId(id), ModuleOffsets.moveAllFlagId(id)};
         String[] labels = {"config.marieslib.moduleoptions.moveText", "config.marieslib.moduleoptions.moveIcons",
-                "config.marieslib.moduleoptions.moveBars"};
+                "config.marieslib.moduleoptions.moveBars", "config.marieslib.moduleoptions.moveAll"};
         for (int i = 0; i < flags.length; i++) {
             String own = flags[i];
             layout.addRow(new ToggleOption(text(labels[i]), () -> MoveFlags.isOn(p, own), v -> {
@@ -76,6 +76,24 @@ public final class ModuleOptionRows {
                 }
             }, ALREADY_SAVED));
         }
+    }
+
+    /**
+     * "Reset Positions" button: puts the module's icon and bar offsets back to zero (saved), switches every
+     * move mode off, then runs {@code hostReset} for whatever the host stores itself (typically its own
+     * text offset).
+     */
+    public static void addResetPositions(OptionLayout layout, PersistenceProvider p, String id, Runnable hostReset) {
+        layout.addRow(new ButtonOption(text("config.marieslib.moduleoptions.resetPositions"), "RESET", () -> {
+            ModuleOffsets.setBar(p, id, 0, 0);
+            ModuleOffsets.commitBar(p, id);
+            ModuleOffsets.setIcon(p, id, 0, 0);
+            ModuleOffsets.commitIcon(p, id);
+            for (String flag : new String[]{id, ModuleOffsets.moveIconsFlagId(id), ModuleOffsets.moveBarsFlagId(id), ModuleOffsets.moveAllFlagId(id)}) {
+                MoveFlags.set(p, flag, false);
+            }
+            hostReset.run();
+        }, ALREADY_SAVED));
     }
 
     private static String text(String key) {

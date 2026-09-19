@@ -105,6 +105,15 @@ public final class MarieToolbox {
             return this;
         }
 
+        /**
+         * Adds a "Reset Positions" button: icon and bar offsets go back to zero (saved), all move modes switch
+         * off, then {@code hostReset} runs for anything the host stores itself, such as its text offset.
+         */
+        public PanelBuilder resetPositions(PersistenceProvider persistence, String panelId, Runnable hostReset) {
+            ModuleOptionRows.addResetPositions(layout, persistence, panelId, hostReset);
+            return this;
+        }
+
         /** Greys out the option just added and ignores input on it while {@code enabled} reports false. */
         public PanelBuilder enabledWhen(BooleanSupplier enabled) {
             layout.enabledWhenLast(enabled);

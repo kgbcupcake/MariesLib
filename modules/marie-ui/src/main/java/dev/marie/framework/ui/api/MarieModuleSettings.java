@@ -82,6 +82,11 @@ public final class MarieModuleSettings {
         ModuleOffsets.commitIcon(store, panelId);
     }
 
+    /** Whether the "Move All" toggle is on (one drag moves text, icons and bars together). */
+    public static boolean isMoveAllEnabled(PersistenceProvider store, String panelId) {
+        return MoveFlags.isOn(store, ModuleOffsets.moveAllFlagId(panelId));
+    }
+
     /** Whether the "Move Icons" toggle is on. */
     public static boolean isMoveIconsEnabled(PersistenceProvider store, String panelId) {
         return MoveFlags.isOn(store, ModuleOffsets.moveIconsFlagId(panelId));
@@ -117,6 +122,9 @@ public final class MarieModuleSettings {
 
     /** The move mode currently switched on (at most one is), or {@code null} if none — for a host routing dragging to the matching offset. */
     public static MoveDrag.Mode activeMoveMode(PersistenceProvider store, String panelId) {
+        if (isMoveAllEnabled(store, panelId)) {
+            return MoveDrag.Mode.ALL;
+        }
         if (isMoveTextEnabled(store, panelId)) {
             return MoveDrag.Mode.TEXT;
         }
@@ -138,7 +146,7 @@ public final class MarieModuleSettings {
 
     /**
      * Starts the standard three-tab options panel: Layout (Padding), Behavior (Move Text, Move Icons,
-     * Move Bars) and Appearance (Text size, Icon size, Bar size, plus whichever of text brightness, icon
+     * Move Bars, Move All, Reset Positions) and Appearance (Text size, Icon size, Bar size, plus whichever of text brightness, icon
      * brightness and background opacity you bind).
      */
     public static StandardPanelBuilder standardPanel(String title, PersistenceProvider store, String panelId) {
@@ -146,7 +154,7 @@ public final class MarieModuleSettings {
     }
 
     /**
-     * Drag state for a module's three move modes (text, icons, bars), so a host's mouse handlers don't each carry the same
+     * Drag state for a module's move modes (text, icons, bars, or all three at once), so a host's mouse handlers don't each carry the same
      * grab-offset bookkeeping. One instance per module; the host still owns the offsets themselves and
      * their clamping (the bar offset through {@link #setBarOffset}, its text-and-icons offset however
      * it likes):
@@ -160,12 +168,42 @@ public final class MarieModuleSettings {
     public static final class MoveDrag {
 
         /** What a move drag is repositioning. */
-        public enum Mode { TEXT, ICONS, BARS }
+        public enum Mode {
+            TEXT, ICONS, BARS,
+            /** Text, icons and bars together: one drag shifts all three offsets by the same amount (see {@link #startAll}). */
+            ALL
+        }
 
         private boolean active;
         private Mode mode = Mode.TEXT;
         private int grabX;
         private int grabY;
+        /** Each single mode's offset at the press, indexed TEXT, ICONS, BARS — what {@link Mode#ALL} adds its delta to. */
+        private final int[] baseX = new int[3];
+        private final int[] baseY = new int[3];
+
+        /** Begins a {@link Mode#ALL} drag from the three offsets' current values; {@link #offsetX}/{@link #offsetY} then return the pointer's movement since the press, to add to {@link #baseX}/{@link #baseY} of each mode. */
+        public void startAll(double mouseX, double mouseY, int textX, int textY, int iconX, int iconY, int barX, int barY) {
+            this.active = true;
+            this.mode = Mode.ALL;
+            this.grabX = (int) mouseX;
+            this.grabY = (int) mouseY;
+            baseX[0] = textX;
+            baseY[0] = textY;
+            baseX[1] = iconX;
+            baseY[1] = iconY;
+            baseX[2] = barX;
+            baseY[2] = barY;
+        }
+
+        /** {@code single}'s offset when the {@link Mode#ALL} drag started ({@code single} must be TEXT, ICONS or BARS). */
+        public int baseX(Mode single) {
+            return baseX[single.ordinal()];
+        }
+
+        public int baseY(Mode single) {
+            return baseY[single.ordinal()];
+        }
 
         /** Begins dragging the offset of {@code mode} from its current value. */
         public void start(Mode mode, double mouseX, double mouseY, int currentOffsetX, int currentOffsetY) {
@@ -184,7 +222,7 @@ public final class MarieModuleSettings {
             return mode;
         }
 
-        /** The unclamped offset the pointer implies for the active drag. */
+        /** The unclamped offset the pointer implies for the active drag (for {@link Mode#ALL}, the movement since the press). */
         public int offsetX(double mouseX) {
             return (int) mouseX - grabX;
         }
@@ -211,6 +249,7 @@ public final class MarieModuleSettings {
         private DoubleSupplier iconBrightness;
         private DoubleConsumer setIconBrightness;
         private Runnable onCommit = () -> {};
+        private Runnable onReset = () -> {};
 
         private StandardPanelBuilder(String title, PersistenceProvider store, String panelId) {
             this.title = title;
@@ -243,10 +282,16 @@ public final class MarieModuleSettings {
             return this;
         }
 
+        /** Runs when "Reset Positions" is clicked, after the icon/bar offsets and move modes are reset — reset here whatever offset you store yourself. */
+        public StandardPanelBuilder onReset(Runnable onReset) {
+            this.onReset = onReset;
+            return this;
+        }
+
         public MarieComponent build() {
             MarieToolbox.PanelBuilder panel = MarieToolbox.panel(title)
                     .tab(label("layout")).padding(store, panelId)
-                    .tab(label("behavior")).moveToggles(store, panelId)
+                    .tab(label("behavior")).moveToggles(store, panelId).resetPositions(store, panelId, onReset)
                     .tab(label("appearance")).textAndIconSizes(store, panelId).barSize(store, panelId);
             if (textBrightness != null) {
                 panel.slider(text("config.marieslib.moduleoptions.textBrightness"), textBrightness, setTextBrightness,
