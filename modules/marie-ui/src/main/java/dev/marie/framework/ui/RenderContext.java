@@ -39,6 +39,17 @@ public interface RenderContext {
     void drawGlow(int x, int y, int width, int height, int argbColor);
 
     /**
+     * Rounded rectangle with a real corner {@code radius} (in pixels): each corner is a stepped quarter
+     * circle (for example radius 4 cuts 2, 1, 1, 0 pixels from the first four rows), unlike the
+     * fixed one-pixel notch of the overload without a radius. {@code thickness} is the border band
+     * width; border and fill do not overlap, so translucent colors blend correctly. Both values are
+     * clamped to half the shorter side.
+     */
+    default void drawRoundedRect(int x, int y, int width, int height, int thickness, int radius, int fillColor, int borderColor) {
+        dev.marie.framework.ui.render.RoundedRects.draw(this, x, y, width, height, thickness, radius, fillColor, borderColor);
+    }
+
+    /**
      * Fills and borders a rectangle with 1px diagonal-notched corners — the classic pixel-art
      * "rounded rect" fake used throughout Minecraft GUIs: the outermost corner pixel is left
      * untouched (transparent) and the pixel diagonally inset from it is drawn in

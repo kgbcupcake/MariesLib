@@ -34,12 +34,12 @@ public final class ScaleConfigPanel {
     private static final int PANEL_MARGIN = 8;
     private static final int CARD_WIDTH = 224;
     private static final int CARD_GAP = 6;
-    private static final int CARD_PADDING = 6;
-    private static final int HEADER_HEIGHT = 14;
+    static final int CARD_PADDING = 6;
+    static final int HEADER_HEIGHT = 14;
     private static final int ROW_LABEL_HEIGHT = 10;
     private static final int LABEL_TRACK_GAP = 2;
     private static final int SLIDER_HEIGHT = 7;
-    private static final int ROW_GAP = 5;
+    static final int ROW_GAP = 5;
 
     private static final int CARD_HEIGHT = CARD_PADDING + HEADER_HEIGHT + ROW_GAP
             + 2 * (ROW_LABEL_HEIGHT + LABEL_TRACK_GAP + SLIDER_HEIGHT) + ROW_GAP + ROW_LABEL_HEIGHT + ROW_GAP + CARD_PADDING;
@@ -54,7 +54,7 @@ public final class ScaleConfigPanel {
     private static final int MIN_WINDOW_WIDTH = CARD_WIDTH;
     private static final int MIN_WINDOW_HEIGHT = CARD_HEIGHT;
     private static final int MAX_WINDOW_WIDTH = CARD_WIDTH * 2;
-    private static final int MAX_WINDOW_HEIGHT = CARD_HEIGHT * 2;
+    static final int MAX_WINDOW_HEIGHT = CARD_HEIGHT * 2;
 
     /** Default persisted window state for an entry that has never been opened: collapsed (tab), with a sensible fallback size. */
     private static final ComponentState DEFAULT_WINDOW_STATE =
@@ -167,7 +167,7 @@ public final class ScaleConfigPanel {
         }
 
         if (openEntry != null) {
-            Bounds raw = new Bounds(openState.x(), openState.y(), openState.width(), openState.height());
+            Bounds raw = HostedWindow.fit(openEntry, new Bounds(openState.x(), openState.y(), openState.width(), openState.height()));
             Bounds windowBounds = clampWindowBounds(raw, bounds);
             WindowLayout layout = layoutWindow(openEntry, accentFor(openEntry, openIndex), windowBounds);
             drawWindow(context, layout);
@@ -250,6 +250,9 @@ public final class ScaleConfigPanel {
                 windowBounds.x() + windowBounds.width() - CARD_PADDING - COLLAPSE_BUTTON_SIZE,
                 windowBounds.y() + (CARD_PADDING + HEADER_HEIGHT - COLLAPSE_BUTTON_SIZE) / 2,
                 COLLAPSE_BUTTON_SIZE, COLLAPSE_BUTTON_SIZE);
+        if (entry.content() != null) {
+            textRowHit = paddingRowHit = moveContentRowHit = HostedWindow.NO_HIT;
+        }
         return new WindowLayout(entry, accent, windowBounds, row1Y, textTrack, textRowHit, row2Y, paddingTrack, paddingRowHit,
                 row3Y, moveContentRowHit, headerBounds, collapseButton);
     }
@@ -274,12 +277,14 @@ public final class ScaleConfigPanel {
         context.drawText(layout.entry().label().getString(), window.x() + CARD_PADDING, window.y() + CARD_PADDING, layout.accentColor(), 1.05f);
         drawCollapseButton(context, layout.collapseButtonBounds(), layout.accentColor());
 
-        drawSliderRow(context, "config.marieslib.scaleconfig.textScale", window.x() + CARD_PADDING, layout.row1Y(), layout.textTrack(),
-                contentScale, textSecondary, layout.accentColor());
-        drawSliderRow(context, "config.marieslib.scaleconfig.padding", window.x() + CARD_PADDING, layout.row2Y(), layout.paddingTrack(),
-                paddingScale, textSecondary, layout.accentColor());
-        drawToggleRow(context, "config.marieslib.scaleconfig.moveContent", window.x() + CARD_PADDING, layout.row3Y(), layout.moveContentRowHit(),
-                isMoveContentEnabled(componentId), textSecondary, layout.accentColor());
+        if (!HostedWindow.render(context, layout.entry(), window)) {
+            drawSliderRow(context, "config.marieslib.scaleconfig.textScale", window.x() + CARD_PADDING, layout.row1Y(), layout.textTrack(),
+                    contentScale, textSecondary, layout.accentColor());
+            drawSliderRow(context, "config.marieslib.scaleconfig.padding", window.x() + CARD_PADDING, layout.row2Y(), layout.paddingTrack(),
+                    paddingScale, textSecondary, layout.accentColor());
+            drawToggleRow(context, "config.marieslib.scaleconfig.moveContent", window.x() + CARD_PADDING, layout.row3Y(), layout.moveContentRowHit(),
+                    isMoveContentEnabled(componentId), textSecondary, layout.accentColor());
+        }
 
         boolean resizingThis = componentId.equals(resizingWindowComponentId);
         context.drawResizeHandle(window.x() + window.width() - DraggableResizable.RESIZE_HANDLE_SIZE,
@@ -351,6 +356,9 @@ public final class ScaleConfigPanel {
     private void handleWindowClick(double mouseX, double mouseY, int mx, int my) {
         WindowLayout window = lastOpenWindow;
         Bounds windowBounds = window.windowBounds();
+        if (HostedWindow.mouseClicked(window.entry(), windowBounds, mouseX, mouseY)) {
+            return;
+        }
         // Slider rows are checked first: on a small/short window the corner resize handle's hitbox
         // can overlap the right end of the padding row, and a slider press landing in that overlap
         // must still win — the resize handle only gets a look at whatever the sliders didn't claim.
@@ -393,6 +401,9 @@ public final class ScaleConfigPanel {
     public boolean mouseDragged(double mouseX, double mouseY, int button) {
         int mx = (int) mouseX;
         int my = (int) mouseY;
+        if (lastOpenWindow != null && HostedWindow.mouseDragged(lastOpenWindow.entry(), mouseX, mouseY, button)) {
+            return true;
+        }
         if (draggingSliderComponentId != null) {
             draggingSliderLiveValue = valueAt(mouseX, draggingSliderTrack);
             return true;
@@ -423,6 +434,9 @@ public final class ScaleConfigPanel {
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
         int mx = (int) mouseX;
         int my = (int) mouseY;
+        if (lastOpenWindow != null && HostedWindow.mouseReleased(lastOpenWindow.entry(), mouseX, mouseY, button)) {
+            return true;
+        }
         if (draggingSliderComponentId != null) {
             if (draggingSliderIsPadding) {
                 savePaddingScale(draggingSliderComponentId, draggingSliderLiveValue);
@@ -457,6 +471,9 @@ public final class ScaleConfigPanel {
         int my = (int) mouseY;
         if (lastOpenWindow == null || !lastOpenWindow.windowBounds().contains(mx, my)) {
             return false;
+        }
+        if (HostedWindow.mouseScrolled(lastOpenWindow.entry(), lastOpenWindow.windowBounds(), mouseX, mouseY, scrollX, scrollY)) {
+            return true;
         }
         if (scrollY != 0) {
             double delta = scrollY > 0 ? SCROLL_STEP : -SCROLL_STEP;
