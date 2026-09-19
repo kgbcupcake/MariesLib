@@ -25,7 +25,11 @@ final class HostedWindow {
                 Math.max(0, window.y() + window.height() - ScaleConfigPanel.CARD_PADDING - top));
     }
 
-    /** {@code window} grown, if needed, to fit the content's preferred height (capped at the window maximum; the content scrolls past that). */
+    /**
+     * {@code window} grown to the content's preferred height (capped at the window maximum), for the
+     * size a hosted window <em>first opens at</em>. It is deliberately not a minimum: the player can
+     * resize the window smaller afterwards and the content scrolls instead of being forced open.
+     */
     static Bounds fit(ScaleConfigEntry entry, Bounds window) {
         MarieComponent content = entry.content();
         if (content == null) {

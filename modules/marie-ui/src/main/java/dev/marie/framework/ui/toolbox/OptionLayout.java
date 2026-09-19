@@ -13,7 +13,8 @@ import java.util.List;
  * The panel body a module box hosts: a {@link TabRow} (only when there is more than one tab) above
  * the selected tab's rows, stacked top to bottom. Its preferred height is the tallest tab's, so a
  * host that sizes to it never resizes when the selection changes. If a host gives it less room than
- * the selected tab needs, the rows clip and scroll (mouse wheel outside any slider row).
+ * the selected tab needs, the rows clip and scroll with the mouse wheel (a thin scroll thumb shows
+ * the position); while the rows fit, the wheel nudges the slider under the cursor instead.
  *
  * <p>Draws no window chrome or title of its own — the host owns that; the panel title is only this
  * component's {@link #id()}.
@@ -96,6 +97,21 @@ public final class OptionLayout implements MarieComponent {
         } finally {
             context.popClip();
         }
+        drawScrollThumb(context, rows);
+    }
+
+    /** Thin track and thumb on the right edge of the row area, only while the rows overflow it. */
+    private void drawScrollThumb(RenderContext context, List<OptionRow> rows) {
+        int max = maxScroll(rows);
+        if (max <= 0 || rowArea.height() <= 0) {
+            return;
+        }
+        int total = stackHeight(rows);
+        int trackX = rowArea.x() + rowArea.width() - 2;
+        int thumbH = Math.max(6, rowArea.height() * rowArea.height() / total);
+        int thumbY = rowArea.y() + (rowArea.height() - thumbH) * scroll / max;
+        context.fillRect(trackX, rowArea.y(), 2, rowArea.height(), OptionStyle.dimmed(OptionStyle.ACCENT));
+        context.fillRect(trackX, thumbY, 2, thumbH, OptionStyle.ACCENT);
     }
 
     @Override
@@ -144,15 +160,19 @@ public final class OptionLayout implements MarieComponent {
             return false;
         }
         List<OptionRow> rows = selectedRows();
+        int max = maxScroll(rows);
+        if (max > 0) {
+            // Overflowing: the wheel scrolls, everywhere — otherwise a slider under the cursor would
+            // swallow it and the rows beneath could never be reached.
+            if (scrollY != 0) {
+                scroll = Math.max(0, Math.min(max, scroll + (scrollY > 0 ? -SCROLL_STEP : SCROLL_STEP)));
+            }
+            return true;
+        }
         for (OptionRow row : rows) {
             if (row.mouseScrolled(mouseX, mouseY, scrollY)) {
                 return true;
             }
-        }
-        int max = maxScroll(rows);
-        if (max > 0 && scrollY != 0) {
-            scroll = Math.max(0, Math.min(max, scroll + (scrollY > 0 ? -SCROLL_STEP : SCROLL_STEP)));
-            return true;
         }
         return false;
     }

@@ -167,7 +167,7 @@ public final class ScaleConfigPanel {
         }
 
         if (openEntry != null) {
-            Bounds raw = HostedWindow.fit(openEntry, new Bounds(openState.x(), openState.y(), openState.width(), openState.height()));
+            Bounds raw = new Bounds(openState.x(), openState.y(), openState.width(), openState.height());
             Bounds windowBounds = clampWindowBounds(raw, bounds);
             WindowLayout layout = layoutWindow(openEntry, accentFor(openEntry, openIndex), windowBounds);
             drawWindow(context, layout);
@@ -541,7 +541,7 @@ public final class ScaleConfigPanel {
         ComponentState existing = persistence.load(windowKey(entry.componentId())).orElse(null);
         Bounds bounds = existing != null
                 ? new Bounds(existing.x(), existing.y(), existing.width(), existing.height())
-                : defaultWindowBounds();
+                : HostedWindow.fit(entry, defaultWindowBounds());
         saveWindowState(entry.componentId(), new ComponentState(bounds.x(), bounds.y(), bounds.width(), bounds.height(),
                 false, false, false, 0));
     }
