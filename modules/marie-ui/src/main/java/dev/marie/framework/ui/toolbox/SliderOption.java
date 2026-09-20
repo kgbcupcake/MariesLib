@@ -8,6 +8,8 @@ import dev.marie.framework.ui.geometry.Bounds;
 import java.util.function.BooleanSupplier;
 import java.util.function.DoubleConsumer;
 import java.util.function.DoubleSupplier;
+import java.util.function.IntConsumer;
+import java.util.function.IntSupplier;
 
 /**
  * Slider row: label and right-aligned percentage above a bar. Edits a value it does not own via
@@ -26,6 +28,8 @@ public final class SliderOption implements OptionRow {
     private final double max;
     private final double step;
     private final Runnable onCommit;
+    /** Suffix shown after the value in place of a percentage ("60 px"); null shows the value as a percent. */
+    private final String unit;
     private BooleanSupplier enabled = () -> true;
     private Runnable resetAction;
 
@@ -36,6 +40,17 @@ public final class SliderOption implements OptionRow {
 
     public SliderOption(String label, DoubleSupplier getter, DoubleConsumer setter,
                         double min, double max, double step, Runnable onCommit) {
+        this(label, getter, setter, min, max, step, null, onCommit);
+    }
+
+    /** Whole-number slider over {@code [min, max]} that shows {@code value + " " + unit}; the setter always receives an int. */
+    public static SliderOption ofInt(String label, IntSupplier getter, IntConsumer setter,
+                                     int min, int max, int step, String unit, Runnable onCommit) {
+        return new SliderOption(label, getter::getAsInt, v -> setter.accept((int) Math.round(v)), min, max, step, unit, onCommit);
+    }
+
+    private SliderOption(String label, DoubleSupplier getter, DoubleConsumer setter,
+                         double min, double max, double step, String unit, Runnable onCommit) {
         if (!(max > min) || !(step > 0)) {
             throw new IllegalArgumentException("slider '" + label + "' needs max > min and step > 0");
         }
@@ -46,6 +61,7 @@ public final class SliderOption implements OptionRow {
         this.max = max;
         this.step = step;
         this.onCommit = onCommit;
+        this.unit = unit;
     }
 
     @Override
@@ -81,7 +97,7 @@ public final class SliderOption implements OptionRow {
         this.bounds = bounds;
         boolean on = enabled.getAsBoolean();
         double value = dragging ? liveValue : clamp(getter.getAsDouble());
-        OptionStyle.drawLabelAndValue(context, label, Math.round(value * 100) + "%", bounds.x(), bounds.y(), bounds.width(),
+        OptionStyle.drawLabelAndValue(context, label, unit == null ? Math.round(value * 100) + "%" : Math.round(value) + " " + unit, bounds.x(), bounds.y(), bounds.width(),
                 OptionStyle.labelColor(context, on), OptionStyle.labelColor(context, on));
         Bounds track = track();
         float fillPct = (float) ((value - min) / (max - min));

@@ -330,6 +330,7 @@ public final class MarieModuleSettings {
         private boolean icons = true;
         private boolean header;
         private boolean storedBrightness;
+        private Consumer<MarieToolbox.PanelBuilder> styleRows;
         private Consumer<MarieToolbox.PanelBuilder> extraTabs;
 
         private StandardPanelBuilder(String title, PersistenceProvider store, String panelId) {
@@ -402,6 +403,16 @@ public final class MarieModuleSettings {
         }
 
         /**
+         * Lets the caller add rows of its own to the end of the Style tab, before its "Reset This Tab" button (so that
+         * button resets them too, for rows given a {@code defaultValue}); {@code rows} receives the builder once, when
+         * {@link #build} runs, positioned on the Style tab.
+         */
+        public StandardPanelBuilder styleRows(Consumer<MarieToolbox.PanelBuilder> rows) {
+            this.styleRows = rows;
+            return this;
+        }
+
+        /**
          * Lets the caller append tabs of its own after the standard ones (e.g. a {@code colorTab}); {@code more}
          * receives the builder once, when {@link #build} runs, positioned after the last standard tab.
          */
@@ -434,6 +445,9 @@ public final class MarieModuleSettings {
                 if (hasOpacityDefault) {
                     panel.defaultValue(opacityDefault);
                 }
+            }
+            if (styleRows != null) {
+                styleRows.accept(panel);
             }
             panel.resetTab();
             if (extraTabs != null) {

@@ -4,6 +4,7 @@ import dev.marie.framework.api.ApiStatus;
 import dev.marie.framework.ui.PersistenceProvider;
 import dev.marie.framework.ui.component.MarieComponent;
 import dev.marie.framework.ui.toolbox.BooleanSetter;
+import dev.marie.framework.ui.toolbox.ButtonOption;
 import dev.marie.framework.ui.toolbox.colorpicker.ColorSlot;
 import dev.marie.framework.ui.toolbox.CycleOption;
 import dev.marie.framework.ui.toolbox.ModuleOptionRows;
@@ -68,6 +69,19 @@ public final class MarieToolbox {
         public PanelBuilder slider(String label, DoubleSupplier getter, DoubleConsumer setter,
                                    double min, double max, double step, Runnable onCommit) {
             layout.addRow(new SliderOption(label, getter, setter, min, max, step, onCommit));
+            return this;
+        }
+
+        /** Whole-number slider over {@code [min, max]} in {@code step} increments, shown as e.g. "60 px" ({@code unit} is the suffix); same live-setter and commit-on-release behavior as {@link #slider}. Give its reset value with {@code defaultValue(double)}: the {@code int} overload of {@code defaultValue} is for cycles and throws on a slider. */
+        public PanelBuilder intSlider(String label, IntSupplier getter, IntConsumer setter,
+                                      int min, int max, int step, String unit, Runnable onCommit) {
+            layout.addRow(SliderOption.ofInt(label, getter, setter, min, max, step, unit, onCommit));
+            return this;
+        }
+
+        /** One-shot action row: {@code label} on the left, {@code caption} (e.g. "RESET") on the right; a click runs {@code action}, then {@code onCommit}. */
+        public PanelBuilder button(String label, String caption, Runnable action, Runnable onCommit) {
+            layout.addRow(new ButtonOption(label, caption, action, onCommit));
             return this;
         }
 
