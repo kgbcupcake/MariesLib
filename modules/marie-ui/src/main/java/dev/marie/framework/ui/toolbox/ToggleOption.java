@@ -15,6 +15,7 @@ public final class ToggleOption implements OptionRow {
     private final BooleanSetter setter;
     private final Runnable onCommit;
     private BooleanSupplier enabled = () -> true;
+    private Runnable resetAction;
 
     private Bounds bounds = new Bounds(0, 0, 0, 0);
 
@@ -28,6 +29,24 @@ public final class ToggleOption implements OptionRow {
     @Override
     public int height() {
         return OptionStyle.LABEL_HEIGHT;
+    }
+
+    @Override
+    public void defaultTo(boolean value) {
+        this.resetAction = () -> setter.accept(value);
+    }
+
+    @Override
+    public void resetWith(Runnable reset) {
+        this.resetAction = reset;
+    }
+
+    @Override
+    public void resetToDefault() {
+        if (resetAction != null) {
+            resetAction.run();
+            onCommit.run();
+        }
     }
 
     @Override

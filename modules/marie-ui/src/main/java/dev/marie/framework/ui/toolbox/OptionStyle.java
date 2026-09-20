@@ -9,7 +9,7 @@ import dev.marie.framework.ui.ThemeKey;
 public final class OptionStyle {
 
     /** Cyan accent used for selected tabs, slider fills and "on" values. */
-    static final int ACCENT = 0xFF5DA9E9;
+    public static final int ACCENT = 0xFF5DA9E9;
     static final float TEXT_SCALE = 0.8f;
     static final int LABEL_HEIGHT = 10;
     static final int LABEL_TRACK_GAP = 2;
@@ -24,23 +24,23 @@ public final class OptionStyle {
 
     private OptionStyle() {}
 
-    static int labelColor(RenderContext context, boolean enabled) {
+    public static int labelColor(RenderContext context, boolean enabled) {
         int color = context.theme().color(ThemeKey.TEXT_SECONDARY);
         return enabled ? color : dimmed(color);
     }
 
-    static int accentColor(boolean enabled) {
+    public static int accentColor(boolean enabled) {
         return enabled ? ACCENT : dimmed(ACCENT);
     }
 
     /** {@code argb} at half its alpha, for disabled rows. */
-    static int dimmed(int argb) {
+    public static int dimmed(int argb) {
         int alpha = (argb >>> 24) / 2;
         return (alpha << 24) | (argb & 0x00FFFFFF);
     }
 
     /** {@code text} cut with a trailing ellipsis so it renders no wider than {@code maxWidth}. */
-    static String fit(RenderContext context, String text, float scale, int maxWidth) {
+    public static String fit(RenderContext context, String text, float scale, int maxWidth) {
         if (context.textWidth(text, scale) <= maxWidth) {
             return text;
         }
@@ -52,7 +52,7 @@ public final class OptionStyle {
     }
 
     /** Label on the left, value right-aligned to {@code x + width}; the label is truncated rather than overlapping the value. */
-    static void drawLabelAndValue(RenderContext context, String label, String value, int x, int y, int width,
+    public static void drawLabelAndValue(RenderContext context, String label, String value, int x, int y, int width,
                                   int labelColor, int valueColor) {
         int valueWidth = context.textWidth(value, TEXT_SCALE);
         context.drawText(fit(context, label, TEXT_SCALE, Math.max(0, width - valueWidth - VALUE_GAP)), x, y, labelColor, TEXT_SCALE);

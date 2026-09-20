@@ -20,6 +20,29 @@ public interface OptionRow {
     /** While {@code enabled} reports false the row draws dimmed and ignores input. */
     void enabledWhen(BooleanSupplier enabled);
 
+    /** Sets the value this slider returns to on "Reset This Tab". Only sliders take a double. */
+    default void defaultTo(double value) {
+        throw new IllegalStateException("a double default only applies to a slider");
+    }
+
+    /** Sets the value this toggle returns to on "Reset This Tab". Only toggles take a boolean. */
+    default void defaultTo(boolean value) {
+        throw new IllegalStateException("a boolean default only applies to a toggle");
+    }
+
+    /** Sets the choice index this cycle returns to on "Reset This Tab". Only cycles take an int. */
+    default void defaultTo(int index) {
+        throw new IllegalStateException("an index default only applies to a cycle");
+    }
+
+    /** Replaces the reset with a custom action, for values that don't reset by writing a plain number. */
+    default void resetWith(Runnable reset) {
+        throw new IllegalStateException("this row has no value to reset");
+    }
+
+    /** Puts the row back to its default (then calls its commit callback); no-op if none was set. */
+    default void resetToDefault() {}
+
     void render(RenderContext context, Bounds bounds);
 
     boolean mouseClicked(double mouseX, double mouseY);

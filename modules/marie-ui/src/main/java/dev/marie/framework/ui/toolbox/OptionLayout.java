@@ -5,6 +5,8 @@ import dev.marie.framework.ui.RenderContext;
 import dev.marie.framework.ui.component.Constraint;
 import dev.marie.framework.ui.component.MarieComponent;
 import dev.marie.framework.ui.geometry.Bounds;
+import dev.marie.framework.ui.toolbox.colorpicker.ColorSlot;
+import dev.marie.framework.ui.toolbox.colorpicker.ColorSlotRow;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,6 +32,7 @@ public final class OptionLayout implements MarieComponent {
 
     private Bounds rowArea = new Bounds(0, 0, 0, 0);
     private int scroll;
+    private java.util.function.Consumer<ColorSlot> colorSlotListener = slot -> {};
 
     public OptionLayout(String id) {
         this.id = id;
@@ -55,6 +58,45 @@ public final class OptionLayout implements MarieComponent {
             throw new IllegalStateException("no option to attach enabledWhen to");
         }
         rows.get(rows.size() - 1).enabledWhen(enabled);
+    }
+
+    /** The live row list of the most recently added tab (for a reset button that acts on its own tab). */
+    public List<OptionRow> currentTabRows() {
+        if (tabs.isEmpty()) {
+            throw new IllegalStateException("addTab must be called first");
+        }
+        return tabs.get(tabs.size() - 1);
+    }
+
+    /** Sets the reset value of the most recently added slider. */
+    public void defaultToLast(double value) {
+        lastRow().defaultTo(value);
+    }
+
+    public void defaultToLast(boolean value) {
+        lastRow().defaultTo(value);
+    }
+
+    public void defaultToLast(int index) {
+        lastRow().defaultTo(index);
+    }
+
+    private OptionRow lastRow() {
+        List<OptionRow> rows = currentTabRows();
+        if (rows.isEmpty()) {
+            throw new IllegalStateException("no option to set a default on");
+        }
+        return rows.get(rows.size() - 1);
+    }
+
+    /** Adds a swatch row for {@code slot} to the most recently added tab; a click on it reports the slot to {@link #setColorSlotListener}'s listener. */
+    public void addColorSlot(ColorSlot slot) {
+        addRow(new ColorSlotRow(slot, clicked -> colorSlotListener.accept(clicked)));
+    }
+
+    /** The host's "slot clicked" callback (it decides what editing a slot means, e.g. opening a picker window). Until one is set, a click does nothing. */
+    public void setColorSlotListener(java.util.function.Consumer<ColorSlot> listener) {
+        this.colorSlotListener = listener;
     }
 
     public int tabCount() {

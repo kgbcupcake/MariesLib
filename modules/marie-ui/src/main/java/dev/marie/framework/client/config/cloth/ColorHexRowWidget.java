@@ -1,6 +1,7 @@
 package dev.marie.framework.client.config.cloth;
 
 import dev.marie.framework.api.ApiStatus;
+import dev.marie.framework.ui.toolbox.colorpicker.HexColors;
 import dev.marie.framework.color.ColorDefinition;
 import dev.marie.framework.color.ColorDefinitionRegistry;
 import dev.marie.framework.color.ColorKey;
@@ -63,14 +64,7 @@ public final class ColorHexRowWidget extends TooltipListEntry<Integer> {
     }
 
     private static boolean hexInputFilter(String s) {
-        for (int i = 0; i < s.length(); i++) {
-            char c = s.charAt(i);
-            if (c == '#' || (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
-                continue;
-            }
-            return false;
-        }
-        return true;
+        return HexColors.hexInputFilter(s);
     }
 
     private Optional<Component> computeError() {
@@ -124,36 +118,12 @@ public final class ColorHexRowWidget extends TooltipListEntry<Integer> {
     }
 
     private static String formatRgbHex(int argb) {
-        int rgb = argb & 0xFF_FF_FF;
-        return String.format(Locale.ROOT, "#%06X", rgb);
+        return HexColors.formatRgbHex(argb);
     }
 
-    /**
-     * Strict {@code #RRGGBB} (hash required, exactly six hex digits).
-     */
+    /** Strict {@code #RRGGBB} (hash required, exactly six hex digits). */
     static Optional<Integer> parseStrictRgbHex(String raw) {
-        if (raw == null) {
-            return Optional.empty();
-        }
-        String s = raw.trim();
-        if (s.length() != 7 || s.charAt(0) != '#') {
-            return Optional.empty();
-        }
-        for (int i = 1; i < 7; i++) {
-            if (!isHexDigit(s.charAt(i))) {
-                return Optional.empty();
-            }
-        }
-        try {
-            int rgb = Integer.parseInt(s.substring(1), 16);
-            return Optional.of(0xFF00_0000 | rgb);
-        } catch (NumberFormatException e) {
-            return Optional.empty();
-        }
-    }
-
-    private static boolean isHexDigit(char c) {
-        return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+        return HexColors.parseStrictRgbHex(raw);
     }
 
     private int previewArgb() {

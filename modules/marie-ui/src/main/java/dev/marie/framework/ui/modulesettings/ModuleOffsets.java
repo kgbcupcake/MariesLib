@@ -19,6 +19,8 @@ public final class ModuleOffsets {
 
     private static final String BAR_KEY = "#barOffset";
     private static final String ICON_KEY = "#iconOffset";
+    private static final String TEXT_KEY = "#textOffset";
+    private static final String HEADER_KEY = "#headerOffset";
     private static final Map<PersistenceProvider, Map<String, int[]>> OFFSETS = new WeakHashMap<>();
 
     private ModuleOffsets() {}
@@ -29,6 +31,23 @@ public final class ModuleOffsets {
 
     public static int barY(PersistenceProvider p, String panelId) {
         return offset(p, panelId, BAR_KEY)[1];
+    }
+
+    /** The text offset a module keeps here when it has no storage of its own for it (HUD boxes with their own text-offset key don't use this). */
+    public static int textX(PersistenceProvider p, String panelId) {
+        return offset(p, panelId, TEXT_KEY)[0];
+    }
+
+    public static int textY(PersistenceProvider p, String panelId) {
+        return offset(p, panelId, TEXT_KEY)[1];
+    }
+
+    public static void setText(PersistenceProvider p, String panelId, int x, int y) {
+        set(p, panelId, TEXT_KEY, x, y);
+    }
+
+    public static void commitText(PersistenceProvider p, String panelId) {
+        commit(p, panelId, TEXT_KEY);
     }
 
     public static int iconX(PersistenceProvider p, String panelId) {
@@ -54,6 +73,28 @@ public final class ModuleOffsets {
 
     public static void commitIcon(PersistenceProvider p, String panelId) {
         commit(p, panelId, ICON_KEY);
+    }
+
+    /** Where a module's header (a title separate from its body text) sits relative to its default place. */
+    public static int headerX(PersistenceProvider p, String panelId) {
+        return offset(p, panelId, HEADER_KEY)[0];
+    }
+
+    public static int headerY(PersistenceProvider p, String panelId) {
+        return offset(p, panelId, HEADER_KEY)[1];
+    }
+
+    public static void setHeader(PersistenceProvider p, String panelId, int x, int y) {
+        set(p, panelId, HEADER_KEY, x, y);
+    }
+
+    public static void commitHeader(PersistenceProvider p, String panelId) {
+        commit(p, panelId, HEADER_KEY);
+    }
+
+    /** Id whose {@link MoveFlags} flag is this module's "move header" mode. */
+    public static String moveHeaderFlagId(String panelId) {
+        return panelId + ".header";
     }
 
     /** Id whose {@link MoveFlags} flag is this module's "move bars" mode (the bare panel id is its "move text" mode). */

@@ -18,6 +18,7 @@ public final class CycleOption implements OptionRow {
     private final IntConsumer setter;
     private final Runnable onCommit;
     private BooleanSupplier enabled = () -> true;
+    private Runnable resetAction;
 
     private Bounds bounds = new Bounds(0, 0, 0, 0);
 
@@ -35,6 +36,24 @@ public final class CycleOption implements OptionRow {
     @Override
     public int height() {
         return OptionStyle.LABEL_HEIGHT;
+    }
+
+    @Override
+    public void defaultTo(int index) {
+        this.resetAction = () -> setter.accept(Math.min(labels.length - 1, Math.max(0, index)));
+    }
+
+    @Override
+    public void resetWith(Runnable reset) {
+        this.resetAction = reset;
+    }
+
+    @Override
+    public void resetToDefault() {
+        if (resetAction != null) {
+            resetAction.run();
+            onCommit.run();
+        }
     }
 
     @Override

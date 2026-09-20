@@ -6,10 +6,12 @@ import dev.marie.framework.ui.RenderContext;
 import dev.marie.framework.ui.component.MarieComponent;
 import dev.marie.framework.ui.modulesettings.BrightnessRenderContext;
 import dev.marie.framework.ui.modulesettings.ModuleOffsets;
+import dev.marie.framework.ui.modulesettings.ModuleRenderContext;
 import dev.marie.framework.ui.modulesettings.ModuleScales;
 import dev.marie.framework.ui.modulesettings.MoveFlags;
 import net.minecraft.network.chat.Component;
 
+import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
 import java.util.function.DoubleSupplier;
 
@@ -64,6 +66,43 @@ public final class MarieModuleSettings {
         return ModuleScales.barScale(store, panelId);
     }
 
+    /** Text brightness a module keeps in its own store (1.0 until set) — see {@link MarieToolbox.PanelBuilder#storedBrightness}. */
+    public static double textBrightness(PersistenceProvider store, String panelId) {
+        return ModuleScales.textBrightness(store, panelId);
+    }
+
+    public static double iconBrightness(PersistenceProvider store, String panelId) {
+        return ModuleScales.iconBrightness(store, panelId);
+    }
+
+    /** Where the module's text sits relative to its default place, for a module that keeps that offset here instead of in its own storage. */
+    public static int textOffsetX(PersistenceProvider store, String panelId) {
+        return ModuleOffsets.textX(store, panelId);
+    }
+
+    public static int textOffsetY(PersistenceProvider store, String panelId) {
+        return ModuleOffsets.textY(store, panelId);
+    }
+
+    /** Live drag preview of the text offset; call {@link #commitTextOffset} when the drag ends. */
+    public static void setTextOffset(PersistenceProvider store, String panelId, int x, int y) {
+        ModuleOffsets.setText(store, panelId, x, y);
+    }
+
+    public static void commitTextOffset(PersistenceProvider store, String panelId) {
+        ModuleOffsets.commitText(store, panelId);
+    }
+
+    /**
+     * {@code context} with everything {@code panelId} keeps in {@code store} applied to what a module draws
+     * through it: its text and icon offsets, its icon size relative to its text size, and its stored text
+     * and icon brightness. For a module whose renderer scales text and icons together by its text size and
+     * draws them through a {@link RenderContext}; {@code context} itself when every setting is default.
+     */
+    public static RenderContext withDisplaySettings(RenderContext context, PersistenceProvider store, String panelId) {
+        return ModuleRenderContext.wrap(context, store, panelId);
+    }
+
     /** Where the module's icons sit relative to their default place. In memory; cheap to call every frame. */
     public static int iconOffsetX(PersistenceProvider store, String panelId) {
         return ModuleOffsets.iconX(store, panelId);
@@ -115,6 +154,29 @@ public final class MarieModuleSettings {
         return MoveFlags.isOn(store, ModuleOffsets.moveBarsFlagId(panelId));
     }
 
+    /** Where the module's header sits relative to its default place. In memory; cheap to call every frame. */
+    public static int headerOffsetX(PersistenceProvider store, String panelId) {
+        return ModuleOffsets.headerX(store, panelId);
+    }
+
+    public static int headerOffsetY(PersistenceProvider store, String panelId) {
+        return ModuleOffsets.headerY(store, panelId);
+    }
+
+    /** Live drag preview of the header offset; call {@link #commitHeaderOffset} when the drag ends. */
+    public static void setHeaderOffset(PersistenceProvider store, String panelId, int x, int y) {
+        ModuleOffsets.setHeader(store, panelId, x, y);
+    }
+
+    public static void commitHeaderOffset(PersistenceProvider store, String panelId) {
+        ModuleOffsets.commitHeader(store, panelId);
+    }
+
+    /** Whether the "Move Header" toggle is on. */
+    public static boolean isMoveHeaderEnabled(PersistenceProvider store, String panelId) {
+        return MoveFlags.isOn(store, ModuleOffsets.moveHeaderFlagId(panelId));
+    }
+
     /** Whether the "Move Text" toggle is on. */
     public static boolean isMoveTextEnabled(PersistenceProvider store, String panelId) {
         return MoveFlags.isOn(store, panelId);
@@ -130,6 +192,9 @@ public final class MarieModuleSettings {
         }
         if (isMoveIconsEnabled(store, panelId)) {
             return MoveDrag.Mode.ICONS;
+        }
+        if (isMoveHeaderEnabled(store, panelId)) {
+            return MoveDrag.Mode.HEADER;
         }
         return isMoveBarsEnabled(store, panelId) ? MoveDrag.Mode.BARS : null;
     }
@@ -170,6 +235,8 @@ public final class MarieModuleSettings {
         /** What a move drag is repositioning. */
         public enum Mode {
             TEXT, ICONS, BARS,
+            /** A separate title's offset (see {@link MarieModuleSettings#headerOffsetX}); only for modules that ask for a header toggle. */
+            HEADER,
             /** Text, icons and bars together: one drag shifts all three offsets by the same amount (see {@link #startAll}). */
             ALL
         }
@@ -179,8 +246,8 @@ public final class MarieModuleSettings {
         private int grabX;
         private int grabY;
         /** Each single mode's offset at the press, indexed TEXT, ICONS, BARS — what {@link Mode#ALL} adds its delta to. */
-        private final int[] baseX = new int[3];
-        private final int[] baseY = new int[3];
+        private final int[] baseX = new int[4];
+        private final int[] baseY = new int[4];
 
         /** Begins a {@link Mode#ALL} drag from the three offsets' current values; {@link #offsetX}/{@link #offsetY} then return the pointer's movement since the press, to add to {@link #baseX}/{@link #baseY} of each mode. */
         public void startAll(double mouseX, double mouseY, int textX, int textY, int iconX, int iconY, int barX, int barY) {
@@ -194,6 +261,13 @@ public final class MarieModuleSettings {
             baseY[1] = iconY;
             baseX[2] = barX;
             baseY[2] = barY;
+        }
+
+        /** As {@link #startAll(double, double, int, int, int, int, int, int)}, also carrying the header offset. */
+        public void startAll(double mouseX, double mouseY, int textX, int textY, int iconX, int iconY, int barX, int barY, int headerX, int headerY) {
+            startAll(mouseX, mouseY, textX, textY, iconX, iconY, barX, barY);
+            baseX[3] = headerX;
+            baseY[3] = headerY;
         }
 
         /** {@code single}'s offset when the {@link Mode#ALL} drag started ({@code single} must be TEXT, ICONS or BARS). */
@@ -244,12 +318,19 @@ public final class MarieModuleSettings {
         private final String panelId;
         private DoubleSupplier opacity;
         private DoubleConsumer setOpacity;
+        private boolean hasOpacityDefault;
+        private double opacityDefault;
         private DoubleSupplier textBrightness;
         private DoubleConsumer setTextBrightness;
         private DoubleSupplier iconBrightness;
         private DoubleConsumer setIconBrightness;
         private Runnable onCommit = () -> {};
         private Runnable onReset = () -> {};
+        private boolean bars = true;
+        private boolean icons = true;
+        private boolean header;
+        private boolean storedBrightness;
+        private Consumer<MarieToolbox.PanelBuilder> extraTabs;
 
         private StandardPanelBuilder(String title, PersistenceProvider store, String panelId) {
             this.title = title;
@@ -261,6 +342,14 @@ public final class MarieModuleSettings {
         public StandardPanelBuilder opacity(DoubleSupplier getter, DoubleConsumer setter) {
             this.opacity = getter;
             this.setOpacity = setter;
+            return this;
+        }
+
+        /** Same, with the value "Reset This Tab" puts it back to. */
+        public StandardPanelBuilder opacity(DoubleSupplier getter, DoubleConsumer setter, double defaultValue) {
+            opacity(getter, setter);
+            this.hasOpacityDefault = true;
+            this.opacityDefault = defaultValue;
             return this;
         }
 
@@ -282,27 +371,73 @@ public final class MarieModuleSettings {
             return this;
         }
 
+        /** Leaves out Bar size and Move Bars, for a module that has no bars. */
+        public StandardPanelBuilder withoutBars() {
+            this.bars = false;
+            return this;
+        }
+
+        /** Leaves out Move Icons, for a module that draws no icons. */
+        public StandardPanelBuilder withoutIcons() {
+            this.icons = false;
+            return this;
+        }
+
+        /** Adds a Move Header toggle, for a module with a title separate from its body text (Move Text then moves the body only). */
+        public StandardPanelBuilder withHeader() {
+            this.header = true;
+            return this;
+        }
+
+        /** Adds text/icon brightness sliders over values kept in the panel's own store (see {@link #withDisplaySettings}) instead of caller-bound getters and setters. */
+        public StandardPanelBuilder storedBrightness() {
+            this.storedBrightness = true;
+            return this;
+        }
+
         /** Runs when "Reset Positions" is clicked, after the icon/bar offsets and move modes are reset — reset here whatever offset you store yourself. */
         public StandardPanelBuilder onReset(Runnable onReset) {
             this.onReset = onReset;
             return this;
         }
 
+        /**
+         * Lets the caller append tabs of its own after the standard ones (e.g. a {@code colorTab}); {@code more}
+         * receives the builder once, when {@link #build} runs, positioned after the last standard tab.
+         */
+        public StandardPanelBuilder extraTabs(Consumer<MarieToolbox.PanelBuilder> more) {
+            this.extraTabs = more;
+            return this;
+        }
+
         public MarieComponent build() {
             MarieToolbox.PanelBuilder panel = MarieToolbox.panel(title)
-                    .tab(label("layout")).padding(store, panelId)
-                    .tab(label("behavior")).moveToggles(store, panelId).resetPositions(store, panelId, onReset)
-                    .tab(label("appearance")).textAndIconSizes(store, panelId).barSize(store, panelId);
+                    .tab(label("layout")).padding(store, panelId).resetTab()
+                    .tab(label("behavior")).moveToggles(store, panelId, bars, icons, header).resetPositions(store, panelId, onReset)
+                    .tab(label("appearance")).textAndIconSizes(store, panelId);
+            if (bars) {
+                panel.barSize(store, panelId);
+            }
+            if (storedBrightness) {
+                panel.storedBrightness(store, panelId);
+            }
             if (textBrightness != null) {
                 panel.slider(text("config.marieslib.moduleoptions.textBrightness"), textBrightness, setTextBrightness,
-                        MIN_BRIGHTNESS, MAX_BRIGHTNESS, 0.01d, onCommit);
+                        MIN_BRIGHTNESS, MAX_BRIGHTNESS, 0.01d, onCommit).defaultValue(1.0d);
             }
             if (iconBrightness != null) {
                 panel.slider(text("config.marieslib.moduleoptions.iconBrightness"), iconBrightness, setIconBrightness,
-                        MIN_BRIGHTNESS, MAX_BRIGHTNESS, 0.01d, onCommit);
+                        MIN_BRIGHTNESS, MAX_BRIGHTNESS, 0.01d, onCommit).defaultValue(1.0d);
             }
             if (opacity != null) {
                 panel.slider(text("config.marieslib.moduleoptions.backgroundOpacity"), opacity, setOpacity, 0.0d, 1.0d, 0.01d, onCommit);
+                if (hasOpacityDefault) {
+                    panel.defaultValue(opacityDefault);
+                }
+            }
+            panel.resetTab();
+            if (extraTabs != null) {
+                extraTabs.accept(panel);
             }
             return panel.build();
         }

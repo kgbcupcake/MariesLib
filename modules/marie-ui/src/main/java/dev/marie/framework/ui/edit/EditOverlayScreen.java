@@ -6,6 +6,7 @@ import dev.marie.framework.ui.ThemeKey;
 import dev.marie.framework.ui.component.MarieComponent;
 import dev.marie.framework.ui.geometry.Bounds;
 import dev.marie.framework.ui.render.GuiGraphicsRenderContext;
+import dev.marie.framework.ui.scaleconfig.colorpicker.PickerLayer;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -70,8 +71,15 @@ public final class EditOverlayScreen extends Screen {
         }
         RenderContext context = new GuiGraphicsRenderContext(graphics, minecraft, theme, partialTick);
         Bounds fullScreen = new Bounds(0, 0, context.screenWidth(), context.screenHeight());
-        for (MarieComponent target : targets) {
-            target.render(context, fullScreen);
+        // Color-picker windows are drawn after every target so no other panel paints over them.
+        PickerLayer.begin();
+        try {
+            for (MarieComponent target : targets) {
+                target.render(context, fullScreen);
+            }
+            PickerLayer.flush();
+        } finally {
+            PickerLayer.end();
         }
         drawHintBanner(context);
     }
@@ -105,6 +113,9 @@ public final class EditOverlayScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (PickerLayer.mouseClicked(mouseX, mouseY, button)) {
+            return true;
+        }
         for (MarieComponent target : targets) {
             target.mouseClicked(mouseX, mouseY, button);
         }
@@ -113,6 +124,9 @@ public final class EditOverlayScreen extends Screen {
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (PickerLayer.mouseReleased(mouseX, mouseY, button)) {
+            return true;
+        }
         for (MarieComponent target : targets) {
             target.mouseReleased(mouseX, mouseY, button);
         }
@@ -121,6 +135,9 @@ public final class EditOverlayScreen extends Screen {
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+        if (PickerLayer.mouseDragged(mouseX, mouseY, button)) {
+            return true;
+        }
         for (MarieComponent target : targets) {
             target.mouseDragged(mouseX, mouseY, button, dragX, dragY);
         }
@@ -129,6 +146,9 @@ public final class EditOverlayScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (PickerLayer.mouseScrolled(mouseX, mouseY)) {
+            return true;
+        }
         for (MarieComponent target : targets) {
             target.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
         }

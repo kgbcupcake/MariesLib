@@ -17,6 +17,8 @@ public final class ModuleScales {
 
     private static final String ICON_SCALE_SUFFIX = "#iconScale";
     private static final String BAR_SCALE_SUFFIX = "#barScale";
+    private static final String TEXT_BRIGHTNESS_SUFFIX = "#textBrightness";
+    private static final String ICON_BRIGHTNESS_SUFFIX = "#iconBrightness";
     private static final ComponentState BLANK = new ComponentState(0, 0, 0, 0, false, false, false, 0);
 
     private ModuleScales() {}
@@ -57,9 +59,33 @@ public final class ModuleScales {
                 base.widthManual(), base.heightManual(), base.leftMargin(), base.contentScale(), value));
     }
 
+    /** Forgets the separate icon size, so icons follow the text size again. */
+    public static void clearIconScale(PersistenceProvider p, String panelId) {
+        p.remove(panelId + ICON_SCALE_SUFFIX);
+    }
+
     /** The bar size multiplier (bar length and thickness, and the value text at the bar's end); 1.0 until set. */
     public static double barScale(PersistenceProvider p, String panelId) {
         return p.load(panelId + BAR_SCALE_SUFFIX).map(ComponentState::contentScale).orElse(ComponentState.DEFAULT_CONTENT_SCALE);
+    }
+
+    /** Text/icon brightness a module keeps in its own store (1.0 = unchanged) — for modules whose brightness isn't a config value. */
+    public static double textBrightness(PersistenceProvider p, String panelId) {
+        return p.load(panelId + TEXT_BRIGHTNESS_SUFFIX).map(ComponentState::contentScale).orElse(1.0d);
+    }
+
+    public static double iconBrightness(PersistenceProvider p, String panelId) {
+        return p.load(panelId + ICON_BRIGHTNESS_SUFFIX).map(ComponentState::contentScale).orElse(1.0d);
+    }
+
+    public static void setTextBrightness(PersistenceProvider p, String panelId, double value) {
+        p.save(panelId + TEXT_BRIGHTNESS_SUFFIX,
+                new ComponentState(0, 0, 0, 0, false, false, false, 0, value, ComponentState.DEFAULT_PADDING_SCALE));
+    }
+
+    public static void setIconBrightness(PersistenceProvider p, String panelId, double value) {
+        p.save(panelId + ICON_BRIGHTNESS_SUFFIX,
+                new ComponentState(0, 0, 0, 0, false, false, false, 0, value, ComponentState.DEFAULT_PADDING_SCALE));
     }
 
     public static void setBarScale(PersistenceProvider p, String panelId, double value) {

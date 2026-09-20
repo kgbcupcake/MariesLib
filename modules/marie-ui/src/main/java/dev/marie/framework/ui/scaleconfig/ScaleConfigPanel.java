@@ -7,6 +7,9 @@ import dev.marie.framework.ui.ThemeKey;
 import dev.marie.framework.ui.component.ComponentState;
 import dev.marie.framework.ui.component.MarieComponent;
 import dev.marie.framework.ui.edit.DraggableResizable;
+import dev.marie.framework.ui.scaleconfig.colorpicker.PickerWindow;
+import dev.marie.framework.ui.toolbox.colorpicker.ColorSlot;
+import dev.marie.framework.ui.toolbox.OptionLayout;
 import dev.marie.framework.ui.geometry.Anchor;
 import dev.marie.framework.ui.geometry.Bounds;
 import dev.marie.framework.ui.modulesettings.MoveFlags;
@@ -64,6 +67,9 @@ public final class ScaleConfigPanel {
     /** The full screen {@link Bounds} passed into the most recent {@link #render}, used to clamp drag/resize gestures and to place a newly-opened window near the anchor. */
     private Bounds lastRenderBounds = new Bounds(0, 0, 0, 0);
 
+    /** The one color-picker window this panel can show; see {@link PickerWindow}. */
+    private final PickerWindow picker = new PickerWindow();
+
     private String draggingWindowComponentId;
     private int dragGrabOffsetX;
     private int dragGrabOffsetY;
@@ -81,6 +87,9 @@ public final class ScaleConfigPanel {
             contents.put(entry.componentId(), entry.content() != null
                     ? entry.content()
                     : HostedWindow.defaultContent(persistence, entry.componentId()));
+            if (contents.get(entry.componentId()) instanceof OptionLayout layout) {
+                layout.setColorSlotListener(slot -> showPicker(entry, slot));
+            }
         }
     }
 
@@ -110,6 +119,7 @@ public final class ScaleConfigPanel {
             }
         }
 
+        picker.beginFrame(openEntry == null ? null : openEntry.componentId());
         int panelHeight = collapsedEntries.size() * TAB_HEIGHT + Math.max(0, collapsedEntries.size() - 1) * CARD_GAP;
         int panelX = AnchorStack.anchorX(bounds, anchor);
         int stackOffset = AnchorStack.claimStackOffset(this, anchor, panelHeight);
@@ -129,6 +139,15 @@ public final class ScaleConfigPanel {
             Bounds raw = new Bounds(openState.x(), openState.y(), openState.width(), openState.height());
             lastOpenWindow = layoutWindow(openEntry, accentFor(openEntry, openIndex), WindowStates.clamp(raw, bounds));
             drawWindow(context, lastOpenWindow);
+        }
+        picker.render(context, bounds);
+    }
+
+    /** A color slot in {@code entry}'s content was clicked: open or retarget the picker window on it. */
+    private void showPicker(ScaleConfigEntry entry, ColorSlot slot) {
+        if (lastOpenWindow != null) {
+            picker.show(slot, entry.componentId(), slot.label() + " - " + entry.label().getString(),
+                    lastOpenWindow.windowBounds(), lastRenderBounds);
         }
     }
 
@@ -183,6 +202,9 @@ public final class ScaleConfigPanel {
      * resize, its collapse control re-collapses it, and its header starts a reposition drag.
      */
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (picker.mouseClicked(mouseX, mouseY, button)) {
+            return true;
+        }
         int mx = (int) mouseX;
         int my = (int) mouseY;
         boolean inWindow = lastOpenWindow != null && lastOpenWindow.windowBounds().contains(mx, my);
@@ -226,6 +248,9 @@ public final class ScaleConfigPanel {
 
     /** Continues whatever gesture {@link #mouseClicked} started on the open window — a content drag (e.g. a slider scrub), or a window reposition/resize clamped to the last {@link #render}-supplied screen {@link Bounds}. Uncontested (false) if none is active. */
     public boolean mouseDragged(double mouseX, double mouseY, int button) {
+        if (picker.mouseDragged(mouseX, mouseY, button)) {
+            return true;
+        }
         if (lastOpenWindow != null && HostedWindow.mouseDragged(lastOpenWindow.content(), mouseX, mouseY, button)) {
             return true;
         }
@@ -239,6 +264,9 @@ public final class ScaleConfigPanel {
      * none was active, matching {@link #mouseClicked}/{@link #mouseDragged}/{@link #mouseScrolled}.
      */
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (picker.mouseReleased(mouseX, mouseY, button)) {
+            return true;
+        }
         if (lastOpenWindow != null && HostedWindow.mouseReleased(lastOpenWindow.content(), mouseX, mouseY, button)) {
             return true;
         }
@@ -271,6 +299,9 @@ public final class ScaleConfigPanel {
 
     /** True for anything inside the open window (its content gets the wheel first — sliders nudge or, when the rows overflow, the content scrolls); collapsed tabs ignore scroll. */
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (picker.mouseScrolled(mouseX, mouseY)) {
+            return true;
+        }
         if (lastOpenWindow == null || !lastOpenWindow.windowBounds().contains((int) mouseX, (int) mouseY)) {
             return false;
         }

@@ -27,6 +27,7 @@ public final class SliderOption implements OptionRow {
     private final double step;
     private final Runnable onCommit;
     private BooleanSupplier enabled = () -> true;
+    private Runnable resetAction;
 
     private Bounds bounds = new Bounds(0, 0, 0, 0);
     private boolean dragging;
@@ -50,6 +51,24 @@ public final class SliderOption implements OptionRow {
     @Override
     public int height() {
         return OptionStyle.LABEL_HEIGHT + OptionStyle.LABEL_TRACK_GAP + OptionStyle.SLIDER_HEIGHT;
+    }
+
+    @Override
+    public void defaultTo(double value) {
+        this.resetAction = () -> setter.accept(clamp(value));
+    }
+
+    @Override
+    public void resetWith(Runnable reset) {
+        this.resetAction = reset;
+    }
+
+    @Override
+    public void resetToDefault() {
+        if (resetAction != null) {
+            resetAction.run();
+            onCommit.run();
+        }
     }
 
     @Override

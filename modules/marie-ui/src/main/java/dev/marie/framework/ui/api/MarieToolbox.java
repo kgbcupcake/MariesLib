@@ -4,6 +4,7 @@ import dev.marie.framework.api.ApiStatus;
 import dev.marie.framework.ui.PersistenceProvider;
 import dev.marie.framework.ui.component.MarieComponent;
 import dev.marie.framework.ui.toolbox.BooleanSetter;
+import dev.marie.framework.ui.toolbox.colorpicker.ColorSlot;
 import dev.marie.framework.ui.toolbox.CycleOption;
 import dev.marie.framework.ui.toolbox.ModuleOptionRows;
 import dev.marie.framework.ui.toolbox.OptionLayout;
@@ -81,6 +82,39 @@ public final class MarieToolbox {
             return this;
         }
 
+        /** Starts a tab of color slots — the same as {@link #tab}, named for what {@link #color} adds to it. */
+        public PanelBuilder colorTab(String title) {
+            layout.addTab(title);
+            return this;
+        }
+
+        /**
+         * Adds a color slot (a swatch row) to the current tab. Clicking it asks the hosting window to open
+         * a picker for it; consumers never manage that window. Safe to call in a loop, for slots only known at runtime.
+         *
+         * <p><b>RGB only.</b> The picker never edits alpha (keep that on an opacity slider). {@code setter}
+         * receives {@code 0xRRGGBB} with the high byte zero, live on every drag tick where the value changes, and
+         * {@code defaultValue} is read the same way. If the stored int is ARGB, <b>the setter must keep the
+         * existing alpha bits</b>, e.g. {@code rgb -> stored = (stored & 0xFF000000) | rgb}. Of {@code getter}'s
+         * result only the low 24 bits are read. {@code onCommit} runs once when the drag is released and after Reset;
+         * persisting the value is the caller's job — the toolbox stores nothing. Reset calls {@code setter} with
+         * {@code defaultValue}, then {@code onCommit}.
+         */
+        public PanelBuilder color(String label, IntSupplier getter, IntConsumer setter, int defaultValue, Runnable onCommit) {
+            layout.addColorSlot(new ColorSlot(label, getter, setter, defaultValue, onCommit));
+            return this;
+        }
+
+        /**
+         * As {@link #color(String, IntSupplier, IntConsumer, int, Runnable)}, plus {@code onCancel}: run when the
+         * picker is closed or moved to another slot, so a setter that only previews a value can discard a preview
+         * that was never committed. It may run with nothing pending, so it must be safe to call then.
+         */
+        public PanelBuilder color(String label, IntSupplier getter, IntConsumer setter, int defaultValue, Runnable onCommit, Runnable onCancel) {
+            layout.addColorSlot(new ColorSlot(label, getter, setter, defaultValue, onCommit, onCancel));
+            return this;
+        }
+
         /** Adds the shared Padding slider, over the module's own {@code persistence} store under {@code panelId}. */
         public PanelBuilder padding(PersistenceProvider persistence, String panelId) {
             ModuleOptionRows.addPadding(layout, persistence, panelId);
@@ -105,12 +139,54 @@ public final class MarieToolbox {
             return this;
         }
 
+        /** Same as {@link #moveToggles(PersistenceProvider, String)} but with {@code bars} false, leaves out "Move Bars" (for modules without bars). */
+        public PanelBuilder moveToggles(PersistenceProvider persistence, String panelId, boolean bars) {
+            ModuleOptionRows.addMoveToggles(layout, persistence, panelId, bars);
+            return this;
+        }
+
+        /** Same, choosing whether "Move Icons" appears and whether a "Move Header" toggle is added. */
+        public PanelBuilder moveToggles(PersistenceProvider persistence, String panelId, boolean bars, boolean icons, boolean header) {
+            ModuleOptionRows.addMoveToggles(layout, persistence, panelId, bars, icons, header);
+            return this;
+        }
+
+        /** Adds text and icon brightness sliders over values kept in {@code persistence} (read back with {@link MarieModuleSettings#textBrightness}/{@link MarieModuleSettings#iconBrightness}), for modules whose brightness isn't a config value. */
+        public PanelBuilder storedBrightness(PersistenceProvider persistence, String panelId) {
+            ModuleOptionRows.addStoredBrightness(layout, persistence, panelId);
+            return this;
+        }
+
         /**
          * Adds a "Reset Positions" button: icon and bar offsets go back to zero (saved), all move modes switch
          * off, then {@code hostReset} runs for anything the host stores itself, such as its text offset.
          */
         public PanelBuilder resetPositions(PersistenceProvider persistence, String panelId, Runnable hostReset) {
             ModuleOptionRows.addResetPositions(layout, persistence, panelId, hostReset);
+            return this;
+        }
+
+        /** Sets the value the slider just added returns to on {@link #resetTab()}. */
+        public PanelBuilder defaultValue(double value) {
+            layout.defaultToLast(value);
+            return this;
+        }
+
+        /** Sets the value the toggle just added returns to on {@link #resetTab()}. */
+        public PanelBuilder defaultValue(boolean value) {
+            layout.defaultToLast(value);
+            return this;
+        }
+
+        /** Sets the choice index the cycle just added returns to on {@link #resetTab()}. */
+        public PanelBuilder defaultValue(int index) {
+            layout.defaultToLast(index);
+            return this;
+        }
+
+        /** Adds a "Reset This Tab" button: every option on the current tab that has a default (see {@code defaultValue}, and the shared module rows) goes back to it. Add it after the tab's options. */
+        public PanelBuilder resetTab() {
+            ModuleOptionRows.addResetTab(layout);
             return this;
         }
 
