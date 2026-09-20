@@ -189,6 +189,11 @@ public final class DraggableResizable {
         return resizing && resizeMode == ResizeMode.CORNER;
     }
 
+    /** Whether the active resize gesture moves the left edge — the LEFT handle or the bottom-left corner. */
+    public boolean isLeftEdgeGestureActive() {
+        return resizing && (resizeMode == ResizeMode.LEFT || resizeMode == ResizeMode.CORNER_BOTTOM_LEFT);
+    }
+
     /** Whether the active resize gesture is the bottom-left corner handle. */
     public boolean isBottomLeftCornerActive() {
         return resizing && resizeMode == ResizeMode.CORNER_BOTTOM_LEFT;

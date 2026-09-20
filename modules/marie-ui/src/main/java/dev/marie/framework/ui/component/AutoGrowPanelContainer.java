@@ -10,6 +10,9 @@ public final class AutoGrowPanelContainer {
 
     private AutoGrowPanelContainer() {}
 
+    /** Smallest width/height a resizable HUD box collapses to — room for the two 8 px corner handles side by side, content clipped away entirely. */
+    public static final int MIN_COLLAPSED_SIZE = 16;
+
 
     public static int naturalContentHeight(List<? extends SelfPositioningModule> modules, int startLocalY, double scale) {
         int cursorY = startLocalY;
@@ -46,6 +49,19 @@ public final class AutoGrowPanelContainer {
             return existing;
         }
         return new ManualOverride(width, height);
+    }
+
+    /**
+     * The dead space a panel keeps between its left edge and its content after a resize. A left-edge
+     * (or bottom-left-corner) gesture moves the box's {@code x}, so content anchored to {@code x}
+     * would slide with it; growing/shrinking this margin by the width delta instead keeps the content
+     * where it is on screen, exactly as a right-edge drag does. Any other gesture leaves it unchanged.
+     * It may go negative: shrinking a box from the left past its margin keeps the content in place and
+     * lets the moving edge clip it, so a box can be collapsed to a sliver and dragged back open with
+     * nothing overflowing or jumping.
+     */
+    public static int leftMarginAfterResize(int persistedMargin, int widthBefore, int widthAfter, boolean leftEdgeGesture) {
+        return leftEdgeGesture ? persistedMargin + (widthAfter - widthBefore) : persistedMargin;
     }
 
     public static int resolveWidth(ManualOverride override, int persistedWidth, int naturalWidth) {
