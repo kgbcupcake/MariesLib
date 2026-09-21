@@ -11,6 +11,9 @@ public final class MariesLibConfigHolder {
     // Debug
     public boolean enableDebugLogging = false;
 
+    // Mod-file scan: true only allows scanning, it still needs a consumer to register an extractor
+    public boolean enableModScan = true;
+
     // Scanner context
     // 0.15f: consumed post-merge as a spread/max ratio in [0,1] (see StageMath.confidenceRatio /
     // RuntimeResolver.buildTraceFromResult). ~0.15 on that ratio scale corresponds to the 0.10

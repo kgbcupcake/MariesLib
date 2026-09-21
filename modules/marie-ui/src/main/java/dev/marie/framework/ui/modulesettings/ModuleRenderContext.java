@@ -13,8 +13,8 @@ import net.minecraft.world.item.ItemStack;
  * by the module's text and icon offsets, bars by the bar offset and bar size, icons are scaled by the icon size relative to the text size
  * (the module's own renderer already scales both by the text size, so at the default — icon size
  * following text size — the ratio is 1 and nothing changes), and text and icons get their own
- * brightness; icons are skipped entirely while the module's "Hide Icons" toggle is on. Fills, bars, borders and clips pass straight through. {@link #wrap} returns the original
- * context when every setting is at its default.
+ * brightness; icons are skipped entirely while the module's "Hide Icons" toggle is on. Fills, bars, borders and clips pass straight through. {@link #wrap} also records where each part
+ * is drawn ({@link ModuleExtents}).
  */
 @ApiStatus.Internal
 public final class ModuleRenderContext implements RenderContext {
@@ -31,10 +31,13 @@ public final class ModuleRenderContext implements RenderContext {
     private final int barDy;
     private final float barScale;
     private final boolean hideIcons;
+    private final PersistenceProvider store;
+    private final String panelId;
 
     private ModuleRenderContext(RenderContext delegate, int textDx, int textDy, int iconDx, int iconDy,
                                 float iconRatio, double textBrightness, double iconBrightness,
-                                int barDx, int barDy, float barScale, boolean hideIcons) {
+                                int barDx, int barDy, float barScale, boolean hideIcons,
+                                PersistenceProvider store, String panelId) {
         this.delegate = delegate;
         this.textDx = textDx;
         this.textDy = textDy;
@@ -47,6 +50,8 @@ public final class ModuleRenderContext implements RenderContext {
         this.barDy = barDy;
         this.barScale = barScale;
         this.hideIcons = hideIcons;
+        this.store = store;
+        this.panelId = panelId;
     }
 
     /** {@code delegate} wrapped with {@code panelId}'s settings read from {@code store} now; {@code delegate} itself if all are default. */
@@ -63,15 +68,15 @@ public final class ModuleRenderContext implements RenderContext {
         int barDy = ModuleOffsets.barY(store, panelId);
         float barScale = (float) ModuleScales.barScale(store, panelId);
         boolean hideIcons = HideFlags.iconsHidden(store, panelId);
-        boolean plain = !hideIcons && textDx == 0 && textDy == 0 && iconDx == 0 && iconDy == 0 && barDx == 0 && barDy == 0
-                && Math.abs(ratio - 1f) < 1e-4f && Math.abs(barScale - 1f) < 1e-4f
-                && textBrightness == 1.0d && iconBrightness == 1.0d;
-        return plain ? delegate : new ModuleRenderContext(delegate, textDx, textDy, iconDx, iconDy, ratio,
-                textBrightness, iconBrightness, barDx, barDy, barScale, hideIcons);
+        // Always wrapped, even at all-default settings: the wrapper is what records where the module draws (see ModuleExtents).
+        ModuleExtents.begin(store, panelId);
+        return new ModuleRenderContext(delegate, textDx, textDy, iconDx, iconDy, ratio,
+                textBrightness, iconBrightness, barDx, barDy, barScale, hideIcons, store, panelId);
     }
 
     @Override
     public void drawText(String text, int x, int y, int argbColor, float scale) {
+        ModuleExtents.add(store, panelId, ModuleExtents.Kind.TEXT, x + textDx, y + textDy, delegate.textWidth(text, scale), Math.round(9 * scale));
         delegate.drawText(text, x + textDx, y + textDy, BrightnessRenderContext.scale(argbColor, textBrightness), scale);
     }
 
@@ -80,10 +85,17 @@ public final class ModuleRenderContext implements RenderContext {
         if (hideIcons) {
             return;
         }
+        float drawScale = scale * iconRatio;
+        ModuleExtents.add(store, panelId, ModuleExtents.Kind.ICON, x + iconDx, y + iconDy, Math.round(16 * drawScale), Math.round(16 * drawScale));
+        if (iconBrightness == 1.0d) {
+            // No tint to apply, and setting the shader color would overwrite a fade the host has set.
+            delegate.drawItem(stack, x + iconDx, y + iconDy, drawScale);
+            return;
+        }
         float tint = (float) iconBrightness;
         RenderSystem.setShaderColor(tint, tint, tint, 1f);
         try {
-            delegate.drawItem(stack, x + iconDx, y + iconDy, scale * iconRatio);
+            delegate.drawItem(stack, x + iconDx, y + iconDy, drawScale);
         } finally {
             RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
         }
@@ -136,11 +148,13 @@ public final class ModuleRenderContext implements RenderContext {
 
     @Override
     public void drawBar(int x, int y, int width, int height, float fillPct, int backgroundColor, int fillColor) {
+        ModuleExtents.add(store, panelId, ModuleExtents.Kind.BAR, x + barDx, y + barDy, scaled(width), scaled(height));
         delegate.drawBar(x + barDx, y + barDy, scaled(width), scaled(height), fillPct, backgroundColor, fillColor);
     }
 
     @Override
     public void drawVerticalBar(int x, int y, int width, int height, float fillPct, int backgroundColor, int fillColor) {
+        ModuleExtents.add(store, panelId, ModuleExtents.Kind.BAR, x + barDx, y + barDy, scaled(width), scaled(height));
         delegate.drawVerticalBar(x + barDx, y + barDy, scaled(width), scaled(height), fillPct, backgroundColor, fillColor);
     }
 

@@ -42,6 +42,8 @@
   "config.marieslib.scanner.multipliers.namespacePeerAverageWeight.desc": "Blend weight when averaging peer namespace scores.",
   "config.marieslib.diagnostics.enableDebugLogging": "Enable Debug Logging",
   "config.marieslib.diagnostics.enableDebugLogging.desc": "Write verbose MariesLib diagnostics to the game log.",
+  "config.marieslib.diagnostics.enableModScan": "Allow Mod File Scan",
+  "config.marieslib.diagnostics.enableModScan.desc": "Let mods that ask for it scan installed mod files in the background and cache the results. Nothing is scanned unless a mod registers a scan. Takes effect on next launch.",
   "config.marieslib.diagnostics.hint": "Use /<yourmod> diagnostics for datapack validation (e.g. /nourished diagnostics).",
   "config.marieslib.tools.commandsHeader": "§6Library Commands",
   "config.marieslib.tools.commandStatus": "§7/marieslib status§r — Show library version and bootstrap mode",

@@ -23,3 +23,6 @@ src/main/java/dev/marie/MariesLib/repomix-output.xml
 modules/MariesLib.xml
 /CLAUDE.md
 CLAUDE.md
+# Mod-scan tests kept local
+modules/marie-core/src/test/java/dev/marie/framework/modscan/
+modules/marie-core/src/test/java/dev/marie/framework/api/marieapi/MarieAPIModScanTest.java

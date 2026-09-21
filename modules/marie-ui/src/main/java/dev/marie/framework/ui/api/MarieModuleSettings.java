@@ -6,6 +6,8 @@ import dev.marie.framework.ui.RenderContext;
 import dev.marie.framework.ui.component.MarieComponent;
 import dev.marie.framework.ui.modulesettings.BrightnessRenderContext;
 import dev.marie.framework.ui.modulesettings.HideFlags;
+import dev.marie.framework.ui.geometry.Bounds;
+import dev.marie.framework.ui.modulesettings.ModuleExtents;
 import dev.marie.framework.ui.modulesettings.ModuleOffsets;
 import dev.marie.framework.ui.modulesettings.ModuleRenderContext;
 import dev.marie.framework.ui.modulesettings.ModuleScales;
@@ -120,6 +122,21 @@ public final class MarieModuleSettings {
 
     public static void commitIconOffset(PersistenceProvider store, String panelId) {
         ModuleOffsets.commitIcon(store, panelId);
+    }
+
+    /**
+     * Where the module last drew the part {@code mode} moves (text, icons, bars — or all three for {@link MoveDrag.Mode#ALL}),
+     * in screen coordinates and after its offsets, for an edit screen to outline just that part; {@code null} if the module
+     * drew none of it in its latest render (fall back to the whole box). Recorded only for a module that draws through
+     * {@link #withDisplaySettings}; {@link MoveDrag.Mode#HEADER} reports the text, as a header is drawn as text.
+     */
+    public static Bounds moveOutline(PersistenceProvider store, String panelId, MoveDrag.Mode mode) {
+        return switch (mode) {
+            case TEXT, HEADER -> ModuleExtents.of(store, panelId, ModuleExtents.Kind.TEXT);
+            case ICONS -> ModuleExtents.of(store, panelId, ModuleExtents.Kind.ICON);
+            case BARS -> ModuleExtents.of(store, panelId, ModuleExtents.Kind.BAR);
+            case ALL -> ModuleExtents.all(store, panelId);
+        };
     }
 
     /** Whether the "Move All" toggle is on (one drag moves text, icons and bars together). */

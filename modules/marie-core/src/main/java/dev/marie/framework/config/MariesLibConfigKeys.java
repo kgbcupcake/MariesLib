@@ -9,6 +9,9 @@ public final class MariesLibConfigKeys {
     // Debug
     public static final String ENABLE_DEBUG_LOGGING = "debug.enableDebugLogging";
 
+    // Mod-file scan
+    public static final String ENABLE_MOD_SCAN = "modScan.enableModScan";
+
     // Scanner (context)
     public static final String SCANNER_CONFIDENCE_SPREAD_THRESHOLD = "scanner.confidenceSpreadThreshold";
     public static final String COMPOSITE_RATIO_THRESHOLD = "scanner.compositeRatioThreshold";

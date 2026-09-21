@@ -17,6 +17,10 @@ final class ClothCategoryDiagnostics {
                 "diagnostics.enableDebugLogging", h.enableDebugLogging, false,
                 v -> h.enableDebugLogging = v));
 
+        cat.addEntry(ClothConfigHelper.buildBool(entryBuilder, MariesLibConfigKeys.ENABLE_MOD_SCAN,
+                "diagnostics.enableModScan", h.enableModScan, true,
+                v -> h.enableModScan = v));
+
         cat.addEntry(entryBuilder.startTextDescription(ClothConfigHelper.t("diagnostics.hint")).build());
     }
 }
