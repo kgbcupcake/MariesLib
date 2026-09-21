@@ -92,6 +92,10 @@ test {
 }
 
 tasks.named('processResources', ProcessResources).configure {
+    // captured at configuration time: the configuration cache forbids touching project/sourceSets inside doLast
+    def resourcesDirAtConfig = sourceSets.main.output.resourcesDir
+    def projectDirAtConfig = projectDir
+    def modIdAtConfig = mod_id
     var replaceProperties = [
             minecraft_version      : minecraft_version,
             minecraft_version_range: minecraft_version_range,
@@ -112,10 +116,10 @@ tasks.named('processResources', ProcessResources).configure {
     }
 
     doLast {
-        def versionFile = file("${sourceSets.main.output.resourcesDir}/.gitversion-${mod_id}")
+        def versionFile = new File("${resourcesDirAtConfig}/.gitversion-${modIdAtConfig}")
         versionFile.parentFile.mkdirs()
         try {
-            versionFile.text = 'git log "-1" "--format=%h"'.execute(null, project.projectDir).in.text.trim()
+            versionFile.text = 'git log "-1" "--format=%h"'.execute(null, projectDirAtConfig).in.text.trim()
         } catch (Exception ignored) {
             versionFile.text = 'unknown'
         }
