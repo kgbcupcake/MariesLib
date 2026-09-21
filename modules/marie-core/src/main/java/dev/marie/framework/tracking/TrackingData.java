@@ -543,7 +543,9 @@ public class TrackingData {
         SourceMemoryEntry entry = memory.getOrDefault(key, new SourceMemoryEntry(0f, gameTimeMs));
         long elapsed = gameTimeMs - entry.lastAppliedTick();
         boolean inStreak = elapsed <= streakWindowMs && elapsed >= 0;
-        float increment = baseIncrement * (inStreak ? streakWeight : 1.0f);
+        // The free bites (the curve's midpoint) count as plain eats; streak weighting starts after them.
+        boolean pastFreeBites = entry.applicationCount() >= configuredDiminishingMidpoint() * baseIncrement;
+        float increment = baseIncrement * (inStreak && pastFreeBites ? streakWeight : 1.0f);
         entry = new SourceMemoryEntry(entry.applicationCount() + increment, gameTimeMs);
         memory.put(key, entry);
     }

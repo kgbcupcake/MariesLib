@@ -37,13 +37,12 @@ public final class TrackerManager {
         if (!IMarieConfig.get().trackerSystemEnabled()) {
             return;
         }
-        long nowGameTimeMs = player.level().getGameTime();
         for (TrackerDefinition definition : TrackerRegistry.getAll()) {
             TrackerPeriod period = definition.getPeriod();
             if (period == TrackerPeriod.SESSION || period == TrackerPeriod.CUSTOM) {
                 continue;
             }
-            processDefinition(player, tracking, definition, nowGameTimeMs);
+            processDefinition(player, tracking, definition, clockNow(player, definition));
         }
     }
 
@@ -57,17 +56,17 @@ public final class TrackerManager {
         if (!IMarieConfig.get().trackerSystemEnabled()) {
             return;
         }
-        long nowGameTimeMs = player.level().getGameTime();
         for (TrackerDefinition definition : TrackerRegistry.getAll()) {
             if (definition.getPeriod() != TrackerPeriod.SESSION) {
                 continue;
             }
             ResourceLocation id = definition.getId();
             TrackingPeriodState state = tracking.trackerPeriodStates.get(id);
+            long now = clockNow(player, definition);
             if (state == null) {
-                tracking.trackerPeriodStates.put(id, openPeriod(definition, nowGameTimeMs));
+                tracking.trackerPeriodStates.put(id, openPeriod(definition, now));
             } else {
-                closePeriodAndOpenNext(player, tracking, definition, id, state, nowGameTimeMs);
+                closePeriodAndOpenNext(player, tracking, definition, id, state, now);
             }
         }
     }
@@ -85,13 +84,13 @@ public final class TrackerManager {
         if (definition == null || definition.getPeriod() != TrackerPeriod.CUSTOM) {
             return;
         }
-        long nowGameTimeMs = player.level().getGameTime();
+        long now = clockNow(player, definition);
         TrackingPeriodState state = tracking.trackerPeriodStates.get(trackerId);
         if (state == null) {
-            tracking.trackerPeriodStates.put(trackerId, openPeriod(definition, nowGameTimeMs));
+            tracking.trackerPeriodStates.put(trackerId, openPeriod(definition, now));
             return;
         }
-        closePeriodAndOpenNext(player, tracking, definition, trackerId, state, nowGameTimeMs);
+        closePeriodAndOpenNext(player, tracking, definition, trackerId, state, now);
     }
 
     /** Clears dirty-sync bookkeeping for a player, e.g. on logout. */
@@ -130,66 +129,100 @@ public final class TrackerManager {
         TrackerDirtyState.setLastSyncTick(playerId, nowGameTime);
     }
 
+    /**
+     * The clock a definition's boundaries are measured on. DAILY/WEEKLY/MONTHLY use the world's day
+     * time so sleeping through the night and {@code /time} move the day; everything else keeps the
+     * monotonic game time (REAL_TIME ignores it and reads the wall clock).
+     */
+    private static long clockNow(ServerPlayer player, TrackerDefinition definition) {
+        return isDayPeriod(definition.getPeriod()) ? player.level().getDayTime() : player.level().getGameTime();
+    }
+
+    private static boolean isDayPeriod(TrackerPeriod period) {
+        return period == TrackerPeriod.DAILY || period == TrackerPeriod.WEEKLY || period == TrackerPeriod.MONTHLY;
+    }
+
     private static void processDefinition(ServerPlayer player, TrackingData tracking,
-            TrackerDefinition definition, long nowGameTimeMs) {
+            TrackerDefinition definition, long now) {
         ResourceLocation id = definition.getId();
         TrackingPeriodState state = tracking.trackerPeriodStates.get(id);
         if (state == null) {
             // First-period initialization: open only, never backfill/synthesize a history entry.
-            tracking.trackerPeriodStates.put(id, openPeriod(definition, nowGameTimeMs));
+            tracking.trackerPeriodStates.put(id, openPeriod(definition, now));
             return;
         }
-        if (isBoundaryDue(definition, state, nowGameTimeMs)) {
-            closePeriodAndOpenNext(player, tracking, definition, id, state, nowGameTimeMs);
+        if (isDayPeriod(definition.getPeriod()) && !state.dayClock()) {
+            // Saved before day-time periods: its boundaries are game ticks. Re-base onto the day
+            // clock once, keeping the accumulator, so the value in progress isn't lost or split.
+            tracking.trackerPeriodStates.put(id, openPeriod(definition, now));
+            return;
+        }
+        if (isBoundaryDue(definition, state, now)) {
+            closePeriodAndOpenNext(player, tracking, definition, id, state, now);
         }
     }
 
     /** The seam for later optimization (e.g. batching boundary checks instead of per-tracker per-tick). */
-    private static boolean isBoundaryDue(TrackerDefinition definition, TrackingPeriodState state, long nowGameTimeMs) {
+    private static boolean isBoundaryDue(TrackerDefinition definition, TrackingPeriodState state, long now) {
         return switch (definition.getPeriod()) {
-            case DAILY, WEEKLY, MONTHLY -> nowGameTimeMs >= state.periodEnd();
+            case DAILY, WEEKLY, MONTHLY -> isDayBoundaryDue(state, now);
             case REAL_TIME -> System.currentTimeMillis() >= state.periodEnd();
             case SESSION, CUSTOM -> false;
         };
     }
 
+    /**
+     * Due once the day clock reaches the period's end (also across a multi-day skip, which closes
+     * a single period), or when {@code /time set} has moved it back before the period's start — a
+     * backwards jump must not leave the period stuck until the clock catches up.
+     */
+    static boolean isDayBoundaryDue(TrackingPeriodState state, long dayTime) {
+        return dayTime >= state.periodEnd() || dayTime < state.periodStart();
+    }
+
+    /** First tick of the world day {@code dayTime} falls in. */
+    static long dayStart(long dayTime) {
+        return Math.floorDiv(dayTime, 24000L) * 24000L;
+    }
+
     private static void closePeriodAndOpenNext(ServerPlayer player, TrackingData tracking,
-            TrackerDefinition definition, ResourceLocation id, TrackingPeriodState state, long nowGameTimeMs) {
+            TrackerDefinition definition, ResourceLocation id, TrackingPeriodState state, long now) {
         float value = tracking.trackingAccumulators.getOrDefault(id, 0f);
         long periodEnd = switch (definition.getPeriod()) {
-            case SESSION, CUSTOM -> nowGameTimeMs;
+            case SESSION, CUSTOM -> now;
             case DAILY, WEEKLY, MONTHLY, REAL_TIME -> state.periodEnd();
         };
         TrackerHistoryEntry entry = new TrackerHistoryEntry(
                 id, definition.getPeriod().configId(), state.periodStart(), periodEnd, value);
         tracking.appendTrackerHistory(id, entry, definition.getRetention());
         tracking.trackingAccumulators.put(id, 0f);
-        tracking.trackerPeriodStates.put(id, openPeriod(definition, nowGameTimeMs));
+        tracking.trackerPeriodStates.put(id, openPeriod(definition, now));
         TrackerNetworking.sendPeriodResync(player, id, tracking);
         if (MarieContext.isRegistered()) {
             MarieContext.get().onTrackerPeriodCompletedHook().accept(player, entry);
         }
     }
 
-    private static TrackingPeriodState openPeriod(TrackerDefinition definition, long nowGameTimeMs) {
+    /** {@code now} is on the definition's own clock (see {@link #clockNow}). */
+    private static TrackingPeriodState openPeriod(TrackerDefinition definition, long now) {
         return switch (definition.getPeriod()) {
             case DAILY -> {
-                long dayNumber = nowGameTimeMs / 24000L;
-                yield new TrackingPeriodState(nowGameTimeMs, (dayNumber + 1) * 24000L);
+                long start = dayStart(now);
+                yield new TrackingPeriodState(start, start + 24000L, true);
             }
             case WEEKLY -> {
-                long windowTicks = IMarieConfig.get().trackerWeeklyPeriodDays() * 24000L;
-                yield new TrackingPeriodState(nowGameTimeMs, nowGameTimeMs + windowTicks);
+                long start = dayStart(now);
+                yield new TrackingPeriodState(start, start + IMarieConfig.get().trackerWeeklyPeriodDays() * 24000L, true);
             }
             case MONTHLY -> {
-                long windowTicks = (long) IMarieConfig.get().trackerMonthlyPeriodDays() * 24000L;
-                yield new TrackingPeriodState(nowGameTimeMs, nowGameTimeMs + windowTicks);
+                long start = dayStart(now);
+                yield new TrackingPeriodState(start, start + (long) IMarieConfig.get().trackerMonthlyPeriodDays() * 24000L, true);
             }
             case REAL_TIME -> {
                 long nowMs = System.currentTimeMillis();
                 yield new TrackingPeriodState(nowMs, nowMs + definition.getRealTimeDurationMs());
             }
-            case SESSION, CUSTOM -> new TrackingPeriodState(nowGameTimeMs, nowGameTimeMs);
+            case SESSION, CUSTOM -> new TrackingPeriodState(now, now);
         };
     }
 }
