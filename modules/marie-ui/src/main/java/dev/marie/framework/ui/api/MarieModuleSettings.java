@@ -5,6 +5,7 @@ import dev.marie.framework.ui.PersistenceProvider;
 import dev.marie.framework.ui.RenderContext;
 import dev.marie.framework.ui.component.MarieComponent;
 import dev.marie.framework.ui.modulesettings.BrightnessRenderContext;
+import dev.marie.framework.ui.modulesettings.HideFlags;
 import dev.marie.framework.ui.modulesettings.ModuleOffsets;
 import dev.marie.framework.ui.modulesettings.ModuleRenderContext;
 import dev.marie.framework.ui.modulesettings.ModuleScales;
@@ -126,6 +127,11 @@ public final class MarieModuleSettings {
         return MoveFlags.isOn(store, ModuleOffsets.moveAllFlagId(panelId));
     }
 
+    /** Whether the module's "Hide Icons" toggle is on. {@link #withDisplaySettings} already skips icon draws; this is for a host that lays out or draws icons some other way. */
+    public static boolean isIconsHidden(PersistenceProvider store, String panelId) {
+        return HideFlags.iconsHidden(store, panelId);
+    }
+
     /** Whether the "Move Icons" toggle is on. */
     public static boolean isMoveIconsEnabled(PersistenceProvider store, String panelId) {
         return MoveFlags.isOn(store, ModuleOffsets.moveIconsFlagId(panelId));
@@ -210,9 +216,11 @@ public final class MarieModuleSettings {
     }
 
     /**
-     * Starts the standard three-tab options panel: Layout (Padding), Behavior (Move Text, Move Icons,
-     * Move Bars, Move All, Reset Positions) and Appearance (Text size, Icon size, Bar size, plus whichever of text brightness, icon
-     * brightness and background opacity you bind).
+     * Starts the standard options panel every module window shares: Layout (Padding), Behavior (collapsible Move group:
+     * Move Text/Icons/Bars/All and Reset Positions; collapsible Hide group: Hide Icons) and Style, whose collapsible
+     * groups are Sizes (Text/Icon/Bar size), Brightness, Background (opacity, shade) and Border (opacity, shade) — a
+     * group appears only when you bind something for it. Consumer-specific rows go in through {@code layoutRows},
+     * {@code behaviorRows}, {@code styleRows} and {@code extraTabs}, so no module hand-builds its own layout.
      */
     public static StandardPanelBuilder standardPanel(String title, PersistenceProvider store, String panelId) {
         return new StandardPanelBuilder(title, store, panelId);
@@ -330,6 +338,14 @@ public final class MarieModuleSettings {
         private boolean icons = true;
         private boolean header;
         private boolean storedBrightness;
+        private DoubleSupplier backgroundShade;
+        private DoubleConsumer setBackgroundShade;
+        private DoubleSupplier borderOpacity;
+        private DoubleConsumer setBorderOpacity;
+        private DoubleSupplier borderShade;
+        private DoubleConsumer setBorderShade;
+        private Consumer<MarieToolbox.PanelBuilder> layoutRows;
+        private Consumer<MarieToolbox.PanelBuilder> behaviorRows;
         private Consumer<MarieToolbox.PanelBuilder> styleRows;
         private Consumer<MarieToolbox.PanelBuilder> extraTabs;
 
@@ -363,6 +379,42 @@ public final class MarieModuleSettings {
         public StandardPanelBuilder iconBrightness(DoubleSupplier getter, DoubleConsumer setter) {
             this.iconBrightness = getter;
             this.setIconBrightness = setter;
+            return this;
+        }
+
+        /** Background shade slider (-1..1, darker to lighter), in the Background group next to opacity. */
+        public StandardPanelBuilder backgroundShade(DoubleSupplier getter, DoubleConsumer setter) {
+            this.backgroundShade = getter;
+            this.setBackgroundShade = setter;
+            return this;
+        }
+
+        /** Border opacity slider (0..1), in the Border group. */
+        public StandardPanelBuilder borderOpacity(DoubleSupplier getter, DoubleConsumer setter) {
+            this.borderOpacity = getter;
+            this.setBorderOpacity = setter;
+            return this;
+        }
+
+        /** Border shade slider (-1..1, darker to lighter), in the Border group. */
+        public StandardPanelBuilder borderShade(DoubleSupplier getter, DoubleConsumer setter) {
+            this.borderShade = getter;
+            this.setBorderShade = setter;
+            return this;
+        }
+
+        /**
+         * Lets the caller add its own rows to the Layout tab, before its "Reset This Tab" button; {@code rows}
+         * receives the builder once, when {@link #build} runs. A group the caller opens is closed for it afterwards.
+         */
+        public StandardPanelBuilder layoutRows(Consumer<MarieToolbox.PanelBuilder> rows) {
+            this.layoutRows = rows;
+            return this;
+        }
+
+        /** Same for the Behavior tab: {@code rows} runs before the standard Move and Hide groups. */
+        public StandardPanelBuilder behaviorRows(Consumer<MarieToolbox.PanelBuilder> rows) {
+            this.behaviorRows = rows;
             return this;
         }
 
@@ -422,12 +474,24 @@ public final class MarieModuleSettings {
         }
 
         public MarieComponent build() {
-            MarieToolbox.PanelBuilder panel = MarieToolbox.panel(title)
-                    .tab(label("layout")).padding(store, panelId).resetTab()
-                    .tab(label("behavior")).moveToggles(store, panelId, bars, icons, header).resetPositions(store, panelId, onReset)
-                    .tab(label("appearance")).textAndIconSizes(store, panelId);
+            MarieToolbox.PanelBuilder panel = MarieToolbox.panel(title).tab(label("layout")).padding(store, panelId);
+            if (layoutRows != null) {
+                layoutRows.accept(panel);
+                panel.endSection();
+            }
+            panel.resetTab().tab(label("behavior"));
+            if (behaviorRows != null) {
+                behaviorRows.accept(panel);
+                panel.endSection();
+            }
+            panel.moveToggles(store, panelId, bars, icons, header).resetPositions(store, panelId, onReset)
+                    .tab(label("appearance"))
+                    .section(text("config.marieslib.moduleoptions.section.sizes")).textAndIconSizes(store, panelId);
             if (bars) {
                 panel.barSize(store, panelId);
+            }
+            if (storedBrightness || textBrightness != null || iconBrightness != null) {
+                panel.section(text("config.marieslib.moduleoptions.section.brightness"));
             }
             if (storedBrightness) {
                 panel.storedBrightness(store, panelId);
@@ -440,12 +504,31 @@ public final class MarieModuleSettings {
                 panel.slider(text("config.marieslib.moduleoptions.iconBrightness"), iconBrightness, setIconBrightness,
                         MIN_BRIGHTNESS, MAX_BRIGHTNESS, 0.01d, onCommit).defaultValue(1.0d);
             }
+            if (opacity != null || backgroundShade != null) {
+                panel.section(text("config.marieslib.moduleoptions.section.background"));
+            }
             if (opacity != null) {
                 panel.slider(text("config.marieslib.moduleoptions.backgroundOpacity"), opacity, setOpacity, 0.0d, 1.0d, 0.01d, onCommit);
                 if (hasOpacityDefault) {
                     panel.defaultValue(opacityDefault);
                 }
             }
+            if (backgroundShade != null) {
+                panel.slider(text("config.marieslib.moduleoptions.backgroundShade"), backgroundShade, setBackgroundShade,
+                        -1.0d, 1.0d, 0.01d, onCommit).defaultValue(0.0d);
+            }
+            if (borderOpacity != null || borderShade != null) {
+                panel.section(text("config.marieslib.moduleoptions.section.border"));
+            }
+            if (borderOpacity != null) {
+                panel.slider(text("config.marieslib.moduleoptions.borderOpacity"), borderOpacity, setBorderOpacity,
+                        0.0d, 1.0d, 0.01d, onCommit).defaultValue(1.0d);
+            }
+            if (borderShade != null) {
+                panel.slider(text("config.marieslib.moduleoptions.borderShade"), borderShade, setBorderShade,
+                        -1.0d, 1.0d, 0.01d, onCommit).defaultValue(0.0d);
+            }
+            panel.endSection();
             if (styleRows != null) {
                 styleRows.accept(panel);
             }

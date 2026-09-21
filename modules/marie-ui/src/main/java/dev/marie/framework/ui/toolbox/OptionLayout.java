@@ -25,6 +25,9 @@ import java.util.List;
 public final class OptionLayout implements MarieComponent {
 
     private static final int SCROLL_STEP = 10;
+    /** Width of the scroll track, reserved beside the rows while they overflow so the thumb never covers text. */
+    private static final int SCROLL_GUTTER = 5;
+    private static final int SCROLL_TRACK_WIDTH = 3;
 
     private final String id;
     private final TabRow tabRow = new TabRow();
@@ -32,6 +35,8 @@ public final class OptionLayout implements MarieComponent {
 
     private Bounds rowArea = new Bounds(0, 0, 0, 0);
     private int scroll;
+    /** While non-null, {@link #addRow} files rows into this section instead of the tab (see {@link #openSection}). */
+    private SectionRow openSection;
     private java.util.function.Consumer<ColorSlot> colorSlotListener = slot -> {};
 
     public OptionLayout(String id) {
@@ -39,6 +44,7 @@ public final class OptionLayout implements MarieComponent {
     }
 
     public void addTab(String title) {
+        openSection = null;
         tabRow.addTab(title);
         tabs.add(new ArrayList<>());
     }
@@ -48,16 +54,42 @@ public final class OptionLayout implements MarieComponent {
         if (tabs.isEmpty()) {
             throw new IllegalStateException("addTab must be called before addRow");
         }
-        tabs.get(tabs.size() - 1).add(row);
+        if (openSection != null) {
+            openSection.add(row);
+        } else {
+            tabs.get(tabs.size() - 1).add(row);
+        }
+    }
+
+    /** Starts (or resumes, if {@code title} already heads one on this tab) a collapsible group; rows added until {@link #closeSection} go inside it. */
+    public void openSection(String title) {
+        openSection = section(title, title);
+    }
+
+    public void closeSection() {
+        openSection = null;
+    }
+
+    /** The section {@code key} on the most recently added tab, created (and appended) on first use. */
+    public SectionRow section(String key, String title) {
+        for (OptionRow row : currentTabRows()) {
+            if (row instanceof SectionRow section && section.key().equals(key)) {
+                return section;
+            }
+        }
+        SectionRow section = new SectionRow(key, title);
+        currentTabRows().add(section);
+        return section;
     }
 
     /** Applies {@code enabled} to the most recently added row. */
     public void enabledWhenLast(java.util.function.BooleanSupplier enabled) {
         List<OptionRow> rows = tabs.isEmpty() ? List.of() : tabs.get(tabs.size() - 1);
-        if (rows.isEmpty()) {
+        OptionRow last = openSection != null ? openSection.last() : rows.isEmpty() ? null : rows.get(rows.size() - 1);
+        if (last == null) {
             throw new IllegalStateException("no option to attach enabledWhen to");
         }
-        rows.get(rows.size() - 1).enabledWhen(enabled);
+        last.enabledWhen(enabled);
     }
 
     /** The live row list of the most recently added tab (for a reset button that acts on its own tab). */
@@ -83,10 +115,11 @@ public final class OptionLayout implements MarieComponent {
 
     private OptionRow lastRow() {
         List<OptionRow> rows = currentTabRows();
-        if (rows.isEmpty()) {
+        OptionRow last = openSection != null ? openSection.last() : rows.isEmpty() ? null : rows.get(rows.size() - 1);
+        if (last == null) {
             throw new IllegalStateException("no option to set a default on");
         }
-        return rows.get(rows.size() - 1);
+        return last;
     }
 
     /** Adds a swatch row for {@code slot} to the most recently added tab; a click on it reports the slot to {@link #setColorSlotListener}'s listener. */
@@ -115,7 +148,7 @@ public final class OptionLayout implements MarieComponent {
         for (List<OptionRow> rows : tabs) {
             tallest = Math.max(tallest, stackHeight(rows));
         }
-        return Constraint.preferred(OptionStyle.PREFERRED_WIDTH, tabStripHeight() + tallest);
+        return Constraint.preferred(OptionStyle.PREFERRED_WIDTH, tabStripHeight() + tallest + 2 * OptionStyle.PANEL_PAD);
     }
 
     @Override
@@ -128,12 +161,14 @@ public final class OptionLayout implements MarieComponent {
         rowArea = new Bounds(bounds.x(), top, bounds.width(), Math.max(0, bounds.y() + bounds.height() - top));
         List<OptionRow> rows = selectedRows();
         scroll = Math.min(scroll, maxScroll(rows));
+        int pad = OptionStyle.PANEL_PAD;
+        int rowWidth = Math.max(0, rowArea.width() - 2 * pad - (maxScroll(rows) > 0 ? SCROLL_GUTTER : 0));
 
         context.pushClip(rowArea.x(), rowArea.y(), rowArea.width(), rowArea.height());
         try {
-            int y = rowArea.y() - scroll;
+            int y = rowArea.y() + pad - scroll;
             for (OptionRow row : rows) {
-                row.render(context, new Bounds(rowArea.x(), y, rowArea.width(), row.height()));
+                row.render(context, new Bounds(rowArea.x() + pad, y, rowWidth, row.height()));
                 y += row.height() + OptionStyle.ROW_GAP;
             }
         } finally {
@@ -142,18 +177,21 @@ public final class OptionLayout implements MarieComponent {
         drawScrollThumb(context, rows);
     }
 
-    /** Thin track and thumb on the right edge of the row area, only while the rows overflow it. */
+    /** Outlined track and thumb in the gutter on the right edge of the row area, only while the rows overflow it. */
     private void drawScrollThumb(RenderContext context, List<OptionRow> rows) {
         int max = maxScroll(rows);
         if (max <= 0 || rowArea.height() <= 0) {
             return;
         }
         int total = stackHeight(rows);
-        int trackX = rowArea.x() + rowArea.width() - 2;
-        int thumbH = Math.max(6, rowArea.height() * rowArea.height() / total);
-        int thumbY = rowArea.y() + (rowArea.height() - thumbH) * scroll / max;
-        context.fillRect(trackX, rowArea.y(), 2, rowArea.height(), OptionStyle.dimmed(OptionStyle.ACCENT));
-        context.fillRect(trackX, thumbY, 2, thumbH, OptionStyle.ACCENT);
+        int trackX = rowArea.x() + rowArea.width() - SCROLL_TRACK_WIDTH - 2;
+        int trackY = rowArea.y() + 2;
+        int trackH = rowArea.height() - 4;
+        int thumbH = Math.max(6, trackH * (rowArea.height() - 2 * OptionStyle.PANEL_PAD) / total);
+        int thumbY = trackY + (trackH - thumbH) * scroll / max;
+        context.fillRect(trackX, trackY, SCROLL_TRACK_WIDTH, trackH, OptionStyle.dimmed(OptionStyle.ACCENT));
+        context.drawBorder(trackX, trackY, SCROLL_TRACK_WIDTH, trackH, 1, OptionStyle.ACCENT);
+        context.fillRect(trackX, thumbY, SCROLL_TRACK_WIDTH, thumbH, OptionStyle.ACCENT);
     }
 
     @Override
@@ -228,7 +266,7 @@ public final class OptionLayout implements MarieComponent {
     }
 
     private int maxScroll(List<OptionRow> rows) {
-        return Math.max(0, stackHeight(rows) - rowArea.height());
+        return Math.max(0, stackHeight(rows) - (rowArea.height() - 2 * OptionStyle.PANEL_PAD));
     }
 
     private static int stackHeight(List<OptionRow> rows) {

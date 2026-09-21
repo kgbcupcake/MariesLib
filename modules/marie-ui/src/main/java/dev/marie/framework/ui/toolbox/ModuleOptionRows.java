@@ -3,6 +3,7 @@ package dev.marie.framework.ui.toolbox;
 import dev.marie.framework.api.ApiStatus;
 import dev.marie.framework.ui.PersistenceProvider;
 import dev.marie.framework.ui.edit.ContentScaleController;
+import dev.marie.framework.ui.modulesettings.HideFlags;
 import dev.marie.framework.ui.modulesettings.ModuleOffsets;
 import dev.marie.framework.ui.modulesettings.ModuleScales;
 import dev.marie.framework.ui.modulesettings.MoveFlags;
@@ -23,6 +24,8 @@ public final class ModuleOptionRows {
     /** Same step {@code ScaleConfigPanel} uses per scroll notch for its scale sliders. */
     private static final double SCALE_STEP = 0.05d;
     private static final Runnable ALREADY_SAVED = () -> {};
+    private static final String MOVE_SECTION = "move";
+    private static final String HIDE_SECTION = "hide";
 
     private ModuleOptionRows() {}
 
@@ -76,7 +79,7 @@ public final class ModuleOptionRows {
         addMoveToggles(layout, p, id, bars, true, false);
     }
 
-    /** Chooses which toggles appear: "Move Bars", "Move Icons" and "Move Header" are optional; "Move Text" and "Move All" always are. */
+    /** Puts the toggles in a collapsible "Move" group (and, when {@code icons}, a "Hide" group after it). Chooses which toggles appear: "Move Bars", "Move Icons" and "Move Header" are optional; "Move Text" and "Move All" always are. */
     public static void addMoveToggles(OptionLayout layout, PersistenceProvider p, String id, boolean bars, boolean icons, boolean header) {
         List<String> flagList = new ArrayList<>();
         List<String> labelList = new ArrayList<>();
@@ -98,6 +101,7 @@ public final class ModuleOptionRows {
         labelList.add("config.marieslib.moduleoptions.moveAll");
         String[] flags = flagList.toArray(new String[0]);
         String[] labels = labelList.toArray(new String[0]);
+        SectionRow moveSection = layout.section(MOVE_SECTION, text("config.marieslib.moduleoptions.section.move"));
         for (int i = 0; i < flags.length; i++) {
             String own = flags[i];
             ToggleOption toggle = new ToggleOption(text(labels[i]), () -> MoveFlags.isOn(p, own), v -> {
@@ -111,8 +115,19 @@ public final class ModuleOptionRows {
                 }
             }, ALREADY_SAVED);
             toggle.defaultTo(false);
-            layout.addRow(toggle);
+            moveSection.add(toggle);
         }
+        if (icons) {
+            addHideToggles(layout, p, id);
+        }
+    }
+
+    /** The collapsible "Hide" group: "Hide Icons" (enforced for every module by {@code ModuleRenderContext}). */
+    private static void addHideToggles(OptionLayout layout, PersistenceProvider p, String id) {
+        ToggleOption hideIcons = new ToggleOption(text("config.marieslib.moduleoptions.hideIcons"),
+                () -> HideFlags.iconsHidden(p, id), v -> HideFlags.setIconsHidden(p, id, v), ALREADY_SAVED);
+        hideIcons.defaultTo(false);
+        layout.section(HIDE_SECTION, text("config.marieslib.moduleoptions.section.hide")).add(hideIcons);
     }
 
     /** Text and icon brightness sliders over values the module keeps in its own store (see {@link ModuleScales#textBrightness}). */
@@ -131,7 +146,7 @@ public final class ModuleOptionRows {
      * text offset).
      */
     public static void addResetPositions(OptionLayout layout, PersistenceProvider p, String id, Runnable hostReset) {
-        layout.addRow(new ButtonOption(text("config.marieslib.moduleoptions.resetPositions"), "RESET", () -> {
+        layout.section(MOVE_SECTION, text("config.marieslib.moduleoptions.section.move")).add(new ButtonOption(text("config.marieslib.moduleoptions.resetPositions"), "RESET", () -> {
             ModuleOffsets.setBar(p, id, 0, 0);
             ModuleOffsets.commitBar(p, id);
             ModuleOffsets.setIcon(p, id, 0, 0);

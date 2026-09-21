@@ -29,18 +29,27 @@ public final class TabRow {
         return selected;
     }
 
+    public int count() {
+        return titles.size();
+    }
+
+    /** Selects tab {@code index} (clamped to the tabs added so far). */
+    public void select(int index) {
+        selected = Math.max(0, Math.min(index, Math.max(0, titles.size() - 1)));
+    }
+
     public void render(RenderContext context, Bounds bounds) {
         lastBounds.clear();
         int count = titles.size();
         for (int i = 0; i < count; i++) {
             int x0 = bounds.x() + bounds.width() * i / count;
             int x1 = bounds.x() + bounds.width() * (i + 1) / count;
-            Bounds tab = new Bounds(x0, bounds.y(), Math.max(0, x1 - x0 - 1), bounds.height());
+            Bounds tab = new Bounds(x0, bounds.y(), Math.max(0, x1 - x0 - 2), bounds.height());
             lastBounds.add(tab);
             boolean active = i == selected;
-            int border = active ? OptionStyle.ACCENT : context.theme().color(ThemeKey.BORDER);
-            int fill = active ? (0x40 << 24) | (OptionStyle.ACCENT & 0x00FFFFFF) : context.theme().color(ThemeKey.PANEL_BACKGROUND);
-            context.drawRoundedRect(tab.x(), tab.y(), tab.width(), tab.height(), 1, fill, border);
+            int border = active ? OptionStyle.ACCENT : OptionStyle.PANEL_EDGE;
+            int fill = active ? (0x40 << 24) | (OptionStyle.ACCENT & 0x00FFFFFF) : OptionStyle.PANEL_FILL;
+            context.drawRoundedRect(tab.x(), tab.y(), tab.width(), tab.height(), 1, tab.height() / 2, fill, border);
             String text = OptionStyle.fit(context, titles.get(i), OptionStyle.TEXT_SCALE, tab.width() - 2 * LABEL_PADDING);
             int textX = tab.x() + (tab.width() - context.textWidth(text, OptionStyle.TEXT_SCALE)) / 2;
             context.drawText(text, textX, tab.y() + (tab.height() - 7) / 2,

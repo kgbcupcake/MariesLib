@@ -10,10 +10,11 @@ import dev.marie.framework.ui.toolbox.OptionStyle;
 import java.util.function.Supplier;
 
 /**
- * Picker for one {@link ColorSlot}: a hue ring with a saturation/brightness square inside it, the
- * current color as a swatch and {@code #RRGGBB} readout (read-only), and a Reset button. The ring and
- * square are drawn from {@code fillRect} cells (the only fill primitive {@code RenderContext} has), with
- * the cell size growing with the wheel so the fill count stays roughly constant at any window size.
+ * Picker for one {@link ColorSlot}: a round hue/saturation disc (hue is the angle, saturation the distance
+ * from the centre) with a brightness slider under it, the current color as a swatch and {@code #RRGGBB}
+ * readout (read-only), and a Reset button. The disc and slider are drawn from {@code fillRect} cells (the
+ * only fill primitive {@code RenderContext} has), with the cell size growing with the disc so the fill count
+ * stays roughly constant at any window size; a thin outline keeps the stepped edge clean.
  *
  * <p>Everything is laid out from the {@link Bounds} it is handed each frame, so it scales
  * proportionally with a resizable host window and never draws outside them. It knows nothing about
@@ -27,7 +28,7 @@ public final class ColorPicker implements MarieComponent {
     private static final float REF_WIDTH = 150f;
     private static final float REF_HEIGHT = 176f;
 
-    private enum Drag { NONE, RING, SQUARE }
+    private enum Drag { NONE, DISC, VALUE }
 
     private final Supplier<String> resetCaption;
     private ColorSlot slot;
@@ -40,10 +41,7 @@ public final class ColorPicker implements MarieComponent {
     private int centerX;
     private int centerY;
     private int outerRadius;
-    private int innerRadius;
-    private int squareX;
-    private int squareY;
-    private int squareSide;
+    private Bounds valueBounds = new Bounds(0, 0, 0, 0);
     private Bounds resetBounds = new Bounds(0, 0, 0, 0);
 
     /** {@code resetCaption} supplies the (localized) text of the Reset button, read each frame. */
@@ -104,29 +102,30 @@ public final class ColorPicker implements MarieComponent {
         int footY = bounds.y() + bounds.height() - pad - rowH;
         drawReset(context, left, footY, width, rowH, scale, textScale);
 
+        int sliderH = Math.max(6, Math.round(9 * scale));
+        int sliderY = footY - pad - sliderH;
+        valueBounds = new Bounds(left, sliderY, width, sliderH);
+
         int midTop = top + rowH + pad;
-        int midHeight = footY - pad - midTop;
+        int midHeight = sliderY - pad - midTop;
         int diameter = Math.min(width, midHeight);
         if (diameter < 12) {
             outerRadius = 0;
+            valueBounds = new Bounds(0, 0, 0, 0);
             return;
         }
         centerX = left + width / 2;
         centerY = midTop + midHeight / 2;
         outerRadius = diameter / 2;
-        innerRadius = outerRadius - Math.max(3, Math.round(outerRadius * 0.26f));
-        squareSide = Math.round(innerRadius * 1.3f);
-        squareX = centerX - squareSide / 2;
-        squareY = centerY - squareSide / 2;
-        int cell = Math.max(1, (int) Math.ceil(diameter / 50.0));
-        drawRing(context, cell);
-        drawSquare(context, cell);
-        int markerSize = Math.max(3, Math.round(5 * scale));
+        int cell = Math.max(1, (int) Math.ceil(diameter / 48.0));
+        drawDisc(context, cell);
+        drawValueSlider(context, valueBounds, cell);
+        int markerSize = Math.max(5, Math.round(7 * scale));
         double angle = hue * 2 * Math.PI;
-        int ringMid = (outerRadius + innerRadius) / 2;
-        drawMarker(context, centerX + (int) Math.round(Math.cos(angle) * ringMid),
-                centerY + (int) Math.round(Math.sin(angle) * ringMid), markerSize);
-        drawMarker(context, squareX + Math.round(sat * squareSide), squareY + Math.round((1 - val) * squareSide), markerSize);
+        drawMarker(context, centerX + (int) Math.round(Math.cos(angle) * sat * outerRadius),
+                centerY + (int) Math.round(Math.sin(angle) * sat * outerRadius), markerSize, hsvToRgb(hue, sat, 1f));
+        int knobX = valueBounds.x() + Math.round(val * (valueBounds.width() - 1));
+        drawMarker(context, knobX, valueBounds.y() + valueBounds.height() / 2, Math.min(markerSize, sliderH + 2), hsvToRgb(hue, sat, val));
     }
 
     private void drawReadout(RenderContext context, int x, int y, int rowH, float textScale, int rgb) {
@@ -141,45 +140,53 @@ public final class ColorPicker implements MarieComponent {
     private void drawReset(RenderContext context, int x, int y, int width, int rowH, float scale, float textScale) {
         int buttonWidth = Math.min(width, Math.round(60 * scale));
         resetBounds = new Bounds(x + (width - buttonWidth) / 2, y, buttonWidth, rowH);
-        context.drawRoundedRect(resetBounds.x(), resetBounds.y(), resetBounds.width(), resetBounds.height(), 1,
-                (0x40 << 24) | (OptionStyle.ACCENT & 0x00FFFFFF), OptionStyle.ACCENT);
-        String caption = OptionStyle.fit(context, resetCaption.get(),
-                textScale, buttonWidth - 4);
-        context.drawText(caption, resetBounds.x() + (buttonWidth - context.textWidth(caption, textScale)) / 2,
-                resetBounds.y() + Math.max(0, (rowH - Math.round(8 * textScale)) / 2), OptionStyle.ACCENT, textScale);
+        OptionStyle.drawPillButton(context, resetBounds.x(), resetBounds.y(), resetBounds.width(), resetBounds.height(),
+                resetCaption.get(), textScale, true);
     }
 
-    private void drawRing(RenderContext context, int cell) {
-        double outerSq = (double) outerRadius * outerRadius;
-        double innerSq = (double) innerRadius * innerRadius;
+    /** Hue around, saturation outward, at full brightness; the cells whose centre is inside the radius, then a 1px outline. */
+    private void drawDisc(RenderContext context, int cell) {
+        double radiusSq = (double) outerRadius * outerRadius;
         for (int gy = centerY - outerRadius; gy < centerY + outerRadius; gy += cell) {
             for (int gx = centerX - outerRadius; gx < centerX + outerRadius; gx += cell) {
                 double dx = gx + cell / 2.0 - centerX;
                 double dy = gy + cell / 2.0 - centerY;
                 double distSq = dx * dx + dy * dy;
-                if (distSq > outerSq || distSq < innerSq) {
+                if (distSq > radiusSq) {
                     continue;
                 }
-                context.fillRect(gx, gy, cell, cell, 0xFF000000 | hsvToRgb(hueAt(dx, dy), 1f, 1f));
+                context.fillRect(gx, gy, cell, cell,
+                        0xFF000000 | hsvToRgb(hueAt(dx, dy), (float) Math.min(1.0, Math.sqrt(distSq) / outerRadius), 1f));
             }
+        }
+        int outline = context.theme().color(ThemeKey.BORDER);
+        int points = Math.min(240, Math.max(48, outerRadius * 6));
+        int dot = Math.max(1, (int) Math.ceil(outerRadius / 60.0));
+        for (int i = 0; i < points; i++) {
+            double a = 2 * Math.PI * i / points;
+            context.fillRect(centerX + (int) Math.round(Math.cos(a) * outerRadius) - dot,
+                    centerY + (int) Math.round(Math.sin(a) * outerRadius) - dot, dot, dot, outline);
         }
     }
 
-    private void drawSquare(RenderContext context, int cell) {
-        for (int j = 0; j < squareSide; j += cell) {
-            int h = Math.min(cell, squareSide - j);
-            float v = 1f - (j + h / 2f) / squareSide;
-            for (int i = 0; i < squareSide; i += cell) {
-                int w = Math.min(cell, squareSide - i);
-                context.fillRect(squareX + i, squareY + j, w, h, 0xFF000000 | hsvToRgb(hue, (i + w / 2f) / squareSide, v));
-            }
+    /** Black to the current hue/saturation at full brightness, left to right, in a rounded outline. */
+    private void drawValueSlider(RenderContext context, Bounds b, int cell) {
+        int inset = 1;
+        int step = Math.max(1, cell);
+        for (int i = 0; i < b.width() - 2 * inset; i += step) {
+            int w = Math.min(step, b.width() - 2 * inset - i);
+            float v = (i + w / 2f) / (b.width() - 2 * inset);
+            context.fillRect(b.x() + inset + i, b.y() + inset, w, b.height() - 2 * inset, 0xFF000000 | hsvToRgb(hue, sat, v));
         }
+        context.drawRoundedRect(b.x(), b.y(), b.width(), b.height(), 1, Math.max(1, b.height() / 2), 0x00000000,
+                context.theme().color(ThemeKey.BORDER));
     }
 
-    private static void drawMarker(RenderContext context, int x, int y, int size) {
+    /** A round knob filled with {@code rgb}, white ring inside a black one, centred on {@code (x, y)}. */
+    private static void drawMarker(RenderContext context, int x, int y, int size, int rgb) {
         int half = size / 2;
-        context.drawBorder(x - half - 1, y - half - 1, size + 2, size + 2, 1, 0xFF000000);
-        context.drawBorder(x - half, y - half, size, size, 1, 0xFFFFFFFF);
+        context.drawRoundedRect(x - half - 1, y - half - 1, size + 2, size + 2, 1, (size + 2) / 2, 0xFF000000 | rgb, 0xFF000000);
+        context.drawRoundedRect(x - half, y - half, size, size, 1, size / 2, 0xFF000000 | rgb, 0xFFFFFFFF);
     }
 
     @Override
@@ -200,11 +207,10 @@ public final class ColorPicker implements MarieComponent {
         }
         double dx = mouseX - centerX;
         double dy = mouseY - centerY;
-        double dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist <= outerRadius && dist >= innerRadius) {
-            drag = Drag.RING;
-        } else if (mx >= squareX && my >= squareY && mx < squareX + squareSide && my < squareY + squareSide) {
-            drag = Drag.SQUARE;
+        if (Math.sqrt(dx * dx + dy * dy) <= outerRadius) {
+            drag = Drag.DISC;
+        } else if (valueBounds.contains(mx, my)) {
+            drag = Drag.VALUE;
         } else {
             return false;
         }
@@ -231,13 +237,15 @@ public final class ColorPicker implements MarieComponent {
         return true;
     }
 
-    /** Updates hue or saturation/brightness from the pointer, and calls the setter if the RGB value changed. */
+    /** Updates hue and saturation (disc) or brightness (slider) from the pointer, and calls the setter if the RGB value changed. */
     private void apply(double mouseX, double mouseY) {
-        if (drag == Drag.RING) {
-            hue = hueAt(mouseX - centerX, mouseY - centerY);
+        if (drag == Drag.DISC) {
+            double dx = mouseX - centerX;
+            double dy = mouseY - centerY;
+            hue = hueAt(dx, dy);
+            sat = clamp01((float) (Math.sqrt(dx * dx + dy * dy) / outerRadius));
         } else {
-            sat = clamp01((float) ((mouseX - squareX) / squareSide));
-            val = 1f - clamp01((float) ((mouseY - squareY) / squareSide));
+            val = clamp01((float) ((mouseX - valueBounds.x()) / Math.max(1, valueBounds.width() - 1)));
         }
         int rgb = hsvToRgb(hue, sat, val);
         if (rgb != lastRgb) {

@@ -361,6 +361,31 @@ Most `MarieContext` fields are `@Internal` (implementation wiring for the framew
 
 ---
 
+## Module windows (marie-ui) — `@Experimental`
+
+Every module's options window is built through one facade, `dev.marie.framework.ui.api.MarieModuleSettings`, so all of them share the same tabs and groups. Do not hand-build a window's layout.
+
+```java
+MarieComponent content = MarieModuleSettings.standardPanel("My Module", persistence, "my_module")
+        .opacity(cfg::bg, cfg::setBg, 0.8)            // Style > Background
+        .backgroundShade(cfg::bgShade, cfg::setBgShade)
+        .borderOpacity(cfg::border, cfg::setBorder)   // Style > Border
+        .borderShade(cfg::borderShade, cfg::setBorderShade)
+        .textBrightness(cfg::text, cfg::setText)      // Style > Brightness
+        .iconBrightness(cfg::icon, cfg::setIcon)
+        .layoutRows(p -> p.toggle("Vertical", cfg::vertical, cfg::setVertical, cfg::save))
+        .behaviorRows(p -> p.section("Visibility").toggle(...))
+        .extraTabs(p -> p.colorTab("Colors").color("Header", ...))
+        .onCommit(cfg::save)
+        .build();
+```
+
+- **Tabs:** Layout (Padding + your `layoutRows`), Behavior (your `behaviorRows`, a collapsible **Move** group, a collapsible **Hide** group with Hide Icons), Style (collapsible **Sizes**, **Brightness**, **Background**, **Border** groups; a group shows only if you bind something for it) and any `extraTabs` such as a Colors tab.
+- **Groups:** `MarieToolbox.PanelBuilder.section(title)` / `endSection()` fold any options into a collapsible group.
+- **Hide Icons:** enforced for any module drawn through `MarieModuleSettings.withDisplaySettings`; read it with `MarieModuleSettings.isIconsHidden(store, panelId)` if you draw icons yourself.
+- **Standalone controls:** `dev.marie.framework.ui.api.MarieWidgets` is the one-file facade for the parts the windows are built from, usable in any screen: `tabBar(id, titles...)` (`.onChange`, `.selected()`), `button(id, caption, action)` (`.enabledWhen`), `slider`/`intSlider` (rounded bar with arrow buttons), `toggle`, `choice` and `section(title, rows...)` (collapsible). Each returns a `MarieComponent`; values stay behind your getters/setters and `onCommit` runs once per finished edit.
+- **Colors:** `PanelBuilder.colorTab(...).color(...)` opens the shared round color picker.
+
 ## Versioning
 
 ```java

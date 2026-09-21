@@ -101,8 +101,41 @@ public final class SliderOption implements OptionRow {
                 OptionStyle.labelColor(context, on), OptionStyle.labelColor(context, on));
         Bounds track = track();
         float fillPct = (float) ((value - min) / (max - min));
-        context.drawBar(track.x(), track.y(), track.width(), track.height(), fillPct,
-                context.theme().color(ThemeKey.BAR_BACKGROUND), OptionStyle.accentColor(on));
+        int radius = track.height() / 2;
+        int edge = on ? context.theme().color(ThemeKey.BORDER) : OptionStyle.dimmed(context.theme().color(ThemeKey.BORDER));
+        // Rounded groove with its outline (so the drag area reads as a control even where the fill is empty), then the rounded fill inside it.
+        context.drawRoundedRect(track.x(), track.y(), track.width(), track.height(), 1, radius,
+                context.theme().color(ThemeKey.BAR_BACKGROUND), edge);
+        int inner = track.width() - 2;
+        int fillW = Math.round(inner * fillPct);
+        if (fillW > 0) {
+            int h = track.height() - 2;
+            context.drawRoundedRect(track.x() + 1, track.y() + 1, Math.max(h, fillW), h, 0, h / 2,
+                    OptionStyle.accentColor(on), OptionStyle.accentColor(on));
+        }
+        drawArrowButton(context, leftButton(), true, on, edge);
+        drawArrowButton(context, rightButton(), false, on, edge);
+    }
+
+    private void drawArrowButton(RenderContext context, Bounds b, boolean left, boolean on, int edge) {
+        context.drawRoundedRect(b.x(), b.y(), b.width(), b.height(), 1, 2, 0x14FFFFFF, edge);
+        int color = OptionStyle.labelColor(context, on);
+        int cx = b.x() + b.width() / 2;
+        int cy = b.y() + b.height() / 2;
+        for (int i = 0; i < 3; i++) {
+            int x = left ? cx - 1 + i : cx + 1 - i;
+            context.fillRect(x, cy - i, 1, 1 + 2 * i, color);
+        }
+    }
+
+    private Bounds leftButton() {
+        return new Bounds(bounds.x(), bounds.y() + OptionStyle.LABEL_HEIGHT + OptionStyle.LABEL_TRACK_GAP,
+                OptionStyle.ARROW_BUTTON, OptionStyle.SLIDER_HEIGHT);
+    }
+
+    private Bounds rightButton() {
+        return new Bounds(bounds.x() + bounds.width() - OptionStyle.ARROW_BUTTON,
+                bounds.y() + OptionStyle.LABEL_HEIGHT + OptionStyle.LABEL_TRACK_GAP, OptionStyle.ARROW_BUTTON, OptionStyle.SLIDER_HEIGHT);
     }
 
     @Override
@@ -111,6 +144,14 @@ public final class SliderOption implements OptionRow {
             return false;
         }
         if (enabled.getAsBoolean()) {
+            if (leftButton().contains((int) mouseX, (int) mouseY)) {
+                write(clamp(snap(getter.getAsDouble() - step)));
+                return true;
+            }
+            if (rightButton().contains((int) mouseX, (int) mouseY)) {
+                write(clamp(snap(getter.getAsDouble() + step)));
+                return true;
+            }
             dragging = true;
             liveValue = Double.NaN;
             preview(valueAt(mouseX));
@@ -149,8 +190,9 @@ public final class SliderOption implements OptionRow {
     }
 
     private Bounds track() {
-        return new Bounds(bounds.x(), bounds.y() + OptionStyle.LABEL_HEIGHT + OptionStyle.LABEL_TRACK_GAP,
-                bounds.width(), OptionStyle.SLIDER_HEIGHT);
+        int inset = OptionStyle.ARROW_BUTTON + OptionStyle.ARROW_GAP;
+        return new Bounds(bounds.x() + inset, bounds.y() + OptionStyle.LABEL_HEIGHT + OptionStyle.LABEL_TRACK_GAP,
+                Math.max(1, bounds.width() - 2 * inset), OptionStyle.SLIDER_HEIGHT);
     }
 
     private void preview(double value) {

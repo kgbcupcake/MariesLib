@@ -63,7 +63,7 @@ class ColorPickerTest {
             Bounds b = new Bounds(10, 20, size[0], size[1]);
             picker.render(counting(fills), b);
             System.out.println("picker " + size[0] + "x" + size[1] + " fills=" + fills.size());
-            assertTrue(fills.size() < 2000, "fills " + fills.size());
+            assertTrue(fills.size() < 2500, "fills " + fills.size());
             for (int[] f : fills) {
                 assertTrue(f[0] >= b.x() && f[1] >= b.y() && f[0] + f[2] <= b.x() + b.width() && f[1] + f[3] <= b.y() + b.height(), "fill outside bounds");
             }

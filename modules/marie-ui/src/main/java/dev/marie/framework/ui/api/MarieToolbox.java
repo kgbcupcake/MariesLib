@@ -180,6 +180,24 @@ public final class MarieToolbox {
             return this;
         }
 
+        /**
+         * Starts a collapsible group headed {@code title} on the current tab (collapsed until the player opens
+         * it); every option added until {@link #endSection()} or the next {@code tab}/{@code colorTab} goes
+         * inside it. Calling it again with the same title on the same tab resumes that group. {@code defaultValue}
+         * and {@code enabledWhen} still act on the option just added, and {@link #resetTab()} resets grouped
+         * options too. Put {@code resetTab()} after {@code endSection()} so the button stays visible.
+         */
+        public PanelBuilder section(String title) {
+            layout.openSection(title);
+            return this;
+        }
+
+        /** Ends the group started by {@link #section(String)}; later options go back to the tab itself. */
+        public PanelBuilder endSection() {
+            layout.closeSection();
+            return this;
+        }
+
         /** Sets the value the slider just added returns to on {@link #resetTab()}. */
         public PanelBuilder defaultValue(double value) {
             layout.defaultToLast(value);

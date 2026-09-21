@@ -4,7 +4,8 @@ import dev.marie.framework.api.ApiStatus;
 
 import dev.marie.framework.core.MarieCore;
 
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @ApiStatus.Internal
 public final class MarieAPIState {
@@ -15,27 +16,33 @@ public final class MarieAPIState {
         CLOSED
     }
 
-    private static final AtomicReference<Phase> currentPhase =
-            new AtomicReference<>(Phase.MOD_INIT);
+    /**
+     * Two independent windows, so a datapack-reload scope can neither reopen nor close the mod-init
+     * window: {@code startupOpen} stays true until {@link #close()}, and {@code reloadDepth} counts
+     * open {@link DatapackReloadScope}s (nested scopes are fine). Registration is allowed while
+     * either is open; {@link #getPhase()} is derived from them.
+     */
+    private static final AtomicBoolean startupOpen = new AtomicBoolean(true);
+    private static final AtomicInteger reloadDepth = new AtomicInteger();
 
     private MarieAPIState() {}
 
     public static boolean isRegistrationAllowed() {
-        Phase phase = currentPhase.get();
-        return phase == Phase.MOD_INIT || phase == Phase.DATAPACK_RELOAD;
+        return startupOpen.get() || reloadDepth.get() > 0;
     }
 
     public static Phase getPhase() {
-        return currentPhase.get();
+        if (reloadDepth.get() > 0) {
+            return Phase.DATAPACK_RELOAD;
+        }
+        return startupOpen.get() ? Phase.MOD_INIT : Phase.CLOSED;
     }
 
     /**
      * Asserts registration is currently allowed.
-     * Thread-safe: reads the atomic reference once.
      */
     public static void assertRegistrationAllowed(String context) {
-        Phase p = currentPhase.get();
-        if (p != Phase.MOD_INIT && p != Phase.DATAPACK_RELOAD) {
+        if (!isRegistrationAllowed()) {
             throw new IllegalStateException(
                     "[MarieAPI] Registration closed — " + context +
                     " must be called during mod initialization or datapack reload.");
@@ -43,31 +50,39 @@ public final class MarieAPIState {
     }
 
     /**
-     * Ends the mod-init registration window. Safe to call when already {@link Phase#CLOSED}
-     * (for example after a nested {@link DatapackReloadScope}).
+     * Ends the mod-init registration window. Idempotent, and independent of any open
+     * {@link DatapackReloadScope}: an open scope keeps registration allowed until it closes.
      */
     @ApiStatus.Internal
     public static void close() {
-        if (currentPhase.get() == Phase.CLOSED) {
-            return;
+        if (startupOpen.getAndSet(false)) {
+            MarieCore.LOGGER.info("[MarieLib] Registration phase: CLOSED");
         }
-        currentPhase.set(Phase.CLOSED);
-        MarieCore.LOGGER.info("[MarieLib] Registration phase: CLOSED");
     }
 
     @ApiStatus.Internal
     public static DatapackReloadScope openForDatapackReload() {
-        currentPhase.set(Phase.DATAPACK_RELOAD);
+        reloadDepth.incrementAndGet();
         MarieCore.LOGGER.info("[MarieLib] Registration phase: DATAPACK_RELOAD");
         return new DatapackReloadScope();
     }
 
+    /** Test hook: back to a fresh MOD_INIT state. */
+    static void resetForTests() {
+        startupOpen.set(true);
+        reloadDepth.set(0);
+    }
+
     @ApiStatus.Experimental
     public static final class DatapackReloadScope implements AutoCloseable {
+        private final AtomicBoolean closed = new AtomicBoolean();
+
         @Override
         public void close() {
-            currentPhase.set(Phase.CLOSED);
-            MarieCore.LOGGER.info("[MarieLib] Registration phase: CLOSED");
+            if (closed.compareAndSet(false, true)) {
+                reloadDepth.decrementAndGet();
+                MarieCore.LOGGER.info("[MarieLib] Registration phase: {}", getPhase());
+            }
         }
     }
 }

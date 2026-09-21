@@ -13,7 +13,7 @@ import net.minecraft.world.item.ItemStack;
  * by the module's text and icon offsets, bars by the bar offset and bar size, icons are scaled by the icon size relative to the text size
  * (the module's own renderer already scales both by the text size, so at the default — icon size
  * following text size — the ratio is 1 and nothing changes), and text and icons get their own
- * brightness. Fills, bars, borders and clips pass straight through. {@link #wrap} returns the original
+ * brightness; icons are skipped entirely while the module's "Hide Icons" toggle is on. Fills, bars, borders and clips pass straight through. {@link #wrap} returns the original
  * context when every setting is at its default.
  */
 @ApiStatus.Internal
@@ -30,10 +30,11 @@ public final class ModuleRenderContext implements RenderContext {
     private final int barDx;
     private final int barDy;
     private final float barScale;
+    private final boolean hideIcons;
 
     private ModuleRenderContext(RenderContext delegate, int textDx, int textDy, int iconDx, int iconDy,
                                 float iconRatio, double textBrightness, double iconBrightness,
-                                int barDx, int barDy, float barScale) {
+                                int barDx, int barDy, float barScale, boolean hideIcons) {
         this.delegate = delegate;
         this.textDx = textDx;
         this.textDy = textDy;
@@ -45,6 +46,7 @@ public final class ModuleRenderContext implements RenderContext {
         this.barDx = barDx;
         this.barDy = barDy;
         this.barScale = barScale;
+        this.hideIcons = hideIcons;
     }
 
     /** {@code delegate} wrapped with {@code panelId}'s settings read from {@code store} now; {@code delegate} itself if all are default. */
@@ -60,11 +62,12 @@ public final class ModuleRenderContext implements RenderContext {
         int barDx = ModuleOffsets.barX(store, panelId);
         int barDy = ModuleOffsets.barY(store, panelId);
         float barScale = (float) ModuleScales.barScale(store, panelId);
-        boolean plain = textDx == 0 && textDy == 0 && iconDx == 0 && iconDy == 0 && barDx == 0 && barDy == 0
+        boolean hideIcons = HideFlags.iconsHidden(store, panelId);
+        boolean plain = !hideIcons && textDx == 0 && textDy == 0 && iconDx == 0 && iconDy == 0 && barDx == 0 && barDy == 0
                 && Math.abs(ratio - 1f) < 1e-4f && Math.abs(barScale - 1f) < 1e-4f
                 && textBrightness == 1.0d && iconBrightness == 1.0d;
         return plain ? delegate : new ModuleRenderContext(delegate, textDx, textDy, iconDx, iconDy, ratio,
-                textBrightness, iconBrightness, barDx, barDy, barScale);
+                textBrightness, iconBrightness, barDx, barDy, barScale, hideIcons);
     }
 
     @Override
@@ -74,6 +77,9 @@ public final class ModuleRenderContext implements RenderContext {
 
     @Override
     public void drawItem(ItemStack stack, int x, int y, float scale) {
+        if (hideIcons) {
+            return;
+        }
         float tint = (float) iconBrightness;
         RenderSystem.setShaderColor(tint, tint, tint, 1f);
         try {
