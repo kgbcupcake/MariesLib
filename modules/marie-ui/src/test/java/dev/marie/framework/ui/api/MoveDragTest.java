@@ -10,12 +10,12 @@ class MoveDragTest {
 
     @Test
     void singleModeOffsetFollowsThePointerFromTheGrabPoint() {
-        MarieModuleSettings.MoveDrag drag = new MarieModuleSettings.MoveDrag();
+        MoveDrag drag = new MoveDrag();
         assertFalse(drag.isActive());
 
-        drag.start(MarieModuleSettings.MoveDrag.Mode.ICONS, 100, 50, 10, -4);   // offset was (10, -4) at the press
+        drag.start(MoveDrag.Mode.ICONS, 100, 50, 10, -4);   // offset was (10, -4) at the press
         assertTrue(drag.isActive());
-        assertEquals(MarieModuleSettings.MoveDrag.Mode.ICONS, drag.mode());
+        assertEquals(MoveDrag.Mode.ICONS, drag.mode());
         assertEquals(10, drag.offsetX(100), "no movement yet: offset unchanged");
         assertEquals(25, drag.offsetX(115));
         assertEquals(-14, drag.offsetY(40));
@@ -26,15 +26,15 @@ class MoveDragTest {
 
     @Test
     void allModeReportsMovementSinceThePressAndKeepsEachBaseOffset() {
-        MarieModuleSettings.MoveDrag drag = new MarieModuleSettings.MoveDrag();
+        MoveDrag drag = new MoveDrag();
         drag.startAll(200, 100, 1, 2, 3, 4, 5, 6);
 
-        assertEquals(MarieModuleSettings.MoveDrag.Mode.ALL, drag.mode());
+        assertEquals(MoveDrag.Mode.ALL, drag.mode());
         assertEquals(0, drag.offsetX(200));
         assertEquals(12, drag.offsetX(212));
         assertEquals(-8, drag.offsetY(92));
-        assertEquals(1, drag.baseX(MarieModuleSettings.MoveDrag.Mode.TEXT));
-        assertEquals(4, drag.baseY(MarieModuleSettings.MoveDrag.Mode.ICONS));
-        assertEquals(5, drag.baseX(MarieModuleSettings.MoveDrag.Mode.BARS));
+        assertEquals(1, drag.baseX(MoveDrag.Mode.TEXT));
+        assertEquals(4, drag.baseY(MoveDrag.Mode.ICONS));
+        assertEquals(5, drag.baseX(MoveDrag.Mode.BARS));
     }
 }
