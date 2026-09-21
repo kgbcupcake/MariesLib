@@ -84,6 +84,42 @@ public interface RenderContext {
         fillRect(x2 - thickness - 1, y2 - thickness - 1, 1, 1, borderColor);
     }
 
+    /**
+     * Draws a 1px line from (x0, y0) to (x1, y1) inclusive, built from {@link #fillRect} cells
+     * (Bresenham), so it needs no new rendering primitive and works with any implementation.
+     * Horizontal and vertical runs collapse into a single fill.
+     */
+    default void drawLine(int x0, int y0, int x1, int y1, int argbColor) {
+        if (y0 == y1) {
+            fillRect(Math.min(x0, x1), y0, Math.abs(x1 - x0) + 1, 1, argbColor);
+            return;
+        }
+        if (x0 == x1) {
+            fillRect(x0, Math.min(y0, y1), 1, Math.abs(y1 - y0) + 1, argbColor);
+            return;
+        }
+        int dx = Math.abs(x1 - x0);
+        int dy = -Math.abs(y1 - y0);
+        int sx = x0 < x1 ? 1 : -1;
+        int sy = y0 < y1 ? 1 : -1;
+        int err = dx + dy;
+        while (true) {
+            fillRect(x0, y0, 1, 1, argbColor);
+            if (x0 == x1 && y0 == y1) {
+                return;
+            }
+            int e2 = 2 * err;
+            if (e2 >= dy) {
+                err += dy;
+                x0 += sx;
+            }
+            if (e2 <= dx) {
+                err += dx;
+                y0 += sy;
+            }
+        }
+    }
+
     void drawText(String text, int x, int y, int argbColor, float scale);
 
     /** Rendered pixel width of {@code text} at {@code scale}, for centering — no font access otherwise leaks into this contract. */

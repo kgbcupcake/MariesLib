@@ -110,5 +110,7 @@
   "config.marieslib.moduleoptions.textBrightness": "Text brightness",
   "config.marieslib.moduleoptions.iconBrightness": "Icon brightness",
   "config.marieslib.moduleoptions.backgroundOpacity": "Background opacity",
-  "marieslib.commandcenter.title": "Command Center"
+  "marieslib.commandcenter.title": "Command Center",
+  "key.marieslib.open_command_center": "Open Command Center",
+  "key.categories.marieslib": "MariesLib"
 }

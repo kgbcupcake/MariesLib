@@ -3,7 +3,13 @@ package dev.marie.framework.ui.api;
 import dev.marie.framework.api.ApiStatus;
 import dev.marie.framework.ui.commandcenter.CommandCenterRegistry;
 import dev.marie.framework.ui.commandcenter.CommandCenterScreen;
+import com.mojang.blaze3d.platform.InputConstants;
+import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
+import net.neoforged.neoforge.common.NeoForge;
 
 /**
  * Public facade for the generic, domain-agnostic command-center screen: a single shared
@@ -29,7 +35,33 @@ import net.minecraft.client.Minecraft;
 @ApiStatus.Experimental
 public final class MarieCommandCenter {
 
+    private static KeyMapping openKey;
+
     private MarieCommandCenter() {}
+
+    /**
+     * Registers the shared "Open Command Center" keybind (client only, call from the mod constructor
+     * with the mod event bus). Idempotent: every consuming mod may call it and only the first call
+     * registers, so the player sees one entry under the MariesLib category. Unbound by default so it
+     * cannot clash with anything; the player assigns a key in Controls. The key only opens the screen
+     * when no other screen is open.
+     */
+    public static synchronized void registerOpenKey(IEventBus modEventBus) {
+        if (openKey != null) {
+            return;
+        }
+        openKey = new KeyMapping("key.marieslib.open_command_center", InputConstants.Type.KEYSYM,
+                InputConstants.UNKNOWN.getValue(), "key.categories.marieslib");
+        modEventBus.addListener((RegisterKeyMappingsEvent event) -> event.register(openKey));
+        NeoForge.EVENT_BUS.addListener((ClientTickEvent.Post event) -> {
+            Minecraft mc = Minecraft.getInstance();
+            while (openKey.consumeClick()) {
+                if (mc.screen == null && mc.level != null) {
+                    openScreen();
+                }
+            }
+        });
+    }
 
     /** Opens {@link CommandCenterScreen} over whatever screen is currently open (or none). */
     public static void openScreen() {
