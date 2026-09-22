@@ -218,12 +218,18 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
         if (!visible) {
             return;
         }
-        // Content is drawn at a fixed scale (the host's own panel scale), independent of this box's
-        // live bounds — resizing the box changes only how much of that fixed-size content is visible
-        // (via the clip below), matching every other Diet Screen sub-box (see RecentMealsComponent),
-        // instead of rescaling the icon/text/bar proportionally to the box's own size.
+        // Position/layout geometry (where things sit) is always driven by the fixed base scale —
+        // the host's own panel scale, independent of this box's live bounds (resizing changes only
+        // how much of the fixed-size content the clip below reveals, matching RecentMealsComponent).
+        // The SIZE each piece actually renders at additionally multiplies in that piece's own
+        // Text/Icon/Bar size slider (see MarieModuleSettings#textScale/iconScale/barScale) — the same
+        // "base scale for layout, independent per-element multiplier for render size" split the HUD's
+        // NutrientBarComponent already uses, so those sliders (present in this row's Style tab) do
+        // something instead of being silently ignored.
         double scale = contentScale;
-        float fscale = (float) scale;
+        float textScale = (float) (scale * MarieModuleSettings.textScale(store, id));
+        float iconScale = (float) (scale * MarieModuleSettings.iconScale(store, id));
+        float barScale = (float) (scale * MarieModuleSettings.barScale(store, id));
 
         int boxFill = boxFillColorSupplier.getAsInt();
         int boxBorder = boxBorderColorSupplier.getAsInt();
@@ -231,27 +237,35 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
 
         context.pushClip(bounds.x(), bounds.y(), bounds.width(), bounds.height());
         try {
-        int iconSize = Math.max(1, (int) Math.round(20 * scale));
+        int iconSize = Math.max(1, (int) Math.round(20 * iconScale));
         int iconX = bounds.x() + (int) Math.round(2 * scale);
         int iconY = bounds.y() + (int) Math.round(2 * scale);
-        context.drawRoundedRect(iconX, iconY, iconSize, iconSize, 1, boxFill, boxBorder);
-        context.drawItem(iconSupplier.get(), iconX, iconY, fscale);
+        // The icon's background box is a plain rect draw, not one of the offset-aware categories
+        // withDisplaySettings auto-shifts (drawItem/drawText/drawBar) — drawn at the same offset the
+        // icon itself actually lands at (added explicitly here) so the two never separate. Without
+        // this, any non-zero icon offset (a manual "Move Icons" drag, or the edit target's left/top-
+        // edge-resize content-anchor compensation) drew the icon shifted away while its box stayed
+        // behind at the un-shifted position.
+        int iconOffX = MarieModuleSettings.iconOffsetX(store, id);
+        int iconOffY = MarieModuleSettings.iconOffsetY(store, id);
+        context.drawRoundedRect(iconX + iconOffX, iconY + iconOffY, iconSize, iconSize, 1, boxFill, boxBorder);
+        context.drawItem(iconSupplier.get(), iconX, iconY, iconScale);
 
         int labelX = bounds.x() + (int) Math.round(26 * scale);
         int labelY = bounds.y() + (int) Math.round(4 * scale);
         String label = labelSupplier.get();
-        context.drawText(label, labelX, labelY, labelColorSupplier.getAsInt(), fscale);
+        context.drawText(label, labelX, labelY, labelColorSupplier.getAsInt(), textScale);
 
         // Percent sits right after the label (e.g. "Proteins 87%"), not at the far end of the bar —
         // it travels with the label as one text draw call, so it moves under "Move Text" like the
-        // label does, not "Move Bars".
+        // label does, not "Move Bars" — and sizes with the same Text size slider as the label.
         double disp = currentFillSupplier.getAsDouble();
         String pctStr = Math.round(disp * 100) + "%";
         int pctColor = percentColorSupplier.getAsInt();
         int dimmedPct = (pctColor & 0x00FFFFFF) | (percentDimAlpha << 24);
         int pctGap = (int) Math.round(4 * scale);
-        int pctX = labelX + context.textWidth(label, fscale) + pctGap;
-        context.drawText(pctStr, pctX, labelY, dimmedPct, fscale);
+        int pctX = labelX + context.textWidth(label, textScale) + pctGap;
+        context.drawText(pctStr, pctX, labelY, dimmedPct, textScale);
 
         // Anchored off naturalLocalWidth * scale, not any bounds-derived width — resolvedBounds
         // itself tracks a live drag/resize preview (see ComponentPersistence), so deriving the bar's
@@ -264,7 +278,7 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
         int barLeft = labelX;
         int barGap = (int) Math.round(4 * scale);
         int barW = Math.max(0, (arrowLeft - barGap) - barLeft);
-        int barH = Math.max(1, (int) Math.round(9 * scale));
+        int barH = Math.max(1, (int) Math.round(9 * barScale));
         int barY = bounds.y() + (int) Math.round(14 * scale);
 
         double prev = previousFillSupplier.getAsDouble();
@@ -281,9 +295,9 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
 
         double trendCur = trendCurrentSupplier != null ? trendCurrentSupplier.getAsDouble() : disp;
         if (trendCur > prev + 0.005d) {
-            context.drawText("↑", arrowLeft, labelY, arrowUpColorSupplier.getAsInt(), fscale);
+            context.drawText("↑", arrowLeft, labelY, arrowUpColorSupplier.getAsInt(), barScale);
         } else if (trendCur < prev - 0.005d) {
-            context.drawText("↓", arrowLeft, labelY, arrowDownColorSupplier.getAsInt(), fscale);
+            context.drawText("↓", arrowLeft, labelY, arrowDownColorSupplier.getAsInt(), barScale);
         }
         } finally {
             context.popClip();
