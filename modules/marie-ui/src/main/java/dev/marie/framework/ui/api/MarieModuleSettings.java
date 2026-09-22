@@ -125,18 +125,42 @@ public final class MarieModuleSettings {
     }
 
     /**
-     * Where the module last drew the part {@code mode} moves (text, icons, bars — or all three for {@link MoveDrag.Mode#ALL}),
-     * in screen coordinates and after its offsets, for an edit screen to outline just that part; {@code null} if the module
-     * drew none of it in its latest render (fall back to the whole box). Recorded only for a module that draws through
-     * {@link #withDisplaySettings}; {@link MoveDrag.Mode#HEADER} reports the text, as a header is drawn as text.
+     * Where the module last drew the part {@code mode} moves (text, header, icons, bars — or all four for {@link
+     * MoveDrag.Mode#ALL}), in screen coordinates and after its offsets, for an edit screen to outline just that
+     * part; {@code null} if the module drew none of it in its latest render (fall back to the whole box). Text,
+     * icons and bars are recorded automatically for a module that draws through {@link #withDisplaySettings};
+     * a header drawn with its own offset (a module with {@link StandardPanelBuilder#withHeader}) is a separate
+     * draw call the module must report itself with {@link #recordHeaderExtent}, the same way {@link
+     * #recordBarExtent} covers bars a module draws some other way.
      */
     public static Bounds moveOutline(PersistenceProvider store, String panelId, MoveDrag.Mode mode) {
         return switch (mode) {
-            case TEXT, HEADER -> ModuleExtents.of(store, panelId, ModuleExtents.Kind.TEXT);
+            case TEXT -> ModuleExtents.of(store, panelId, ModuleExtents.Kind.TEXT);
+            case HEADER -> ModuleExtents.of(store, panelId, ModuleExtents.Kind.HEADER);
             case ICONS -> ModuleExtents.of(store, panelId, ModuleExtents.Kind.ICON);
             case BARS -> ModuleExtents.of(store, panelId, ModuleExtents.Kind.BAR);
             case ALL -> ModuleExtents.all(store, panelId);
         };
+    }
+
+    /**
+     * Records that the module drew part of its bars at this screen rectangle (after its offsets), for a module whose "bars"
+     * are not drawn through {@link RenderContext#drawBar} (e.g. list rows), so {@link #moveOutline} can outline them.
+     * Call after {@link #withDisplaySettings} in the same render.
+     */
+    public static void recordBarExtent(PersistenceProvider store, String panelId, int x, int y, int width, int height) {
+        ModuleExtents.add(store, panelId, ModuleExtents.Kind.BAR, x, y, width, height);
+    }
+
+    /**
+     * Records that the module drew its header at this screen rectangle (after {@link #headerOffsetX}/{@link
+     * #headerOffsetY}), for a module with {@link StandardPanelBuilder#withHeader} whose header is a separate draw
+     * call from the rest of its text (so it isn't already covered by {@link #withDisplaySettings}'s own text
+     * recording), so {@link #moveOutline}'s {@link MoveDrag.Mode#HEADER}/{@link MoveDrag.Mode#ALL} can outline it.
+     * Call after {@link #withDisplaySettings} in the same render.
+     */
+    public static void recordHeaderExtent(PersistenceProvider store, String panelId, int x, int y, int width, int height) {
+        ModuleExtents.add(store, panelId, ModuleExtents.Kind.HEADER, x, y, width, height);
     }
 
     /** Whether the "Move All" toggle is on (one drag moves text, icons and bars together). */
@@ -147,6 +171,16 @@ public final class MarieModuleSettings {
     /** Whether the module's "Hide Icons" toggle is on. {@link #withDisplaySettings} already skips icon draws; this is for a host that lays out or draws icons some other way. */
     public static boolean isIconsHidden(PersistenceProvider store, String panelId) {
         return HideFlags.iconsHidden(store, panelId);
+    }
+
+    /** Whether the module's "Hide Bars" toggle is on. {@link #withDisplaySettings} already skips {@code drawBar}/{@code drawVerticalBar} calls; this is for a host whose "bars" are drawn some other way (e.g. plain {@code fillRect} pips, or rows in a hand-rolled HUD). */
+    public static boolean isBarsHidden(PersistenceProvider store, String panelId) {
+        return HideFlags.barsHidden(store, panelId);
+    }
+
+    /** Whether the module's "Hide Text" toggle is on. {@link #withDisplaySettings} already skips {@code drawText} calls; this is for a host that draws text some other way. */
+    public static boolean isTextHidden(PersistenceProvider store, String panelId) {
+        return HideFlags.textHidden(store, panelId);
     }
 
     /** Whether the "Move Icons" toggle is on. */

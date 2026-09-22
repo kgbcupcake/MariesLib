@@ -117,17 +117,28 @@ public final class ModuleOptionRows {
             toggle.defaultTo(false);
             moveSection.add(toggle);
         }
-        if (icons) {
-            addHideToggles(layout, p, id);
-        }
+        addHideToggles(layout, p, id, bars, icons);
     }
 
-    /** The collapsible "Hide" group: "Hide Icons" (enforced for every module by {@code ModuleRenderContext}). */
-    private static void addHideToggles(OptionLayout layout, PersistenceProvider p, String id) {
-        ToggleOption hideIcons = new ToggleOption(text("config.marieslib.moduleoptions.hideIcons"),
-                () -> HideFlags.iconsHidden(p, id), v -> HideFlags.setIconsHidden(p, id, v), ALREADY_SAVED);
-        hideIcons.defaultTo(false);
-        layout.section(HIDE_SECTION, text("config.marieslib.moduleoptions.section.hide")).add(hideIcons);
+    /** The collapsible "Hide" group: "Hide Text" (always), "Hide Icons" and "Hide Bars" (each optional, mirroring the Move group above) — all three enforced for every module by {@code ModuleRenderContext}. */
+    private static void addHideToggles(OptionLayout layout, PersistenceProvider p, String id, boolean bars, boolean icons) {
+        SectionRow hideSection = layout.section(HIDE_SECTION, text("config.marieslib.moduleoptions.section.hide"));
+        ToggleOption hideText = new ToggleOption(text("config.marieslib.moduleoptions.hideText"),
+                () -> HideFlags.textHidden(p, id), v -> HideFlags.setTextHidden(p, id, v), ALREADY_SAVED);
+        hideText.defaultTo(false);
+        hideSection.add(hideText);
+        if (icons) {
+            ToggleOption hideIcons = new ToggleOption(text("config.marieslib.moduleoptions.hideIcons"),
+                    () -> HideFlags.iconsHidden(p, id), v -> HideFlags.setIconsHidden(p, id, v), ALREADY_SAVED);
+            hideIcons.defaultTo(false);
+            hideSection.add(hideIcons);
+        }
+        if (bars) {
+            ToggleOption hideBars = new ToggleOption(text("config.marieslib.moduleoptions.hideBars"),
+                    () -> HideFlags.barsHidden(p, id), v -> HideFlags.setBarsHidden(p, id, v), ALREADY_SAVED);
+            hideBars.defaultTo(false);
+            hideSection.add(hideBars);
+        }
     }
 
     /** Text and icon brightness sliders over values the module keeps in its own store (see {@link ModuleScales#textBrightness}). */

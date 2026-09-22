@@ -9,15 +9,17 @@ import java.util.Map;
 import java.util.WeakHashMap;
 
 /**
- * Where a module last drew its text, icons and bars (screen coordinates, after the module's offsets), recorded by
- * {@link ModuleRenderContext} as the module renders. An edit screen reads it to outline just the part a move mode
- * is dragging, wherever the module happened to put it, instead of outlining the whole box. In memory only; a
- * module's record is cleared when it starts its next render, so it always describes the latest frame.
+ * Where a module last drew its text, icons, bars and header (screen coordinates, after the module's offsets),
+ * recorded by {@link ModuleRenderContext} as the module renders (or, for a header drawn with its own offset
+ * outside {@code withDisplaySettings} — see {@code MarieModuleSettings#recordHeaderExtent} — by the module
+ * itself). An edit screen reads it to outline just the part a move mode is dragging, wherever the module
+ * happened to put it, instead of outlining the whole box. In memory only; a module's record is cleared when
+ * it starts its next render, so it always describes the latest frame.
  */
 @ApiStatus.Internal
 public final class ModuleExtents {
 
-    public enum Kind { TEXT, ICON, BAR }
+    public enum Kind { TEXT, ICON, BAR, HEADER }
 
     private static final Map<PersistenceProvider, Map<String, int[][]>> EXTENTS = new WeakHashMap<>();
 
@@ -29,7 +31,7 @@ public final class ModuleExtents {
     }
 
     /** Grows {@code kind}'s extent to cover the rectangle. */
-    static synchronized void add(PersistenceProvider p, String panelId, Kind kind, int x, int y, int width, int height) {
+    public static synchronized void add(PersistenceProvider p, String panelId, Kind kind, int x, int y, int width, int height) {
         if (width <= 0 || height <= 0) {
             return;
         }
@@ -50,7 +52,7 @@ public final class ModuleExtents {
         return toBounds(box(p, panelId, kind));
     }
 
-    /** The area all of text, icons and bars covered together, or null if the module drew nothing. */
+    /** The area all of text, icons, bars and header covered together, or null if the module drew nothing. */
     public static synchronized Bounds all(PersistenceProvider p, String panelId) {
         int[] union = null;
         for (Kind kind : Kind.values()) {

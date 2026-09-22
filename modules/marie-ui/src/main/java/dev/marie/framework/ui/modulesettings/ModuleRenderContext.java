@@ -13,8 +13,10 @@ import net.minecraft.world.item.ItemStack;
  * by the module's text and icon offsets, bars by the bar offset and bar size, icons are scaled by the icon size relative to the text size
  * (the module's own renderer already scales both by the text size, so at the default — icon size
  * following text size — the ratio is 1 and nothing changes), and text and icons get their own
- * brightness; icons are skipped entirely while the module's "Hide Icons" toggle is on. Fills, bars, borders and clips pass straight through. {@link #wrap} also records where each part
- * is drawn ({@link ModuleExtents}).
+ * brightness; each of text, icons and bars is skipped entirely while the module's matching "Hide" toggle is
+ * on (a hidden part also records no extent, so a move outline for it falls back to the whole box, same as a
+ * part the module simply hasn't drawn yet). Fills, borders and clips pass straight through. {@link #wrap}
+ * also records where each drawn part is ({@link ModuleExtents}).
  */
 @ApiStatus.Internal
 public final class ModuleRenderContext implements RenderContext {
@@ -31,12 +33,14 @@ public final class ModuleRenderContext implements RenderContext {
     private final int barDy;
     private final float barScale;
     private final boolean hideIcons;
+    private final boolean hideBars;
+    private final boolean hideText;
     private final PersistenceProvider store;
     private final String panelId;
 
     private ModuleRenderContext(RenderContext delegate, int textDx, int textDy, int iconDx, int iconDy,
                                 float iconRatio, double textBrightness, double iconBrightness,
-                                int barDx, int barDy, float barScale, boolean hideIcons,
+                                int barDx, int barDy, float barScale, boolean hideIcons, boolean hideBars, boolean hideText,
                                 PersistenceProvider store, String panelId) {
         this.delegate = delegate;
         this.textDx = textDx;
@@ -50,6 +54,8 @@ public final class ModuleRenderContext implements RenderContext {
         this.barDy = barDy;
         this.barScale = barScale;
         this.hideIcons = hideIcons;
+        this.hideBars = hideBars;
+        this.hideText = hideText;
         this.store = store;
         this.panelId = panelId;
     }
@@ -68,14 +74,19 @@ public final class ModuleRenderContext implements RenderContext {
         int barDy = ModuleOffsets.barY(store, panelId);
         float barScale = (float) ModuleScales.barScale(store, panelId);
         boolean hideIcons = HideFlags.iconsHidden(store, panelId);
+        boolean hideBars = HideFlags.barsHidden(store, panelId);
+        boolean hideText = HideFlags.textHidden(store, panelId);
         // Always wrapped, even at all-default settings: the wrapper is what records where the module draws (see ModuleExtents).
         ModuleExtents.begin(store, panelId);
         return new ModuleRenderContext(delegate, textDx, textDy, iconDx, iconDy, ratio,
-                textBrightness, iconBrightness, barDx, barDy, barScale, hideIcons, store, panelId);
+                textBrightness, iconBrightness, barDx, barDy, barScale, hideIcons, hideBars, hideText, store, panelId);
     }
 
     @Override
     public void drawText(String text, int x, int y, int argbColor, float scale) {
+        if (hideText) {
+            return;
+        }
         ModuleExtents.add(store, panelId, ModuleExtents.Kind.TEXT, x + textDx, y + textDy, delegate.textWidth(text, scale), Math.round(9 * scale));
         delegate.drawText(text, x + textDx, y + textDy, BrightnessRenderContext.scale(argbColor, textBrightness), scale);
     }
@@ -148,12 +159,18 @@ public final class ModuleRenderContext implements RenderContext {
 
     @Override
     public void drawBar(int x, int y, int width, int height, float fillPct, int backgroundColor, int fillColor) {
+        if (hideBars) {
+            return;
+        }
         ModuleExtents.add(store, panelId, ModuleExtents.Kind.BAR, x + barDx, y + barDy, scaled(width), scaled(height));
         delegate.drawBar(x + barDx, y + barDy, scaled(width), scaled(height), fillPct, backgroundColor, fillColor);
     }
 
     @Override
     public void drawVerticalBar(int x, int y, int width, int height, float fillPct, int backgroundColor, int fillColor) {
+        if (hideBars) {
+            return;
+        }
         ModuleExtents.add(store, panelId, ModuleExtents.Kind.BAR, x + barDx, y + barDy, scaled(width), scaled(height));
         delegate.drawVerticalBar(x + barDx, y + barDy, scaled(width), scaled(height), fillPct, backgroundColor, fillColor);
     }
