@@ -154,7 +154,16 @@ public final class LegendComponent implements MarieComponent, SelfPositioningMod
         for (int i = 0; i < entries.size(); i++) {
             LegendEntry entry = entries.get(i);
             int colX = colLeft + colW * i;
-            drawEntry(context, colX, rowY, colW, scale, entry, fscale);
+            // Per-column clip: content is drawn at a fixed scale (see above), so a column narrower
+            // than an entry's text (the box resized smaller than its natural width, or entries.size()
+            // grows) must stop that entry's text at its own column boundary instead of letting it
+            // bleed into (and visually merge with) the next column's text.
+            context.pushClip(colX, bounds.y(), Math.max(1, colW), bounds.height());
+            try {
+                drawEntry(context, colX, rowY, colW, scale, entry, fscale);
+            } finally {
+                context.popClip();
+            }
         }
         } finally {
             context.popClip();
