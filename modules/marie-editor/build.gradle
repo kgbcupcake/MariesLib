@@ -1,0 +1,23 @@
+plugins {
+    id 'net.neoforged.moddev' version '2.0.141'
+}
+
+// NeoForge is used for compile-time access to Minecraft/NeoForge classes
+// only — this module carries no mod metadata of its own (no mods.toml,
+// no runs).
+neoForge {
+    version = project.neo_version
+}
+
+dependencies {
+    implementation project(':marie-core')
+    implementation project(':marie-ui')
+
+    testImplementation platform('org.junit:junit-bom:5.10.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
+}

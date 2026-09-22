@@ -48,18 +48,20 @@ def coreProject = project(':marie-core')
 def resourcesProject = project(':marie-resources')
 def commandsProject = project(':marie-commands')
 def uiProject = project(':marie-ui')
+def editorProject = project(':marie-editor')
 
-// Aggregate the compiled output of all four subprojects into one jar.
+// Aggregate the compiled output of all five subprojects into one jar.
 // marie-core's jar manifest is reused as the base since it carries the
 // NeoForge mod metadata (neoforge.mods.toml).
 tasks.register('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
     group = 'shadow'
-    description = 'Merges marie-core, marie-resources, marie-commands and marie-ui into one jar.'
+    description = 'Merges marie-core, marie-resources, marie-commands, marie-ui and marie-editor into one jar.'
 
     dependsOn coreProject.tasks.named('classes')
     dependsOn resourcesProject.tasks.named('classes')
     dependsOn commandsProject.tasks.named('classes')
     dependsOn uiProject.tasks.named('classes')
+    dependsOn editorProject.tasks.named('classes')
     dependsOn coreProject.tasks.named('jar')
 
     archiveBaseName.set('marieslib')
@@ -71,6 +73,7 @@ tasks.register('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.Sha
     from resourcesProject.sourceSets.main.output
     from commandsProject.sourceSets.main.output
     from uiProject.sourceSets.main.output
+    from editorProject.sourceSets.main.output
 
     manifest {
         from coreProject.tasks.named('jar').get().manifest
