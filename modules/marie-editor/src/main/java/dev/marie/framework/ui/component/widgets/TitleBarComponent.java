@@ -26,6 +26,7 @@ public final class TitleBarComponent implements MarieComponent, SelfPositioningM
     private final Bounds resolvedBounds;
     private final boolean visible;
     private final int naturalLocalHeight;
+    private final double contentScale;
     private final Supplier<String> titleSupplier;
     private final Supplier<String> prefixAccentSupplier;
     private final Supplier<String> suffixAccentSupplier;
@@ -38,6 +39,7 @@ public final class TitleBarComponent implements MarieComponent, SelfPositioningM
             Bounds resolvedBounds,
             boolean visible,
             int naturalLocalHeight,
+            double contentScale,
             Supplier<String> titleSupplier,
             Supplier<String> prefixAccentSupplier,
             Supplier<String> suffixAccentSupplier,
@@ -49,6 +51,7 @@ public final class TitleBarComponent implements MarieComponent, SelfPositioningM
         this.resolvedBounds = resolvedBounds;
         this.visible = visible;
         this.naturalLocalHeight = naturalLocalHeight;
+        this.contentScale = contentScale;
         this.titleSupplier = titleSupplier;
         this.prefixAccentSupplier = prefixAccentSupplier;
         this.suffixAccentSupplier = suffixAccentSupplier;
@@ -90,10 +93,14 @@ public final class TitleBarComponent implements MarieComponent, SelfPositioningM
         if (!visible) {
             return;
         }
-        double scale = naturalLocalHeight > 0 ? bounds.height() / (double) naturalLocalHeight : 1.0d;
+        // Fixed content scale (the host's own panel scale), independent of this box's live bounds —
+        // see BarRowComponent's render() for why (resizing must change only the box, not the text).
+        double scale = contentScale;
         float fscale = (float) scale;
         int textColor = textColorSupplier.getAsInt();
 
+        context.pushClip(bounds.x(), bounds.y(), bounds.width(), bounds.height());
+        try {
         String title = titleSupplier.get();
         int titleW = context.textWidth(title, fscale);
         int titleX = bounds.x() + (bounds.width() - titleW) / 2;
@@ -120,5 +127,8 @@ public final class TitleBarComponent implements MarieComponent, SelfPositioningM
         context.fillRect(rightLineX, lineY, rightLineW, lineThickness, dividerColorSupplier.getAsInt());
 
         MarieModuleSettings.recordHeaderExtent(store, id, titleX, titleY, titleW, Math.max(1, (int) Math.round(9 * scale)));
+        } finally {
+            context.popClip();
+        }
     }
 }

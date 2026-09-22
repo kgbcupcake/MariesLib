@@ -51,6 +51,7 @@ public final class LegendComponent implements MarieComponent, SelfPositioningMod
     private final Bounds resolvedBounds;
     private final boolean visible;
     private final int naturalLocalHeight;
+    private final double contentScale;
     private final Supplier<String> titleSupplier;
     private final IntSupplier titleColorSupplier;
     private final IntSupplier textColorSupplier;
@@ -65,6 +66,7 @@ public final class LegendComponent implements MarieComponent, SelfPositioningMod
             Bounds resolvedBounds,
             boolean visible,
             int naturalLocalHeight,
+            double contentScale,
             Supplier<String> titleSupplier,
             IntSupplier titleColorSupplier,
             IntSupplier textColorSupplier,
@@ -78,6 +80,7 @@ public final class LegendComponent implements MarieComponent, SelfPositioningMod
         this.resolvedBounds = resolvedBounds;
         this.visible = visible;
         this.naturalLocalHeight = naturalLocalHeight;
+        this.contentScale = contentScale;
         this.titleSupplier = titleSupplier;
         this.titleColorSupplier = titleColorSupplier;
         this.textColorSupplier = textColorSupplier;
@@ -121,12 +124,16 @@ public final class LegendComponent implements MarieComponent, SelfPositioningMod
         if (!visible || entries.isEmpty()) {
             return;
         }
-        double scale = naturalLocalHeight > 0 ? bounds.height() / (double) naturalLocalHeight : 1.0d;
+        // Fixed content scale (the host's own panel scale), independent of this box's live bounds —
+        // see BarRowComponent's render() for why (resizing must change only the box, not the text).
+        double scale = contentScale;
         float fscale = (float) scale;
 
         context.drawRoundedRect(bounds.x(), bounds.y(), bounds.width(), bounds.height(), 1,
                 boxFillColorSupplier.getAsInt(), boxBorderColorSupplier.getAsInt());
 
+        context.pushClip(bounds.x(), bounds.y(), bounds.width(), bounds.height());
+        try {
         String title = titleSupplier.get();
         int titleW = context.textWidth(title, fscale);
         int titleX = bounds.x() + (bounds.width() - titleW) / 2;
@@ -148,6 +155,9 @@ public final class LegendComponent implements MarieComponent, SelfPositioningMod
             LegendEntry entry = entries.get(i);
             int colX = colLeft + colW * i;
             drawEntry(context, colX, rowY, colW, scale, entry, fscale);
+        }
+        } finally {
+            context.popClip();
         }
     }
 

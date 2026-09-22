@@ -37,6 +37,7 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
     private final Bounds resolvedBounds;
     private final boolean visible;
     private final int naturalLocalHeight;
+    private final double contentScale;
     private final int percentDimAlpha;
 
     private final Supplier<ItemStack> iconSupplier;
@@ -62,6 +63,7 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
             Bounds resolvedBounds,
             boolean visible,
             int naturalLocalHeight,
+            double contentScale,
             Supplier<ItemStack> iconSupplier,
             Supplier<String> labelSupplier,
             IntSupplier labelColorSupplier,
@@ -75,7 +77,7 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
             IntSupplier boxFillColorSupplier,
             IntSupplier boxBorderColorSupplier
     ) {
-        this(id, store, resolvedBounds, visible, naturalLocalHeight, DEFAULT_PERCENT_DIM_ALPHA,
+        this(id, store, resolvedBounds, visible, naturalLocalHeight, contentScale, DEFAULT_PERCENT_DIM_ALPHA,
                 iconSupplier, labelSupplier, labelColorSupplier, currentFillSupplier, previousFillSupplier,
                 fillColorSupplier, trackColorSupplier, percentColorSupplier,
                 arrowUpColorSupplier, arrowDownColorSupplier, boxFillColorSupplier, boxBorderColorSupplier, null, null);
@@ -87,6 +89,7 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
             Bounds resolvedBounds,
             boolean visible,
             int naturalLocalHeight,
+            double contentScale,
             int percentDimAlpha,
             Supplier<ItemStack> iconSupplier,
             Supplier<String> labelSupplier,
@@ -101,7 +104,7 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
             IntSupplier boxFillColorSupplier,
             IntSupplier boxBorderColorSupplier
     ) {
-        this(id, store, resolvedBounds, visible, naturalLocalHeight, percentDimAlpha,
+        this(id, store, resolvedBounds, visible, naturalLocalHeight, contentScale, percentDimAlpha,
                 iconSupplier, labelSupplier, labelColorSupplier, currentFillSupplier, previousFillSupplier,
                 fillColorSupplier, trackColorSupplier, percentColorSupplier,
                 arrowUpColorSupplier, arrowDownColorSupplier, boxFillColorSupplier, boxBorderColorSupplier, null, null);
@@ -132,6 +135,7 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
             Bounds resolvedBounds,
             boolean visible,
             int naturalLocalHeight,
+            double contentScale,
             int percentDimAlpha,
             Supplier<ItemStack> iconSupplier,
             Supplier<String> labelSupplier,
@@ -153,6 +157,7 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
         this.resolvedBounds = resolvedBounds;
         this.visible = visible;
         this.naturalLocalHeight = naturalLocalHeight;
+        this.contentScale = contentScale;
         this.percentDimAlpha = percentDimAlpha;
         this.iconSupplier = iconSupplier;
         this.labelSupplier = labelSupplier;
@@ -204,13 +209,19 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
         if (!visible) {
             return;
         }
-        double scale = naturalLocalHeight > 0 ? bounds.height() / (double) naturalLocalHeight : 1.0d;
+        // Content is drawn at a fixed scale (the host's own panel scale), independent of this box's
+        // live bounds — resizing the box changes only how much of that fixed-size content is visible
+        // (via the clip below), matching every other Diet Screen sub-box (see RecentMealsComponent),
+        // instead of rescaling the icon/text/bar proportionally to the box's own size.
+        double scale = contentScale;
         float fscale = (float) scale;
 
         int boxFill = boxFillColorSupplier.getAsInt();
         int boxBorder = boxBorderColorSupplier.getAsInt();
         context.drawRoundedRect(bounds.x(), bounds.y(), bounds.width(), bounds.height(), 1, boxFill, boxBorder);
 
+        context.pushClip(bounds.x(), bounds.y(), bounds.width(), bounds.height());
+        try {
         int iconSize = Math.max(1, (int) Math.round(20 * scale));
         int iconX = bounds.x() + (int) Math.round(2 * scale);
         int iconY = bounds.y() + (int) Math.round(2 * scale);
@@ -255,6 +266,9 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
             context.drawText("↑", arrowLeft, labelY, arrowUpColorSupplier.getAsInt(), fscale);
         } else if (trendCur < prev - 0.005d) {
             context.drawText("↓", arrowLeft, labelY, arrowDownColorSupplier.getAsInt(), fscale);
+        }
+        } finally {
+            context.popClip();
         }
     }
 }
