@@ -36,6 +36,7 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
     private final PersistenceProvider store;
     private final Bounds resolvedBounds;
     private final boolean visible;
+    private final int naturalLocalWidth;
     private final int naturalLocalHeight;
     private final double contentScale;
     private final int percentDimAlpha;
@@ -62,6 +63,7 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
             PersistenceProvider store,
             Bounds resolvedBounds,
             boolean visible,
+            int naturalLocalWidth,
             int naturalLocalHeight,
             double contentScale,
             Supplier<ItemStack> iconSupplier,
@@ -77,7 +79,7 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
             IntSupplier boxFillColorSupplier,
             IntSupplier boxBorderColorSupplier
     ) {
-        this(id, store, resolvedBounds, visible, naturalLocalHeight, contentScale, DEFAULT_PERCENT_DIM_ALPHA,
+        this(id, store, resolvedBounds, visible, naturalLocalWidth, naturalLocalHeight, contentScale, DEFAULT_PERCENT_DIM_ALPHA,
                 iconSupplier, labelSupplier, labelColorSupplier, currentFillSupplier, previousFillSupplier,
                 fillColorSupplier, trackColorSupplier, percentColorSupplier,
                 arrowUpColorSupplier, arrowDownColorSupplier, boxFillColorSupplier, boxBorderColorSupplier, null, null);
@@ -88,6 +90,7 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
             PersistenceProvider store,
             Bounds resolvedBounds,
             boolean visible,
+            int naturalLocalWidth,
             int naturalLocalHeight,
             double contentScale,
             int percentDimAlpha,
@@ -104,7 +107,7 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
             IntSupplier boxFillColorSupplier,
             IntSupplier boxBorderColorSupplier
     ) {
-        this(id, store, resolvedBounds, visible, naturalLocalHeight, contentScale, percentDimAlpha,
+        this(id, store, resolvedBounds, visible, naturalLocalWidth, naturalLocalHeight, contentScale, percentDimAlpha,
                 iconSupplier, labelSupplier, labelColorSupplier, currentFillSupplier, previousFillSupplier,
                 fillColorSupplier, trackColorSupplier, percentColorSupplier,
                 arrowUpColorSupplier, arrowDownColorSupplier, boxFillColorSupplier, boxBorderColorSupplier, null, null);
@@ -134,6 +137,7 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
             PersistenceProvider store,
             Bounds resolvedBounds,
             boolean visible,
+            int naturalLocalWidth,
             int naturalLocalHeight,
             double contentScale,
             int percentDimAlpha,
@@ -156,6 +160,7 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
         this.store = store;
         this.resolvedBounds = resolvedBounds;
         this.visible = visible;
+        this.naturalLocalWidth = naturalLocalWidth;
         this.naturalLocalHeight = naturalLocalHeight;
         this.contentScale = contentScale;
         this.percentDimAlpha = percentDimAlpha;
@@ -187,6 +192,10 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
 
     public int naturalLocalHeight() {
         return naturalLocalHeight;
+    }
+
+    public int naturalLocalWidth() {
+        return naturalLocalWidth;
     }
 
     @Override
@@ -244,11 +253,14 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
         int pctX = labelX + context.textWidth(label, fscale) + pctGap;
         context.drawText(pctStr, pctX, labelY, dimmedPct, fscale);
 
-        // Anchored off resolvedBounds' natural width, not the live (possibly resized) bounds' width —
-        // otherwise the bar stretches/shrinks with the box instead of staying fixed-size like the icon
-        // box above, with the resize only changing how much of it the clip reveals.
+        // Anchored off naturalLocalWidth * scale, not any bounds-derived width — resolvedBounds
+        // itself tracks a live drag/resize preview (see ComponentPersistence), so deriving the bar's
+        // extent from bounds.width() OR resolvedBounds.width() both stretch/shrink the bar with the
+        // box. naturalLocalWidth is the row's fixed design width (the same constant the host used to
+        // resolve resolvedBounds' natural size in the first place), scaled the same fixed way the icon
+        // box above already is, so resizing the box only changes how much of it the clip reveals.
         int arrowSlot = (int) Math.round(10 * scale);
-        int arrowLeft = bounds.x() + resolvedBounds.width() - arrowSlot;
+        int arrowLeft = bounds.x() + (int) Math.round(naturalLocalWidth * scale) - arrowSlot;
         int barLeft = labelX;
         int barGap = (int) Math.round(4 * scale);
         int barW = Math.max(0, (arrowLeft - barGap) - barLeft);
