@@ -230,19 +230,28 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
 
         int labelX = bounds.x() + (int) Math.round(26 * scale);
         int labelY = bounds.y() + (int) Math.round(4 * scale);
-        context.drawText(labelSupplier.get(), labelX, labelY, labelColorSupplier.getAsInt(), fscale);
+        String label = labelSupplier.get();
+        context.drawText(label, labelX, labelY, labelColorSupplier.getAsInt(), fscale);
+
+        // Percent sits right after the label (e.g. "Proteins 87%"), not at the far end of the bar —
+        // it travels with the label as one text draw call, so it moves under "Move Text" like the
+        // label does, not "Move Bars".
+        double disp = currentFillSupplier.getAsDouble();
+        String pctStr = Math.round(disp * 100) + "%";
+        int pctColor = percentColorSupplier.getAsInt();
+        int dimmedPct = (pctColor & 0x00FFFFFF) | (percentDimAlpha << 24);
+        int pctGap = (int) Math.round(4 * scale);
+        int pctX = labelX + context.textWidth(label, fscale) + pctGap;
+        context.drawText(pctStr, pctX, labelY, dimmedPct, fscale);
 
         int arrowSlot = (int) Math.round(10 * scale);
         int arrowLeft = bounds.x() + bounds.width() - arrowSlot;
-        int pctColumnRight = arrowLeft - (int) Math.round(4 * scale);
-        int maxPctW = context.textWidth("100%", fscale);
         int barLeft = labelX;
         int barGap = (int) Math.round(4 * scale);
-        int barW = Math.max(0, pctColumnRight - maxPctW - barGap - barLeft);
+        int barW = Math.max(0, (arrowLeft - barGap) - barLeft);
         int barH = Math.max(1, (int) Math.round(9 * scale));
         int barY = bounds.y() + (int) Math.round(14 * scale);
 
-        double disp = currentFillSupplier.getAsDouble();
         double prev = previousFillSupplier.getAsDouble();
         int fillColor = fillColorSupplier.getAsInt();
         context.drawBar(barLeft, barY, barW, barH, (float) disp, trackColorSupplier.getAsInt(), fillColor);
@@ -254,12 +263,6 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
                 context.fillRect(barLeft, barY, barW, barH, overlay);
             }
         }
-
-        String pctStr = Math.round(disp * 100) + "%";
-        int pctColor = percentColorSupplier.getAsInt();
-        int dimmedPct = (pctColor & 0x00FFFFFF) | (percentDimAlpha << 24);
-        int pctX = pctColumnRight - context.textWidth(pctStr, fscale);
-        context.drawText(pctStr, pctX, labelY, dimmedPct, fscale);
 
         double trendCur = trendCurrentSupplier != null ? trendCurrentSupplier.getAsDouble() : disp;
         if (trendCur > prev + 0.005d) {
