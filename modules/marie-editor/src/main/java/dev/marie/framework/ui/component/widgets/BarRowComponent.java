@@ -244,8 +244,11 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
         int pctX = labelX + context.textWidth(label, fscale) + pctGap;
         context.drawText(pctStr, pctX, labelY, dimmedPct, fscale);
 
+        // Anchored off resolvedBounds' natural width, not the live (possibly resized) bounds' width —
+        // otherwise the bar stretches/shrinks with the box instead of staying fixed-size like the icon
+        // box above, with the resize only changing how much of it the clip reveals.
         int arrowSlot = (int) Math.round(10 * scale);
-        int arrowLeft = bounds.x() + bounds.width() - arrowSlot;
+        int arrowLeft = bounds.x() + resolvedBounds.width() - arrowSlot;
         int barLeft = labelX;
         int barGap = (int) Math.round(4 * scale);
         int barW = Math.max(0, (arrowLeft - barGap) - barLeft);
