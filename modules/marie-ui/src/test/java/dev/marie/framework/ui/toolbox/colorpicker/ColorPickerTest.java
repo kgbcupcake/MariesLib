@@ -1,5 +1,6 @@
 package dev.marie.framework.ui.toolbox.colorpicker;
 
+import dev.marie.framework.ui.color.HexColors;
 import dev.marie.framework.ui.RenderContext;
 import dev.marie.framework.ui.Theme;
 import dev.marie.framework.ui.geometry.Bounds;

@@ -2,7 +2,7 @@ package dev.marie.framework.ui.component;
 
 import java.util.List;
 
-import dev.marie.framework.ui.edit.DraggableResizable;
+import dev.marie.framework.ui.drag.DraggableResizable;
 import dev.marie.framework.ui.geometry.Bounds;
 
 

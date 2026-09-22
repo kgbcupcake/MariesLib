@@ -1,8 +1,8 @@
-package dev.marie.framework.ui.edit;
+package dev.marie.framework.ui.drag;
 
 import dev.marie.framework.api.ApiStatus;
 import dev.marie.framework.ui.PersistenceProvider;
-import dev.marie.framework.ui.api.SnapRegistry;
+import dev.marie.framework.ui.drag.SnapRegistry;
 import dev.marie.framework.ui.component.Constraint;
 import dev.marie.framework.ui.component.MarieComponent;
 import dev.marie.framework.ui.geometry.Bounds;

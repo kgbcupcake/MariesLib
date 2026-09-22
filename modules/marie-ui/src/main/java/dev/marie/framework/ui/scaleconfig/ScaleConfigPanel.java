@@ -6,7 +6,7 @@ import dev.marie.framework.ui.RenderContext;
 import dev.marie.framework.ui.ThemeKey;
 import dev.marie.framework.ui.component.ComponentState;
 import dev.marie.framework.ui.component.MarieComponent;
-import dev.marie.framework.ui.edit.DraggableResizable;
+import dev.marie.framework.ui.drag.DraggableResizable;
 import dev.marie.framework.ui.scaleconfig.colorpicker.PickerWindow;
 import dev.marie.framework.ui.toolbox.colorpicker.ColorSlot;
 import dev.marie.framework.ui.toolbox.OptionLayout;

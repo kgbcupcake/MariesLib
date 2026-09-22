@@ -1,7 +1,7 @@
-package dev.marie.framework.ui.api;
+package dev.marie.framework.ui.drag;
 
 import dev.marie.framework.api.ApiStatus;
-import dev.marie.framework.ui.edit.DraggableResizable;
+import dev.marie.framework.ui.drag.DraggableResizable;
 import dev.marie.framework.ui.geometry.Bounds;
 
 import java.util.ArrayList;

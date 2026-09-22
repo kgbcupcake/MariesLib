@@ -15,8 +15,10 @@ import net.minecraft.world.item.ItemStack;
  * following text size — the ratio is 1 and nothing changes), and text and icons get their own
  * brightness; each of text, icons and bars is skipped entirely while the module's matching "Hide" toggle is
  * on (a hidden part also records no extent, so a move outline for it falls back to the whole box, same as a
- * part the module simply hasn't drawn yet). Fills, borders and clips pass straight through. {@link #wrap}
- * also records where each drawn part is ({@link ModuleExtents}).
+ * part the module simply hasn't drawn yet). "Hide Window" skips everything above plus {@code fillRect},
+ * {@code drawBorder} and {@code drawGlow} — the module's own background box — so the whole module vanishes;
+ * {@code drawDashedBorder} (the editor's move outline, not the module's own box) and clips pass straight
+ * through regardless. {@link #wrap} also records where each drawn part is ({@link ModuleExtents}).
  */
 @ApiStatus.Internal
 public final class ModuleRenderContext implements RenderContext {
@@ -35,13 +37,14 @@ public final class ModuleRenderContext implements RenderContext {
     private final boolean hideIcons;
     private final boolean hideBars;
     private final boolean hideText;
+    private final boolean hideWindow;
     private final PersistenceProvider store;
     private final String panelId;
 
     private ModuleRenderContext(RenderContext delegate, int textDx, int textDy, int iconDx, int iconDy,
                                 float iconRatio, double textBrightness, double iconBrightness,
                                 int barDx, int barDy, float barScale, boolean hideIcons, boolean hideBars, boolean hideText,
-                                PersistenceProvider store, String panelId) {
+                                boolean hideWindow, PersistenceProvider store, String panelId) {
         this.delegate = delegate;
         this.textDx = textDx;
         this.textDy = textDy;
@@ -56,6 +59,7 @@ public final class ModuleRenderContext implements RenderContext {
         this.hideIcons = hideIcons;
         this.hideBars = hideBars;
         this.hideText = hideText;
+        this.hideWindow = hideWindow;
         this.store = store;
         this.panelId = panelId;
     }
@@ -76,15 +80,16 @@ public final class ModuleRenderContext implements RenderContext {
         boolean hideIcons = HideFlags.iconsHidden(store, panelId);
         boolean hideBars = HideFlags.barsHidden(store, panelId);
         boolean hideText = HideFlags.textHidden(store, panelId);
+        boolean hideWindow = HideFlags.windowHidden(store, panelId);
         // Always wrapped, even at all-default settings: the wrapper is what records where the module draws (see ModuleExtents).
         ModuleExtents.begin(store, panelId);
         return new ModuleRenderContext(delegate, textDx, textDy, iconDx, iconDy, ratio,
-                textBrightness, iconBrightness, barDx, barDy, barScale, hideIcons, hideBars, hideText, store, panelId);
+                textBrightness, iconBrightness, barDx, barDy, barScale, hideIcons, hideBars, hideText, hideWindow, store, panelId);
     }
 
     @Override
     public void drawText(String text, int x, int y, int argbColor, float scale) {
-        if (hideText) {
+        if (hideText || hideWindow) {
             return;
         }
         ModuleExtents.add(store, panelId, ModuleExtents.Kind.TEXT, x + textDx, y + textDy, delegate.textWidth(text, scale), Math.round(9 * scale));
@@ -93,7 +98,7 @@ public final class ModuleRenderContext implements RenderContext {
 
     @Override
     public void drawItem(ItemStack stack, int x, int y, float scale) {
-        if (hideIcons) {
+        if (hideIcons || hideWindow) {
             return;
         }
         float drawScale = scale * iconRatio;
@@ -134,11 +139,17 @@ public final class ModuleRenderContext implements RenderContext {
 
     @Override
     public void fillRect(int x, int y, int width, int height, int argbColor) {
+        if (hideWindow) {
+            return;
+        }
         delegate.fillRect(x, y, width, height, argbColor);
     }
 
     @Override
     public void drawBorder(int x, int y, int width, int height, int thickness, int argbColor) {
+        if (hideWindow) {
+            return;
+        }
         delegate.drawBorder(x, y, width, height, thickness, argbColor);
     }
 
@@ -149,6 +160,9 @@ public final class ModuleRenderContext implements RenderContext {
 
     @Override
     public void drawGlow(int x, int y, int width, int height, int argbColor) {
+        if (hideWindow) {
+            return;
+        }
         delegate.drawGlow(x, y, width, height, argbColor);
     }
 
@@ -159,7 +173,7 @@ public final class ModuleRenderContext implements RenderContext {
 
     @Override
     public void drawBar(int x, int y, int width, int height, float fillPct, int backgroundColor, int fillColor) {
-        if (hideBars) {
+        if (hideBars || hideWindow) {
             return;
         }
         ModuleExtents.add(store, panelId, ModuleExtents.Kind.BAR, x + barDx, y + barDy, scaled(width), scaled(height));
@@ -168,7 +182,7 @@ public final class ModuleRenderContext implements RenderContext {
 
     @Override
     public void drawVerticalBar(int x, int y, int width, int height, float fillPct, int backgroundColor, int fillColor) {
-        if (hideBars) {
+        if (hideBars || hideWindow) {
             return;
         }
         ModuleExtents.add(store, panelId, ModuleExtents.Kind.BAR, x + barDx, y + barDy, scaled(width), scaled(height));

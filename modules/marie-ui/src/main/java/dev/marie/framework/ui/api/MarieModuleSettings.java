@@ -183,6 +183,11 @@ public final class MarieModuleSettings {
         return HideFlags.textHidden(store, panelId);
     }
 
+    /** Whether the module's "Hide Window" toggle is on — hides the whole module, box included. {@link #withDisplaySettings} already skips every draw call (text, icons, bars, fill, border, glow); this is for a host that draws its background box some other way, or wants to skip its render pass entirely. */
+    public static boolean isWindowHidden(PersistenceProvider store, String panelId) {
+        return HideFlags.windowHidden(store, panelId);
+    }
+
     /** Whether the "Move Icons" toggle is on. */
     public static boolean isMoveIconsEnabled(PersistenceProvider store, String panelId) {
         return MoveFlags.isOn(store, ModuleOffsets.moveIconsFlagId(panelId));

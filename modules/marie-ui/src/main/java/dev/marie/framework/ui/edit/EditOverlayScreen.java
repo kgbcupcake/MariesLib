@@ -86,7 +86,7 @@ public final class EditOverlayScreen extends Screen {
 
     /** Ported from HudDrawHelpers#drawEditBanner: centered text over a fitted background fill. */
     private void drawHintBanner(RenderContext context) {
-        if (minecraft == null || minecraft.font == null) {
+        if (minecraft == null || minecraft.font == null || hintText == null || hintText.isEmpty()) {
             return;
         }
         int textW = minecraft.font.width(hintText);

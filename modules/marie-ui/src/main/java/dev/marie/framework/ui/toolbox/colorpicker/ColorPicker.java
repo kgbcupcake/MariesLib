@@ -1,5 +1,6 @@
 package dev.marie.framework.ui.toolbox.colorpicker;
 
+import dev.marie.framework.ui.color.HexColors;
 import dev.marie.framework.api.ApiStatus;
 import dev.marie.framework.ui.RenderContext;
 import dev.marie.framework.ui.ThemeKey;

@@ -1,4 +1,4 @@
-package dev.marie.framework.ui.toolbox.colorpicker;
+package dev.marie.framework.ui.color;
 
 import dev.marie.framework.api.ApiStatus;
 

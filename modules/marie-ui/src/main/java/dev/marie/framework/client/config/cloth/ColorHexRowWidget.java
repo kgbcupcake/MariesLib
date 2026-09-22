@@ -1,7 +1,7 @@
 package dev.marie.framework.client.config.cloth;
 
 import dev.marie.framework.api.ApiStatus;
-import dev.marie.framework.ui.toolbox.colorpicker.HexColors;
+import dev.marie.framework.ui.color.HexColors;
 import dev.marie.framework.color.ColorDefinition;
 import dev.marie.framework.color.ColorDefinitionRegistry;
 import dev.marie.framework.color.ColorKey;

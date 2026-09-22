@@ -3,7 +3,7 @@ package dev.marie.framework.ui.scaleconfig.colorpicker;
 import dev.marie.framework.ui.RenderContext;
 import dev.marie.framework.ui.ThemeKey;
 import dev.marie.framework.ui.component.Constraint;
-import dev.marie.framework.ui.edit.DraggableResizable;
+import dev.marie.framework.ui.drag.DraggableResizable;
 import dev.marie.framework.ui.geometry.Anchor;
 import dev.marie.framework.ui.geometry.Bounds;
 import dev.marie.framework.ui.geometry.Insets;

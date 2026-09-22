@@ -120,7 +120,7 @@ public final class ModuleOptionRows {
         addHideToggles(layout, p, id, bars, icons);
     }
 
-    /** The collapsible "Hide" group: "Hide Text" (always), "Hide Icons" and "Hide Bars" (each optional, mirroring the Move group above) — all three enforced for every module by {@code ModuleRenderContext}. */
+    /** The collapsible "Hide" group: "Hide Text" and "Hide Window" (always), "Hide Icons" and "Hide Bars" (each optional, mirroring the Move group above) — all four enforced for every module by {@code ModuleRenderContext}. */
     private static void addHideToggles(OptionLayout layout, PersistenceProvider p, String id, boolean bars, boolean icons) {
         SectionRow hideSection = layout.section(HIDE_SECTION, text("config.marieslib.moduleoptions.section.hide"));
         ToggleOption hideText = new ToggleOption(text("config.marieslib.moduleoptions.hideText"),
@@ -139,6 +139,10 @@ public final class ModuleOptionRows {
             hideBars.defaultTo(false);
             hideSection.add(hideBars);
         }
+        ToggleOption hideWindow = new ToggleOption(text("config.marieslib.moduleoptions.hideWindow"),
+                () -> HideFlags.windowHidden(p, id), v -> HideFlags.setWindowHidden(p, id, v), ALREADY_SAVED);
+        hideWindow.defaultTo(false);
+        hideSection.add(hideWindow);
     }
 
     /** Text and icon brightness sliders over values the module keeps in its own store (see {@link ModuleScales#textBrightness}). */
