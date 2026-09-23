@@ -215,7 +215,7 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
     @Override
     public void render(RenderContext baseContext, Bounds bounds) {
         RenderContext context = MarieModuleSettings.withDisplaySettings(baseContext, store, id);
-        if (!visible) {
+        if (!visible || MarieModuleSettings.isWindowHidden(store, id)) {
             return;
         }
         // Position/layout geometry (where things sit) is always driven by the fixed base scale —

@@ -35,6 +35,7 @@ final class HubChildPopup {
     private final DraggableResizable drag;
     private boolean open;
     private String ownerGroupId;
+    private String childId;
     private String title = "";
     private MarieComponent content;
     private Bounds bounds;
@@ -65,11 +66,17 @@ final class HubChildPopup {
     /** Opens (or retargets) the popup on {@code child}; a first-ever open is placed beside {@code ownerWindow}. */
     void show(HubChildEntry child, String ownerGroupId, Bounds ownerWindow, Bounds screen) {
         this.content = child.content();
+        this.childId = child.id();
         this.title = child.label().getString();
         this.ownerGroupId = ownerGroupId;
         this.open = true;
         this.lastFrameMs = System.currentTimeMillis();
         this.bounds = bounds == null ? beside(ownerWindow, screen) : onScreen(bounds, screen);
+    }
+
+    /** The id of the child currently showing, or {@code null} if the popup isn't open — for a host that needs to know which content is live (e.g. to scope a nested color-picker popup's own auto-close to this specific child). */
+    String currentChildId() {
+        return open ? childId : null;
     }
 
     /** Closes the popup if its owner group is no longer the hub's selected entry ({@code openGroupId}, or null if none/a leaf), or the host stopped rendering. */

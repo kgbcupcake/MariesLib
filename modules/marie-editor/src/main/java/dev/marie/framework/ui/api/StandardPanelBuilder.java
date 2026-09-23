@@ -32,6 +32,8 @@ public final class StandardPanelBuilder {
     private boolean bars = true;
     private boolean icons = true;
     private boolean header;
+    private boolean moveText = true;
+    private boolean hideText = true;
     private boolean storedBrightness;
     private boolean padding = true;
     private boolean moveAndHide = true;
@@ -161,6 +163,18 @@ public final class StandardPanelBuilder {
         return this;
     }
 
+    /** Leaves out "Move Text", for a module whose body content already moves under some other toggle here (e.g. "Move Bars") and has nothing left for "Move Text" to actually move. */
+    public StandardPanelBuilder withoutMoveText() {
+        this.moveText = false;
+        return this;
+    }
+
+    /** Leaves out "Hide Text", for a module whose text serves no purpose hiding on its own. */
+    public StandardPanelBuilder withoutHideText() {
+        this.hideText = false;
+        return this;
+    }
+
     /** Adds text/icon brightness sliders over values kept in the panel's own store (see {@link MarieModuleSettings#withDisplaySettings}) instead of caller-bound getters and setters. */
     public StandardPanelBuilder storedBrightness() {
         this.storedBrightness = true;
@@ -207,7 +221,7 @@ public final class StandardPanelBuilder {
             panel.endSection();
         }
         if (moveAndHide) {
-            panel.moveToggles(store, panelId, bars, icons, header).resetPositions(store, panelId, onReset);
+            panel.moveToggles(store, panelId, bars, icons, header, moveText, hideText).resetPositions(store, panelId, onReset);
         }
         panel.tab(label("appearance"));
         if (sizes) {

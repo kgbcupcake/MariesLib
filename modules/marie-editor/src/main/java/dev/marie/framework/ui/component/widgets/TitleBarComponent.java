@@ -90,12 +90,14 @@ public final class TitleBarComponent implements MarieComponent, SelfPositioningM
     @Override
     public void render(RenderContext baseContext, Bounds bounds) {
         RenderContext context = MarieModuleSettings.withDisplaySettings(baseContext, store, id);
-        if (!visible) {
+        if (!visible || MarieModuleSettings.isWindowHidden(store, id)) {
             return;
         }
         // Fixed content scale (the host's own panel scale), independent of this box's live bounds —
-        // see BarRowComponent's render() for why (resizing must change only the box, not the text).
-        double scale = contentScale;
+        // see BarRowComponent's render() for why (resizing must change only the box, not the text) —
+        // additionally multiplied by this module's own Text size slider, same split BarRowComponent
+        // uses, so that slider (present in this header's Style tab) actually does something.
+        double scale = contentScale * MarieModuleSettings.textScale(store, id);
         float fscale = (float) scale;
         int textColor = textColorSupplier.getAsInt();
 

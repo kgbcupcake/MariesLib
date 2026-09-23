@@ -165,6 +165,18 @@ public final class MarieToolbox {
             return this;
         }
 
+        /** Same, additionally leaving out "Move Text" when {@code moveText} is false (for a module whose body content moves under some other toggle here and has nothing left for "Move Text" to move). */
+        public PanelBuilder moveToggles(PersistenceProvider persistence, String panelId, boolean bars, boolean icons, boolean header, boolean moveText) {
+            ModuleOptionRows.addMoveToggles(layout, persistence, panelId, bars, icons, header, moveText);
+            return this;
+        }
+
+        /** Same, additionally leaving out "Hide Text" when {@code hideText} is false (for a module whose text serves no purpose hiding on its own). */
+        public PanelBuilder moveToggles(PersistenceProvider persistence, String panelId, boolean bars, boolean icons, boolean header, boolean moveText, boolean hideText) {
+            ModuleOptionRows.addMoveToggles(layout, persistence, panelId, bars, icons, header, moveText, hideText);
+            return this;
+        }
+
         /** Adds text and icon brightness sliders over values kept in {@code persistence} (read back with {@link MarieModuleSettings#textBrightness}/{@link MarieModuleSettings#iconBrightness}), for modules whose brightness isn't a config value. */
         public PanelBuilder storedBrightness(PersistenceProvider persistence, String panelId) {
             ModuleOptionRows.addStoredBrightness(layout, persistence, panelId);

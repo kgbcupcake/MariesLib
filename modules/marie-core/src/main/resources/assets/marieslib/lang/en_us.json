@@ -126,6 +126,7 @@
   "config.marieslib.moduleoptions.iconBrightness": "Icon brightness",
   "config.marieslib.moduleoptions.backgroundOpacity": "Background opacity",
   "marieslib.commandcenter.title": "Command Center",
+  "marieslib.hub.editor_label": "Editor",
   "key.marieslib.open_command_center": "Open Command Center",
   "key.categories.marieslib": "MariesLib"
 }

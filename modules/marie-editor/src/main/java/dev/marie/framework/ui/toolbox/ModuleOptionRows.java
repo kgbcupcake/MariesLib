@@ -81,10 +81,22 @@ public final class ModuleOptionRows {
 
     /** Puts the toggles in a collapsible "Move" group (and, when {@code icons}, a "Hide" group after it). Chooses which toggles appear: "Move Bars", "Move Icons" and "Move Header" are optional; "Move Text" and "Move All" always are. */
     public static void addMoveToggles(OptionLayout layout, PersistenceProvider p, String id, boolean bars, boolean icons, boolean header) {
+        addMoveToggles(layout, p, id, bars, icons, header, true);
+    }
+
+    /** Same, but {@code moveText} false also leaves out "Move Text" — for a module whose body content moves under some other toggle here (e.g. "Move Bars") and has nothing left for "Move Text" to actually move. */
+    public static void addMoveToggles(OptionLayout layout, PersistenceProvider p, String id, boolean bars, boolean icons, boolean header, boolean moveText) {
+        addMoveToggles(layout, p, id, bars, icons, header, moveText, true);
+    }
+
+    /** Same, but {@code hideText} false also leaves out "Hide Text" — for a module whose text serves no purpose hiding on its own (e.g. it's purely decorative, or hiding the whole module already covers it). */
+    public static void addMoveToggles(OptionLayout layout, PersistenceProvider p, String id, boolean bars, boolean icons, boolean header, boolean moveText, boolean hideText) {
         List<String> flagList = new ArrayList<>();
         List<String> labelList = new ArrayList<>();
-        flagList.add(id);
-        labelList.add("config.marieslib.moduleoptions.moveText");
+        if (moveText) {
+            flagList.add(id);
+            labelList.add("config.marieslib.moduleoptions.moveText");
+        }
         if (header) {
             flagList.add(ModuleOffsets.moveHeaderFlagId(id));
             labelList.add("config.marieslib.moduleoptions.moveHeader");
@@ -117,16 +129,18 @@ public final class ModuleOptionRows {
             toggle.defaultTo(false);
             moveSection.add(toggle);
         }
-        addHideToggles(layout, p, id, bars, icons);
+        addHideToggles(layout, p, id, bars, icons, hideText);
     }
 
-    /** The collapsible "Hide" group: "Hide Text" and "Hide Window" (always), "Hide Icons" and "Hide Bars" (each optional, mirroring the Move group above) — all four enforced for every module by {@code ModuleRenderContext}. */
-    private static void addHideToggles(OptionLayout layout, PersistenceProvider p, String id, boolean bars, boolean icons) {
+    /** The collapsible "Hide" group: "Hide Window" (always), "Hide Text", "Hide Icons" and "Hide Bars" (each optional, "Hide Text" mirroring the Move group's "Move Text" above) — all four enforced for every module by {@code ModuleRenderContext}. */
+    private static void addHideToggles(OptionLayout layout, PersistenceProvider p, String id, boolean bars, boolean icons, boolean showText) {
         SectionRow hideSection = layout.section(HIDE_SECTION, text("config.marieslib.moduleoptions.section.hide"));
-        ToggleOption hideText = new ToggleOption(text("config.marieslib.moduleoptions.hideText"),
-                () -> HideFlags.textHidden(p, id), v -> HideFlags.setTextHidden(p, id, v), ALREADY_SAVED);
-        hideText.defaultTo(false);
-        hideSection.add(hideText);
+        if (showText) {
+            ToggleOption hideText = new ToggleOption(text("config.marieslib.moduleoptions.hideText"),
+                    () -> HideFlags.textHidden(p, id), v -> HideFlags.setTextHidden(p, id, v), ALREADY_SAVED);
+            hideText.defaultTo(false);
+            hideSection.add(hideText);
+        }
         if (icons) {
             ToggleOption hideIcons = new ToggleOption(text("config.marieslib.moduleoptions.hideIcons"),
                     () -> HideFlags.iconsHidden(p, id), v -> HideFlags.setIconsHidden(p, id, v), ALREADY_SAVED);
