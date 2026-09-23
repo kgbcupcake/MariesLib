@@ -193,6 +193,17 @@ public final class MarieToolbox {
         }
 
         /**
+         * Adds a "Reset Module" button: everything {@link #resetPositions} does, plus the module's own
+         * drag/resize position/size, its icon/bar size and text/icon brightness, and every option on
+         * every tab that has a default (sizes, background/border, colors) — see {@link
+         * ModuleOptionRows#addResetEverything}.
+         */
+        public PanelBuilder resetEverything(PersistenceProvider persistence, String panelId, Runnable hostReset) {
+            ModuleOptionRows.addResetEverything(layout, persistence, panelId, hostReset);
+            return this;
+        }
+
+        /**
          * Starts a collapsible group headed {@code title} on the current tab (collapsed until the player opens
          * it); every option added until {@link #endSection()} or the next {@code tab}/{@code colorTab} goes
          * inside it. Calling it again with the same title on the same tab resumes that group. {@code defaultValue}

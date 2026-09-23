@@ -176,20 +176,47 @@ public final class ModuleOptionRows {
      */
     public static void addResetPositions(OptionLayout layout, PersistenceProvider p, String id, Runnable hostReset) {
         layout.section(MOVE_SECTION, text("config.marieslib.moduleoptions.section.move")).add(new ButtonOption(text("config.marieslib.moduleoptions.resetPositions"), "RESET", () -> {
-            ModuleOffsets.setBar(p, id, 0, 0);
-            ModuleOffsets.commitBar(p, id);
-            ModuleOffsets.setIcon(p, id, 0, 0);
-            ModuleOffsets.commitIcon(p, id);
-            ModuleOffsets.setText(p, id, 0, 0);
-            ModuleOffsets.commitText(p, id);
-            ModuleOffsets.setHeader(p, id, 0, 0);
-            ModuleOffsets.commitHeader(p, id);
-            for (String flag : new String[]{id, ModuleOffsets.moveIconsFlagId(id), ModuleOffsets.moveBarsFlagId(id),
-                    ModuleOffsets.moveHeaderFlagId(id), ModuleOffsets.moveAllFlagId(id)}) {
-                MoveFlags.set(p, flag, false);
+            resetOffsetsAndMoveFlags(p, id);
+            hostReset.run();
+        }, ALREADY_SAVED));
+    }
+
+    /**
+     * "Reset Module" button: everything {@link #addResetPositions} does (content offsets, move
+     * modes), plus the module's own drag/resize position and size, its icon/bar size and text/icon
+     * brightness, and every option on every tab that has a default (sizes, background/border, colors
+     * — anything filed as an {@link OptionRow} via {@link OptionLayout#allRows}) — the single
+     * consolidated reset a module's panel exposes in place of separate per-tab "Reset This Tab"/
+     * "Reset Positions" buttons.
+     */
+    public static void addResetEverything(OptionLayout layout, PersistenceProvider p, String id, Runnable hostReset) {
+        layout.addRow(new ButtonOption(text("config.marieslib.moduleoptions.resetModule"), "RESET", () -> {
+            resetOffsetsAndMoveFlags(p, id);
+            ModuleScales.resetSizesAndBrightness(p, id);
+            // Bare panelId key: the module's own drag/resize ComponentState (position, size, and —
+            // as fields on that same record — text size and padding), all wiped in one call so it
+            // falls back to its natural default on the very next read.
+            p.remove(id);
+            for (OptionRow row : new ArrayList<>(layout.allRows())) {
+                row.resetToDefault();
             }
             hostReset.run();
         }, ALREADY_SAVED));
+    }
+
+    private static void resetOffsetsAndMoveFlags(PersistenceProvider p, String id) {
+        ModuleOffsets.setBar(p, id, 0, 0);
+        ModuleOffsets.commitBar(p, id);
+        ModuleOffsets.setIcon(p, id, 0, 0);
+        ModuleOffsets.commitIcon(p, id);
+        ModuleOffsets.setText(p, id, 0, 0);
+        ModuleOffsets.commitText(p, id);
+        ModuleOffsets.setHeader(p, id, 0, 0);
+        ModuleOffsets.commitHeader(p, id);
+        for (String flag : new String[]{id, ModuleOffsets.moveIconsFlagId(id), ModuleOffsets.moveBarsFlagId(id),
+                ModuleOffsets.moveHeaderFlagId(id), ModuleOffsets.moveAllFlagId(id)}) {
+            MoveFlags.set(p, flag, false);
+        }
     }
 
     private static void addSlider(OptionLayout layout, SliderOption row, double defaultValue) {

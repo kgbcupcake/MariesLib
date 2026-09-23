@@ -121,6 +121,7 @@
   "config.marieslib.moduleoptions.moveHeader": "Move Header",
   "config.marieslib.moduleoptions.resetPositions": "Reset Positions",
   "config.marieslib.moduleoptions.resetTab": "Reset This Tab",
+  "config.marieslib.moduleoptions.resetModule": "Reset This Module",
   "config.marieslib.moduleoptions.barSize": "Bar size",
   "config.marieslib.moduleoptions.textBrightness": "Text brightness",
   "config.marieslib.moduleoptions.iconBrightness": "Icon brightness",

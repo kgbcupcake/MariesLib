@@ -100,6 +100,24 @@ public final class OptionLayout implements MarieComponent {
         return tabs.get(tabs.size() - 1);
     }
 
+    /**
+     * Every row across every tab, flattened — including rows filed inside a {@link SectionRow} (one
+     * level deep; sections don't nest) — for a single "reset this whole module" button whose scope
+     * isn't limited to whichever tab it happens to sit on, unlike {@link #currentTabRows}.
+     */
+    public List<OptionRow> allRows() {
+        List<OptionRow> all = new ArrayList<>();
+        for (List<OptionRow> tabRows : tabs) {
+            for (OptionRow row : tabRows) {
+                all.add(row);
+                if (row instanceof SectionRow section) {
+                    all.addAll(section.children());
+                }
+            }
+        }
+        return all;
+    }
+
     /** Sets the reset value of the most recently added slider. */
     public void defaultToLast(double value) {
         lastRow().defaultTo(value);

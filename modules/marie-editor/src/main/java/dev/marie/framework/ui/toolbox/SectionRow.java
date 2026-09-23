@@ -47,6 +47,11 @@ public final class SectionRow implements OptionRow {
         return children.isEmpty() ? null : children.get(children.size() - 1);
     }
 
+    /** Every row filed into this section, in order — for a caller that needs to act on all of them regardless of collapsed/open state (e.g. {@link OptionLayout#allRows}). */
+    public List<OptionRow> children() {
+        return children;
+    }
+
     @Override
     public int height() {
         if (!open || children.isEmpty()) {

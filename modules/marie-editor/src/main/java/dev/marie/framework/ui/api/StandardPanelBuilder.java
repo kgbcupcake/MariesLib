@@ -207,7 +207,12 @@ public final class StandardPanelBuilder {
     }
 
     public MarieComponent build() {
-        MarieToolbox.PanelBuilder panel = MarieToolbox.panel(title).tab(label("layout"));
+        // One consolidated "Reset This Module" button, on the Layout tab (the first/default tab a
+        // module's panel opens to) in place of the three narrower, scattered buttons this used to
+        // build (Layout's and Style's own "Reset This Tab", Behavior's "Reset Positions") — it covers
+        // everything all three did, plus the module's own drag/resize position/size, in one action.
+        MarieToolbox.PanelBuilder panel = MarieToolbox.panel(title).tab(label("layout"))
+                .resetEverything(store, panelId, onReset);
         if (padding) {
             panel.padding(store, panelId);
         }
@@ -215,13 +220,13 @@ public final class StandardPanelBuilder {
             layoutRows.accept(panel);
             panel.endSection();
         }
-        panel.resetTab().tab(label("behavior"));
+        panel.tab(label("behavior"));
         if (behaviorRows != null) {
             behaviorRows.accept(panel);
             panel.endSection();
         }
         if (moveAndHide) {
-            panel.moveToggles(store, panelId, bars, icons, header, moveText, hideText).resetPositions(store, panelId, onReset);
+            panel.moveToggles(store, panelId, bars, icons, header, moveText, hideText);
         }
         panel.tab(label("appearance"));
         if (sizes) {
@@ -272,7 +277,6 @@ public final class StandardPanelBuilder {
         if (styleRows != null) {
             styleRows.accept(panel);
         }
-        panel.resetTab();
         if (extraTabs != null) {
             extraTabs.accept(panel);
         }

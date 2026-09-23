@@ -46,10 +46,12 @@ public final class HubPanel {
 
     private static final int DEFAULT_WIDTH = 460;
     private static final int DEFAULT_HEIGHT = 320;
-    private static final int MIN_WIDTH = 320;
-    private static final int MIN_HEIGHT = 220;
+    /** Small enough that the sidebar/content pane genuinely need their own scroll (see {@link #drawSidebar}/{@link #drawContentPane}) rather than this floor alone keeping everything visible. */
+    private static final int MIN_WIDTH = 200;
+    private static final int MIN_HEIGHT = 140;
     private static final int MAX_WIDTH = 900;
     private static final int MAX_HEIGHT = 700;
+    private static final int SCROLL_STEP = 20;
     private static final int TITLE_COLOR = 0xFFFFFF;
 
     private static final int HEADER_HEIGHT = 16;
@@ -78,6 +80,11 @@ public final class HubPanel {
     private Bounds lastPanelBounds = new Bounds(0, 0, 0, 0);
     private Bounds lastContentBodyBounds = new Bounds(0, 0, 0, 0);
     private Bounds lastMinimizeButtonBounds = new Bounds(0, 0, 0, 0);
+    private Bounds lastSidebarBounds = new Bounds(0, 0, 0, 0);
+    /** Vertical scroll within the sidebar list, in pixels; clamped to overflow every {@link #drawSidebar} pass — needed once the hub is shrunk small enough that not every entry fits. */
+    private int sidebarScrollOffset;
+    /** Same, for a selected group's dynamic child list (see {@link #drawContentPane}). Reset whenever the selection changes, since it's a different list at a different length each time. */
+    private int childScrollOffset;
 
     private final List<SidebarHit> sidebarHits = new ArrayList<>();
     private final List<ChildHit> childHits = new ArrayList<>();
@@ -239,9 +246,15 @@ public final class HubPanel {
         Theme theme = context.theme();
         int areaY = content.y();
         int areaHeight = content.height();
+        lastSidebarBounds = new Bounds(content.x(), areaY, SIDEBAR_WIDTH, areaHeight);
+
+        int totalHeight = entries.size() * SIDEBAR_ROW_HEIGHT;
+        int maxScroll = Math.max(0, totalHeight + CONTENT_PADDING - areaHeight);
+        sidebarScrollOffset = Math.max(0, Math.min(sidebarScrollOffset, maxScroll));
+
         context.pushClip(content.x(), areaY, SIDEBAR_WIDTH, areaHeight);
         try {
-            int y = areaY + CONTENT_PADDING;
+            int y = areaY + CONTENT_PADDING - sidebarScrollOffset;
             for (HubSidebarEntry entry : entries) {
                 if (y + SIDEBAR_ROW_HEIGHT > areaY && y < areaY + areaHeight) {
                     Bounds rowBounds = new Bounds(content.x(), y, SIDEBAR_WIDTH, SIDEBAR_ROW_HEIGHT);
@@ -280,8 +293,13 @@ public final class HubPanel {
                 leaf.content().render(context, body);
             } else if (selected instanceof HubGroupEntry group) {
                 Theme theme = context.theme();
-                int y = body.y();
-                for (HubChildEntry child : group.children().get()) {
+                List<HubChildEntry> children = group.children().get();
+                int rowStep = CHILD_ROW_HEIGHT + CHILD_ROW_GAP;
+                int totalHeight = children.isEmpty() ? 0 : children.size() * rowStep - CHILD_ROW_GAP;
+                int maxScroll = Math.max(0, totalHeight - body.height());
+                childScrollOffset = Math.max(0, Math.min(childScrollOffset, maxScroll));
+                int y = body.y() - childScrollOffset;
+                for (HubChildEntry child : children) {
                     Bounds rowBounds = new Bounds(body.x(), y, body.width(), CHILD_ROW_HEIGHT);
                     if (rowBounds.y() + rowBounds.height() > body.y() && rowBounds.y() < body.y() + body.height()) {
                         context.drawRoundedRect(rowBounds.x(), rowBounds.y(), rowBounds.width(), rowBounds.height(), 1,
@@ -290,7 +308,7 @@ public final class HubPanel {
                                 rowBounds.y() + (CHILD_ROW_HEIGHT - 8) / 2, theme.color(ThemeKey.TEXT_PRIMARY), 0.9f);
                         childHits.add(new ChildHit(group, child, rowBounds));
                     }
-                    y += CHILD_ROW_HEIGHT + CHILD_ROW_GAP;
+                    y += rowStep;
                 }
             }
         } finally {
@@ -347,6 +365,7 @@ public final class HubPanel {
             for (SidebarHit hit : sidebarHits) {
                 if (hit.bounds().contains(mx, my)) {
                     selectedId = hit.entry().id();
+                    childScrollOffset = 0;
                     return true;
                 }
             }
@@ -429,11 +448,22 @@ public final class HubPanel {
         if (popup.mouseScrolled(mouseX, mouseY, scrollX, scrollY)) {
             return true;
         }
-        if (!lastContentBodyBounds.contains((int) mouseX, (int) mouseY)) {
+        int mx = (int) mouseX;
+        int my = (int) mouseY;
+        if (scrollY != 0 && lastSidebarBounds.contains(mx, my)) {
+            sidebarScrollOffset -= (int) Math.signum(scrollY) * SCROLL_STEP;
+            return true;
+        }
+        if (!lastContentBodyBounds.contains(mx, my)) {
             return false;
         }
-        if (findSelected() instanceof HubEntry leaf) {
+        HubSidebarEntry selected = findSelected();
+        if (selected instanceof HubEntry leaf) {
             return leaf.content().mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+        }
+        if (selected instanceof HubGroupEntry && scrollY != 0) {
+            childScrollOffset -= (int) Math.signum(scrollY) * SCROLL_STEP;
+            return true;
         }
         return false;
     }
