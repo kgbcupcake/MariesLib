@@ -67,6 +67,11 @@ public final class HubPanel {
     private final Component title;
     private final PersistenceProvider persistence;
     private final List<HubSidebarEntry> entries;
+    /** Chrome color overrides — background/border/title-text/accent — each {@code null} until a host supplies one (see the 8-arg constructor), falling back to the current {@link Theme}'s colors so a caller with nothing to customize sees identical output to before these existed. */
+    private final java.util.function.IntSupplier backgroundColor;
+    private final java.util.function.IntSupplier borderColor;
+    private final java.util.function.IntSupplier titleColor;
+    private final java.util.function.IntSupplier accentColor;
     private final HubChildPopup popup = new HubChildPopup();
     /** The one color-picker window this hub can show — same mechanism {@code ScaleConfigPanel} uses, opened from a color slot in either a leaf's inline content or an open child popup's content. */
     private final PickerWindow picker = new PickerWindow();
@@ -83,6 +88,11 @@ public final class HubPanel {
     private Bounds lastSidebarBounds = new Bounds(0, 0, 0, 0);
     /** Vertical scroll within the sidebar list, in pixels; clamped to overflow every {@link #drawSidebar} pass — needed once the hub is shrunk small enough that not every entry fits. */
     private int sidebarScrollOffset;
+    /** Drag state for the collapsed strip — a plain click (no movement in between) restores the hub, a click-and-drag repositions the strip instead, matching how dragging the header does the same distinction while expanded. */
+    private boolean collapsedDragging;
+    private boolean collapsedDragMoved;
+    private int collapsedDragOffsetX;
+    private int collapsedDragOffsetY;
     /** Same, for a selected group's dynamic child list (see {@link #drawContentPane}). Reset whenever the selection changes, since it's a different list at a different length each time. */
     private int childScrollOffset;
 
@@ -90,10 +100,21 @@ public final class HubPanel {
     private final List<ChildHit> childHits = new ArrayList<>();
 
     public HubPanel(Component title, String id, PersistenceProvider persistence, List<HubSidebarEntry> entries) {
+        this(title, id, persistence, entries, null, null, null, null);
+    }
+
+    /** Same, with the hub's own chrome colors overridden instead of following the current {@link Theme} — any of the four may be {@code null} to keep that one theme-derived. */
+    public HubPanel(Component title, String id, PersistenceProvider persistence, List<HubSidebarEntry> entries,
+                     java.util.function.IntSupplier backgroundColor, java.util.function.IntSupplier borderColor,
+                     java.util.function.IntSupplier titleColor, java.util.function.IntSupplier accentColor) {
         this.title = title;
         this.id = id;
         this.persistence = persistence;
         this.entries = entries;
+        this.backgroundColor = backgroundColor;
+        this.borderColor = borderColor;
+        this.titleColor = titleColor;
+        this.accentColor = accentColor;
         if (!entries.isEmpty()) {
             this.selectedId = entries.get(0).id();
         }
@@ -127,6 +148,22 @@ public final class HubPanel {
                 layout.setColorSlotListener(slot -> showPicker(leaf.id(), leaf.label(), slot, lastPanelBounds));
             }
         }
+    }
+
+    private int backgroundColor(Theme theme) {
+        return backgroundColor != null ? backgroundColor.getAsInt() : theme.color(ThemeKey.PANEL_BACKGROUND);
+    }
+
+    private int borderColor(Theme theme) {
+        return borderColor != null ? borderColor.getAsInt() : theme.color(ThemeKey.BORDER);
+    }
+
+    private int titleColor() {
+        return titleColor != null ? titleColor.getAsInt() : TITLE_COLOR;
+    }
+
+    private int accentColor(Theme theme) {
+        return accentColor != null ? accentColor.getAsInt() : theme.color(ThemeKey.BORDER_HOVER);
     }
 
     /** Opens or retargets the color-picker window on {@code slot}, owned by {@code ownerId} — see {@link #currentContentOwnerId()} for how the picker knows when to close itself again. */
@@ -195,11 +232,11 @@ public final class HubPanel {
     private Bounds drawHeader(RenderContext context, Bounds bounds) {
         Theme theme = context.theme();
         context.drawRoundedRect(bounds.x(), bounds.y(), bounds.width(), bounds.height(), 1,
-                theme.color(ThemeKey.PANEL_BACKGROUND), theme.color(ThemeKey.BORDER));
+                backgroundColor(theme), borderColor(theme));
 
         lastMinimizeButtonBounds = new Bounds(bounds.x() + bounds.width() - HEADER_PADDING - MINIMIZE_BUTTON_SIZE,
                 bounds.y() + (HEADER_HEIGHT - MINIMIZE_BUTTON_SIZE) / 2, MINIMIZE_BUTTON_SIZE, MINIMIZE_BUTTON_SIZE);
-        int accent = theme.color(ThemeKey.BORDER_HOVER);
+        int accent = accentColor(theme);
         context.drawRoundedRect(lastMinimizeButtonBounds.x(), lastMinimizeButtonBounds.y(),
                 lastMinimizeButtonBounds.width(), lastMinimizeButtonBounds.height(), 1, (0x40 << 24) | (accent & 0x00FFFFFF), accent);
         context.drawText("-", lastMinimizeButtonBounds.x() + 3, lastMinimizeButtonBounds.y(), accent, 0.8f);
@@ -211,33 +248,32 @@ public final class HubPanel {
         context.drawText(editorLabel, editorX, textY, theme.color(ThemeKey.TEXT_SECONDARY), 1f);
 
         int dividerX = editorX - DIVIDER_GAP;
-        context.fillRect(dividerX, bounds.y() + 3, 1, HEADER_HEIGHT - 6, theme.color(ThemeKey.BORDER));
+        context.fillRect(dividerX, bounds.y() + 3, 1, HEADER_HEIGHT - 6, borderColor(theme));
 
         HubSidebarEntry selected = findSelected();
         String dynamicLabel = selected != null ? selected.label().getString() : title.getString();
         int dynamicMaxWidth = Math.max(0, dividerX - DIVIDER_GAP - (bounds.x() + HEADER_PADDING));
         context.drawText(dev.marie.framework.ui.toolbox.OptionStyle.fit(context, dynamicLabel, 1f, dynamicMaxWidth),
-                bounds.x() + HEADER_PADDING, textY, TITLE_COLOR, 1f);
+                bounds.x() + HEADER_PADDING, textY, titleColor(), 1f);
 
         int dividerY = bounds.y() + HEADER_HEIGHT;
-        context.fillRect(bounds.x() + 1, dividerY, Math.max(0, bounds.width() - 2), 1, theme.color(ThemeKey.BORDER));
+        context.fillRect(bounds.x() + 1, dividerY, Math.max(0, bounds.width() - 2), 1, borderColor(theme));
 
         return new Bounds(bounds.x(), dividerY + 1, bounds.width(), Math.max(0, bounds.height() - HEADER_HEIGHT - 1));
     }
 
-    /** The minimized strip: the currently selected entry's name plus a restore affordance, at the hub's last position — click anywhere on it to restore. */
+    /** The minimized strip: a static "Editor" label (not the selected entry's name — the strip identifies the hub itself, not whatever was last open) plus a restore affordance, at the hub's last position — a plain click restores it, click-and-drag repositions it instead (see {@link #mouseClicked}/{@link #mouseDragged}). */
     private void drawCollapsed(RenderContext context) {
         Bounds strip = new Bounds(panelBounds.x(), panelBounds.y(), Math.min(COLLAPSED_WIDTH, panelBounds.width()), COLLAPSED_HEIGHT);
         lastPanelBounds = strip;
         Theme theme = context.theme();
         context.drawRoundedRect(strip.x(), strip.y(), strip.width(), strip.height(), 1,
-                theme.color(ThemeKey.PANEL_BACKGROUND), theme.color(ThemeKey.BORDER));
-        HubSidebarEntry selected = findSelected();
-        String label = selected != null ? selected.label().getString() : title.getString();
+                backgroundColor(theme), borderColor(theme));
+        String label = Component.translatable("marieslib.hub.editor_label").getString();
         int maxWidth = Math.max(0, strip.width() - 2 * HEADER_PADDING - 10);
         context.drawText(dev.marie.framework.ui.toolbox.OptionStyle.fit(context, label, 1f, maxWidth),
-                strip.x() + HEADER_PADDING, strip.y() + (strip.height() - 8) / 2, TITLE_COLOR, 1f);
-        int accent = theme.color(ThemeKey.BORDER_HOVER);
+                strip.x() + HEADER_PADDING, strip.y() + (strip.height() - 8) / 2, titleColor(), 1f);
+        int accent = accentColor(theme);
         context.drawText("+", strip.x() + strip.width() - HEADER_PADDING - 6, strip.y() + (strip.height() - 8) / 2, accent, 0.8f);
     }
 
@@ -261,7 +297,7 @@ public final class HubPanel {
                     boolean selected = entry.id().equals(selectedId);
                     if (selected) {
                         context.fillRect(content.x(), y, SIDEBAR_WIDTH, SIDEBAR_ROW_HEIGHT, theme.color(ThemeKey.HANDLE_BACKGROUND));
-                        context.fillRect(content.x(), y, SIDEBAR_SELECTION_BAR_WIDTH, SIDEBAR_ROW_HEIGHT, theme.color(ThemeKey.BORDER_HOVER));
+                        context.fillRect(content.x(), y, SIDEBAR_SELECTION_BAR_WIDTH, SIDEBAR_ROW_HEIGHT, accentColor(theme));
                     }
                     int textColor = theme.color(selected ? ThemeKey.TEXT_PRIMARY : ThemeKey.TEXT_SECONDARY);
                     context.drawText(entry.label().getString(), content.x() + SIDEBAR_ROW_INSET, y + SIDEBAR_ROW_HEIGHT / 2 - 4, textColor, 1f);
@@ -303,9 +339,9 @@ public final class HubPanel {
                     Bounds rowBounds = new Bounds(body.x(), y, body.width(), CHILD_ROW_HEIGHT);
                     if (rowBounds.y() + rowBounds.height() > body.y() && rowBounds.y() < body.y() + body.height()) {
                         context.drawRoundedRect(rowBounds.x(), rowBounds.y(), rowBounds.width(), rowBounds.height(), 1,
-                                theme.color(ThemeKey.PANEL_BACKGROUND), theme.color(ThemeKey.BORDER));
+                                backgroundColor(theme), borderColor(theme));
                         context.drawText(child.label().getString(), rowBounds.x() + CONTENT_PADDING,
-                                rowBounds.y() + (CHILD_ROW_HEIGHT - 8) / 2, theme.color(ThemeKey.TEXT_PRIMARY), 0.9f);
+                                rowBounds.y() + (CHILD_ROW_HEIGHT - 8) / 2, titleColor(), 0.9f);
                         childHits.add(new ChildHit(group, child, rowBounds));
                     }
                     y += rowStep;
@@ -341,8 +377,10 @@ public final class HubPanel {
         int my = (int) mouseY;
         if (collapsed) {
             if (button == 0 && lastPanelBounds.contains(mx, my)) {
-                collapsed = false;
-                persistCollapsedState();
+                collapsedDragging = true;
+                collapsedDragMoved = false;
+                collapsedDragOffsetX = mx - panelBounds.x();
+                collapsedDragOffsetY = my - panelBounds.y();
                 return true;
             }
             return false;
@@ -397,6 +435,12 @@ public final class HubPanel {
 
     public boolean mouseDragged(double mouseX, double mouseY, int button) {
         if (collapsed) {
+            if (collapsedDragging) {
+                collapsedDragMoved = true;
+                panelBounds = new Bounds((int) mouseX - collapsedDragOffsetX, (int) mouseY - collapsedDragOffsetY,
+                        panelBounds.width(), panelBounds.height());
+                return true;
+            }
             return false;
         }
         if (picker.mouseDragged(mouseX, mouseY, button)) {
@@ -420,6 +464,17 @@ public final class HubPanel {
 
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
         if (collapsed) {
+            if (collapsedDragging) {
+                collapsedDragging = false;
+                if (collapsedDragMoved) {
+                    persistCollapsedState();
+                } else {
+                    // Pure click, no movement in between — restore, same as before this was made draggable.
+                    collapsed = false;
+                    persistCollapsedState();
+                }
+                return true;
+            }
             return false;
         }
         if (picker.mouseReleased(mouseX, mouseY, button)) {
