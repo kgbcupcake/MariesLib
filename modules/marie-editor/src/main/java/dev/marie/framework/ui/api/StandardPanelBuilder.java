@@ -38,6 +38,7 @@ public final class StandardPanelBuilder {
     private boolean padding = true;
     private boolean moveAndHide = true;
     private boolean sizes = true;
+    private String textSizeLabelKey;
     private DoubleSupplier backgroundShade;
     private DoubleConsumer setBackgroundShade;
     private DoubleSupplier borderOpacity;
@@ -157,6 +158,17 @@ public final class StandardPanelBuilder {
         return this;
     }
 
+    /**
+     * Overrides the Sizes group's "Text size" row label — for a module whose persisted text scale
+     * only ever drives one specific part (e.g. just its header, with everything else it draws
+     * following Bar size instead), where the generic "Text size" label would misleadingly suggest it
+     * resizes the module's body too.
+     */
+    public StandardPanelBuilder textSizeLabel(String translationKey) {
+        this.textSizeLabelKey = translationKey;
+        return this;
+    }
+
     /** Adds a Move Header toggle, for a module with a title separate from its body text (Move Text then moves the body only). */
     public StandardPanelBuilder withHeader() {
         this.header = true;
@@ -230,7 +242,7 @@ public final class StandardPanelBuilder {
         }
         panel.tab(label("appearance"));
         if (sizes) {
-            panel.section(text("config.marieslib.moduleoptions.section.sizes")).textAndIconSizes(store, panelId);
+            panel.section(text("config.marieslib.moduleoptions.section.sizes")).textAndIconSizes(store, panelId, textSizeLabelKey);
             if (bars) {
                 panel.barSize(store, panelId);
             }

@@ -49,7 +49,17 @@ public final class ModuleOptionRows {
     }
 
     public static void addSizes(OptionLayout layout, PersistenceProvider p, String id) {
-        SliderOption textSize = new SliderOption(text("config.marieslib.moduleoptions.textSize"),
+        addSizes(layout, p, id, null);
+    }
+
+    /**
+     * Same, but with the Text size row's label overridden to {@code textLabelKey} ({@code null}: the
+     * standard "Text size" label) — for a module whose persisted text scale only ever drives one
+     * specific part (e.g. just its header, with everything else it draws following Bar size instead),
+     * where the generic "Text size" label would misleadingly suggest it resizes the module's body too.
+     */
+    public static void addSizes(OptionLayout layout, PersistenceProvider p, String id, String textLabelKey) {
+        SliderOption textSize = new SliderOption(text(textLabelKey != null ? textLabelKey : "config.marieslib.moduleoptions.textSize"),
                 () -> ModuleScales.textScale(p, id), v -> ModuleScales.setTextScale(p, id, v),
                 ContentScaleController.SCALE_STORAGE_MIN, ContentScaleController.SCALE_STORAGE_MAX, SCALE_STEP, ALREADY_SAVED);
         // Reset without pinning the icon size, so the icon size can be reset (follow the text again) independently.

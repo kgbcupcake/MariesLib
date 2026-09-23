@@ -249,7 +249,15 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
         int iconOffX = MarieModuleSettings.iconOffsetX(store, id);
         int iconOffY = MarieModuleSettings.iconOffsetY(store, id);
         context.drawRoundedRect(iconX + iconOffX, iconY + iconOffY, iconSize, iconSize, 1, boxFill, boxBorder);
-        context.drawItem(iconSupplier.get(), iconX, iconY, iconScale);
+        // `context` here is the withDisplaySettings-wrapped RenderContext, whose drawItem already
+        // multiplies whatever scale it's given by iconScale/textScale internally (see
+        // ModuleRenderContext#drawItem) — so the argument must be on the TEXT-scale timeline
+        // (textScale, not the already-icon-scaled `iconScale` local var above) for that internal
+        // ratio to land on the intended contentScale * iconScale result. Passing `iconScale` here
+        // double-applied the icon multiplier and divided by textScale, coupling the rendered icon
+        // size to the Text size slider (dragging Text size visibly resized the icon too, even though
+        // the persisted Icon size value itself never changed).
+        context.drawItem(iconSupplier.get(), iconX, iconY, textScale);
 
         int labelX = bounds.x() + (int) Math.round(26 * scale);
         int labelY = bounds.y() + (int) Math.round(4 * scale);

@@ -137,7 +137,12 @@ public final class MarieToolbox {
 
         /** Adds independent Text size and Icon size sliders over {@code persistence} — see {@link MarieModuleSettings#textScale}/{@link MarieModuleSettings#iconScale} for reading them back. */
         public PanelBuilder textAndIconSizes(PersistenceProvider persistence, String panelId) {
-            ModuleOptionRows.addSizes(layout, persistence, panelId);
+            return textAndIconSizes(persistence, panelId, null);
+        }
+
+        /** Same, with the Text size row's label overridden to {@code textLabelKey} ({@code null}: the standard "Text size" label) — see {@link ModuleOptionRows#addSizes(OptionLayout, PersistenceProvider, String, String)}. */
+        public PanelBuilder textAndIconSizes(PersistenceProvider persistence, String panelId, String textLabelKey) {
+            ModuleOptionRows.addSizes(layout, persistence, panelId, textLabelKey);
             return this;
         }
 
