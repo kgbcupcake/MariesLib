@@ -69,13 +69,26 @@ public final class ModuleOptionRows {
      * size control.
      */
     public static void addSizes(OptionLayout layout, PersistenceProvider p, String id, String textLabelKey, boolean showIconSize) {
-        String defaultLabelKey = showIconSize ? "config.marieslib.moduleoptions.textSize" : "config.marieslib.moduleoptions.size";
-        SliderOption textSize = new SliderOption(text(textLabelKey != null ? textLabelKey : defaultLabelKey),
-                () -> ModuleScales.textScale(p, id), v -> ModuleScales.setTextScale(p, id, v),
-                ContentScaleController.SCALE_STORAGE_MIN, ContentScaleController.SCALE_STORAGE_MAX, SCALE_STEP, ALREADY_SAVED);
-        // Reset without pinning the icon size, so the icon size can be reset (follow the text again) independently.
-        textSize.resetWith(() -> ModuleScales.setContentScale(p, id, 1.0d));
-        layout.addRow(textSize);
+        addSizes(layout, p, id, textLabelKey, true, showIconSize);
+    }
+
+    /**
+     * Same, but {@code showTextSize} false additionally leaves out the Text size row itself — for a
+     * module whose persisted text scale no longer drives anything of its own (e.g. its only text moved
+     * onto a separate Header size slider — see {@link #addHeaderSize}), while it still keeps an
+     * independent icon size. {@code showTextSize} and {@code showIconSize} false together leaves out
+     * this whole group (the caller should skip calling this at all in that case).
+     */
+    public static void addSizes(OptionLayout layout, PersistenceProvider p, String id, String textLabelKey, boolean showTextSize, boolean showIconSize) {
+        if (showTextSize) {
+            String defaultLabelKey = showIconSize ? "config.marieslib.moduleoptions.textSize" : "config.marieslib.moduleoptions.size";
+            SliderOption textSize = new SliderOption(text(textLabelKey != null ? textLabelKey : defaultLabelKey),
+                    () -> ModuleScales.textScale(p, id), v -> ModuleScales.setTextScale(p, id, v),
+                    ContentScaleController.SCALE_STORAGE_MIN, ContentScaleController.SCALE_STORAGE_MAX, SCALE_STEP, ALREADY_SAVED);
+            // Reset without pinning the icon size, so the icon size can be reset (follow the text again) independently.
+            textSize.resetWith(() -> ModuleScales.setContentScale(p, id, 1.0d));
+            layout.addRow(textSize);
+        }
         if (!showIconSize) {
             return;
         }

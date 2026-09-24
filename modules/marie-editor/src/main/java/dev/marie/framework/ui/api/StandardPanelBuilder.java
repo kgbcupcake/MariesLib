@@ -38,6 +38,7 @@ public final class StandardPanelBuilder {
     private boolean padding = true;
     private boolean moveAndHide = true;
     private boolean sizes = true;
+    private boolean textSize = true;
     private boolean iconSize = true;
     private boolean headerSize;
     private boolean hideHeader;
@@ -151,6 +152,17 @@ public final class StandardPanelBuilder {
     @ApiStatus.Experimental
     public StandardPanelBuilder withoutIconSize() {
         this.iconSize = false;
+        return this;
+    }
+
+    /**
+     * Leaves out only the Sizes group's Text size row; Icon size is unaffected. For a module whose
+     * persisted text scale no longer drives anything of its own (e.g. its only text moved onto a
+     * separate {@link #withHeaderSize} slider), while it still has an independent icon size to keep.
+     */
+    @ApiStatus.Experimental
+    public StandardPanelBuilder withoutTextSize() {
+        this.textSize = false;
         return this;
     }
 
@@ -291,7 +303,7 @@ public final class StandardPanelBuilder {
         }
         panel.tab(label("appearance"));
         if (sizes) {
-            panel.section(text("config.marieslib.moduleoptions.section.sizes")).textAndIconSizes(store, panelId, textSizeLabelKey, iconSize);
+            panel.section(text("config.marieslib.moduleoptions.section.sizes")).textAndIconSizes(store, panelId, textSizeLabelKey, textSize, iconSize);
             if (bars) {
                 panel.barSize(store, panelId);
             }

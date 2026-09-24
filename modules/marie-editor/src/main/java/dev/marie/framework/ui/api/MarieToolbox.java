@@ -155,6 +155,17 @@ public final class MarieToolbox {
             return this;
         }
 
+        /**
+         * Same, but {@code showTextSize} false additionally leaves out the Text size row itself — for a
+         * module whose persisted text scale no longer drives anything of its own (e.g. its only text
+         * moved onto a separate {@link #headerSize} slider), while it still has an independent icon size
+         * to keep. See {@link ModuleOptionRows#addSizes(OptionLayout, PersistenceProvider, String, String, boolean, boolean)}.
+         */
+        public PanelBuilder textAndIconSizes(PersistenceProvider persistence, String panelId, String textLabelKey, boolean showTextSize, boolean showIconSize) {
+            ModuleOptionRows.addSizes(layout, persistence, panelId, textLabelKey, showTextSize, showIconSize);
+            return this;
+        }
+
         /** Adds a Bar size slider (bar length and thickness, and the value text at the bar's end) over {@code persistence}; read it back with {@link MarieModuleSettings#barScale}. */
         public PanelBuilder barSize(PersistenceProvider persistence, String panelId) {
             ModuleOptionRows.addBarSize(layout, persistence, panelId);
