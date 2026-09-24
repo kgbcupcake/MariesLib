@@ -64,6 +64,11 @@ public final class SliderOption implements OptionRow {
         this.unit = unit;
     }
 
+    /** The row's label, as shown to the left of the slider. */
+    public String label() {
+        return label;
+    }
+
     @Override
     public int height() {
         return OptionStyle.LABEL_HEIGHT + OptionStyle.LABEL_TRACK_GAP + OptionStyle.SLIDER_HEIGHT;

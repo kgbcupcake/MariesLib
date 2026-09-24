@@ -146,6 +146,15 @@ public final class MarieToolbox {
             return this;
         }
 
+        /**
+         * Same, but {@code showIconSize} false leaves out the Icon size row — see {@link
+         * ModuleOptionRows#addSizes(OptionLayout, PersistenceProvider, String, String, boolean)}.
+         */
+        public PanelBuilder textAndIconSizes(PersistenceProvider persistence, String panelId, String textLabelKey, boolean showIconSize) {
+            ModuleOptionRows.addSizes(layout, persistence, panelId, textLabelKey, showIconSize);
+            return this;
+        }
+
         /** Adds a Bar size slider (bar length and thickness, and the value text at the bar's end) over {@code persistence}; read it back with {@link MarieModuleSettings#barScale}. */
         public PanelBuilder barSize(PersistenceProvider persistence, String panelId) {
             ModuleOptionRows.addBarSize(layout, persistence, panelId);

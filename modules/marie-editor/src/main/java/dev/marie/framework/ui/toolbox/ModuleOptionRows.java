@@ -59,12 +59,26 @@ public final class ModuleOptionRows {
      * where the generic "Text size" label would misleadingly suggest it resizes the module's body too.
      */
     public static void addSizes(OptionLayout layout, PersistenceProvider p, String id, String textLabelKey) {
-        SliderOption textSize = new SliderOption(text(textLabelKey != null ? textLabelKey : "config.marieslib.moduleoptions.textSize"),
+        addSizes(layout, p, id, textLabelKey, true);
+    }
+
+    /**
+     * Same, but {@code showIconSize} false leaves out the Icon size row entirely — for a module with
+     * no separate icon size to adjust. When it's left out and {@code textLabelKey} is {@code null},
+     * the remaining slider is labeled "Size" instead of "Text size", since it's then the module's only
+     * size control.
+     */
+    public static void addSizes(OptionLayout layout, PersistenceProvider p, String id, String textLabelKey, boolean showIconSize) {
+        String defaultLabelKey = showIconSize ? "config.marieslib.moduleoptions.textSize" : "config.marieslib.moduleoptions.size";
+        SliderOption textSize = new SliderOption(text(textLabelKey != null ? textLabelKey : defaultLabelKey),
                 () -> ModuleScales.textScale(p, id), v -> ModuleScales.setTextScale(p, id, v),
                 ContentScaleController.SCALE_STORAGE_MIN, ContentScaleController.SCALE_STORAGE_MAX, SCALE_STEP, ALREADY_SAVED);
         // Reset without pinning the icon size, so the icon size can be reset (follow the text again) independently.
         textSize.resetWith(() -> ModuleScales.setContentScale(p, id, 1.0d));
         layout.addRow(textSize);
+        if (!showIconSize) {
+            return;
+        }
         SliderOption iconSize = new SliderOption(text("config.marieslib.moduleoptions.iconSize"),
                 () -> ModuleScales.iconScale(p, id), v -> ModuleScales.setIconScale(p, id, v),
                 ContentScaleController.SCALE_STORAGE_MIN, ContentScaleController.SCALE_STORAGE_MAX, SCALE_STEP, ALREADY_SAVED);

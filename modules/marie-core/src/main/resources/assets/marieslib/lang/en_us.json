@@ -101,6 +101,7 @@
   "config.marieslib.colorpicker.reset": "Reset",
   "config.marieslib.moduleoptions.textSize": "Text size",
   "config.marieslib.moduleoptions.iconSize": "Icon size",
+  "config.marieslib.moduleoptions.size": "Size",
   "config.marieslib.moduleoptions.moveText": "Move Text",
   "config.marieslib.moduleoptions.moveIcons": "Move Icons",
   "config.marieslib.moduleoptions.hideIcons": "Hide Icons",

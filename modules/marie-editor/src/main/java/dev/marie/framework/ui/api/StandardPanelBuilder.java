@@ -38,6 +38,7 @@ public final class StandardPanelBuilder {
     private boolean padding = true;
     private boolean moveAndHide = true;
     private boolean sizes = true;
+    private boolean iconSize = true;
     private String textSizeLabelKey;
     private DoubleSupplier backgroundShade;
     private DoubleConsumer setBackgroundShade;
@@ -131,9 +132,22 @@ public final class StandardPanelBuilder {
         return this;
     }
 
-    /** Leaves out Move Icons, for a module that draws no icons. */
+    /** Leaves out Move Icons and the Sizes group's Icon size row, for a module that draws no icons. */
     public StandardPanelBuilder withoutIcons() {
         this.icons = false;
+        this.iconSize = false;
+        return this;
+    }
+
+    /**
+     * Leaves out only the Sizes group's Icon size row; Move Icons and Hide Icons are unaffected. For a
+     * module whose icons still exist and can be moved/hidden but whose size already follows some other
+     * slider here (e.g. Text size, or a content-size slider of the module's own), so a separate Icon
+     * size row would have nothing distinct left to control.
+     */
+    @ApiStatus.Experimental
+    public StandardPanelBuilder withoutIconSize() {
+        this.iconSize = false;
         return this;
     }
 
@@ -242,7 +256,7 @@ public final class StandardPanelBuilder {
         }
         panel.tab(label("appearance"));
         if (sizes) {
-            panel.section(text("config.marieslib.moduleoptions.section.sizes")).textAndIconSizes(store, panelId, textSizeLabelKey);
+            panel.section(text("config.marieslib.moduleoptions.section.sizes")).textAndIconSizes(store, panelId, textSizeLabelKey, iconSize);
             if (bars) {
                 panel.barSize(store, panelId);
             }

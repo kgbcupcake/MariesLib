@@ -26,6 +26,11 @@ public final class ToggleOption implements OptionRow {
         this.onCommit = onCommit;
     }
 
+    /** The row's label, as shown to the left of the ON/OFF value. */
+    public String label() {
+        return label;
+    }
+
     @Override
     public int height() {
         return OptionStyle.LABEL_HEIGHT;
