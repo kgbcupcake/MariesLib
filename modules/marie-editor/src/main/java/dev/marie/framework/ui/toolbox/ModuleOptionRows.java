@@ -93,8 +93,16 @@ public final class ModuleOptionRows {
     public static void addSizes(OptionLayout layout, PersistenceProvider p, String id, String textLabelKey, boolean showTextSize, boolean showIconSize, boolean iconFollowsText) {
         if (showTextSize) {
             String defaultLabelKey = showIconSize ? "config.marieslib.moduleoptions.textSize" : "config.marieslib.moduleoptions.size";
+            // iconFollowsText=false calls setContentScale directly — bypassing setTextScale's pinIcon
+            // branch entirely, rather than just passing it a parameter that disables the branch — so
+            // this row's setter has zero shared code with the icon row's own getter/setter below. Two
+            // functions that happen to both leave the icon key untouched is a weaker guarantee than
+            // two functions that share no code at all.
             SliderOption textSize = new SliderOption(text(textLabelKey != null ? textLabelKey : defaultLabelKey),
-                    () -> ModuleScales.textScale(p, id), v -> ModuleScales.setTextScale(p, id, v, iconFollowsText),
+                    () -> ModuleScales.textScale(p, id),
+                    iconFollowsText
+                            ? v -> ModuleScales.setTextScale(p, id, v, true)
+                            : v -> ModuleScales.setContentScale(p, id, v),
                     ContentScaleController.SCALE_STORAGE_MIN, ContentScaleController.SCALE_STORAGE_MAX, SCALE_STEP, ALREADY_SAVED);
             // Reset without pinning the icon size, so the icon size can be reset (follow the text again) independently.
             textSize.resetWith(() -> ModuleScales.setContentScale(p, id, 1.0d));

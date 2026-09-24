@@ -46,9 +46,25 @@ public final class ModuleScales {
      * stale/leftover {@code contentScale} value the player can no longer see or intend as an icon size.
      */
     public static double iconScale(PersistenceProvider p, String panelId, boolean followText) {
+        return followText ? iconScaleFollowingText(p, panelId) : independentIconScale(p, panelId);
+    }
+
+    private static double iconScaleFollowingText(PersistenceProvider p, String panelId) {
         return p.load(panelId + ICON_SCALE_SUFFIX)
                 .map(ComponentState::contentScale)
-                .orElseGet(() -> followText ? textScale(p, panelId) : ComponentState.DEFAULT_CONTENT_SCALE);
+                .orElseGet(() -> textScale(p, panelId));
+    }
+
+    /**
+     * The icon size multiplier, exactly like {@link #barScale}/{@link #headerScale}: reads only its
+     * own {@code #iconScale}-suffixed key, defaulting to 100% — no fallback branch, no shared code
+     * with {@link #textScale}/{@link #iconScaleFollowingText} at all. The {@code followText}-true path
+     * above stays a separate method rather than an {@code if} inside this one, so a module built with
+     * {@link dev.marie.framework.ui.api.StandardPanelBuilder#independentIconSize} never executes a
+     * single line in common with the text-following behavior other modules still rely on.
+     */
+    private static double independentIconScale(PersistenceProvider p, String panelId) {
+        return p.load(panelId + ICON_SCALE_SUFFIX).map(ComponentState::contentScale).orElse(ComponentState.DEFAULT_CONTENT_SCALE);
     }
 
     public static void setTextScale(PersistenceProvider p, String panelId, double value) {

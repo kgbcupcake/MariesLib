@@ -121,6 +121,18 @@ public final class MarieModuleSettings {
         return ModuleRenderContext.wrap(context, store, panelId);
     }
 
+    /**
+     * Same, but {@code iconFollowsText} false is for a module built with {@link
+     * StandardPanelBuilder#independentIconSize} whose renderer resolves its own final icon draw scale
+     * via {@link #iconScale(PersistenceProvider, String, boolean)} with {@code followText = false} and
+     * passes that value straight to {@code drawItem} — see {@link
+     * dev.marie.framework.ui.modulesettings.ModuleRenderContext#wrap(RenderContext, PersistenceProvider, String, boolean)}
+     * for why the plain 3-arg overload would silently double-scale that value.
+     */
+    public static RenderContext withDisplaySettings(RenderContext context, PersistenceProvider store, String panelId, boolean iconFollowsText) {
+        return ModuleRenderContext.wrap(context, store, panelId, iconFollowsText);
+    }
+
     /** Where the module's icons sit relative to their default place. In memory; cheap to call every frame. */
     public static int iconOffsetX(PersistenceProvider store, String panelId) {
         return ModuleOffsets.iconX(store, panelId);

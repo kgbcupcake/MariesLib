@@ -66,12 +66,30 @@ public final class ModuleRenderContext implements RenderContext {
 
     /** {@code delegate} wrapped with {@code panelId}'s settings read from {@code store} now; {@code delegate} itself if all are default. */
     public static RenderContext wrap(RenderContext delegate, PersistenceProvider store, String panelId) {
+        return wrap(delegate, store, panelId, true);
+    }
+
+    /**
+     * Same, but {@code iconFollowsText} false is for a module built with {@link
+     * dev.marie.framework.ui.api.StandardPanelBuilder#independentIconSize} whose renderer already
+     * resolves its own final icon draw scale via {@link
+     * dev.marie.framework.ui.api.MarieModuleSettings#iconScale(PersistenceProvider, String, boolean)}
+     * with {@code followText = false} and passes that value straight to {@code drawItem}: the wrapper
+     * then applies no icon ratio at all (1:1 passthrough), so that already-resolved value isn't scaled
+     * a second time by a ratio computed against the module's (possibly unrelated, or entirely unused)
+     * text scale. {@code true} (or the other overload) keeps the original "icon size relative to text
+     * size" ratio, for a module whose renderer scales text and icons together by a single text-based
+     * scale and relies on the wrapper alone to turn that into the actual icon size.
+     */
+    public static RenderContext wrap(RenderContext delegate, PersistenceProvider store, String panelId, boolean iconFollowsText) {
         int textDx = ModuleOffsets.textX(store, panelId);
         int textDy = ModuleOffsets.textY(store, panelId);
         int iconDx = ModuleOffsets.iconX(store, panelId);
         int iconDy = ModuleOffsets.iconY(store, panelId);
         double text = ModuleScales.textScale(store, panelId);
-        float ratio = text > 0 ? (float) (ModuleScales.iconScale(store, panelId) / text) : 1f;
+        float ratio = iconFollowsText
+                ? (text > 0 ? (float) (ModuleScales.iconScale(store, panelId) / text) : 1f)
+                : 1f;
         double textBrightness = ModuleScales.textBrightness(store, panelId);
         double iconBrightness = ModuleScales.iconBrightness(store, panelId);
         int barDx = ModuleOffsets.barX(store, panelId);
