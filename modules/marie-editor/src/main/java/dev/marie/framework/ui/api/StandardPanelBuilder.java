@@ -39,7 +39,10 @@ public final class StandardPanelBuilder {
     private boolean moveAndHide = true;
     private boolean sizes = true;
     private boolean iconSize = true;
+    private boolean headerSize;
+    private boolean hideHeader;
     private String textSizeLabelKey;
+    private String headerSizeLabelKey;
     private DoubleSupplier backgroundShade;
     private DoubleConsumer setBackgroundShade;
     private DoubleSupplier borderOpacity;
@@ -189,6 +192,38 @@ public final class StandardPanelBuilder {
         return this;
     }
 
+    /**
+     * Adds a "Header size" row to the Sizes section, independent of Text size/Icon size/Bar size — for a
+     * module with a title/header text sized separately from its body. Off unless requested, like {@link
+     * #withoutIcons()}'s Icon size row is on unless withdrawn; unlike {@link #withHeader()}, which only
+     * controls whether the header can be dragged, this and {@link #withHideHeader()} are independent
+     * opt-ins a module reaches for regardless of whether its header moves. Read the value back with
+     * {@link MarieModuleSettings#headerScale}; override the row's label with {@link #headerSizeLabel}.
+     */
+    public StandardPanelBuilder withHeaderSize() {
+        this.headerSize = true;
+        return this;
+    }
+
+    /**
+     * Overrides the Header size row's label — for a module whose header serves a specific role the generic
+     * "Header size" label wouldn't convey. Has no effect on the Text size row (see {@link #textSizeLabel}).
+     */
+    public StandardPanelBuilder headerSizeLabel(String translationKey) {
+        this.headerSizeLabelKey = translationKey;
+        return this;
+    }
+
+    /**
+     * Adds a "Hide Header" toggle to the Hide group, independent of {@link #withoutHideText()}'s "Hide
+     * Text" — for a module with a title/header separate from its body text that should be hideable on its
+     * own. Off unless requested; read it back with {@link MarieModuleSettings#isHeaderHidden}.
+     */
+    public StandardPanelBuilder withHideHeader() {
+        this.hideHeader = true;
+        return this;
+    }
+
     /** Leaves out "Move Text", for a module whose body content already moves under some other toggle here (e.g. "Move Bars") and has nothing left for "Move Text" to actually move. */
     public StandardPanelBuilder withoutMoveText() {
         this.moveText = false;
@@ -252,13 +287,16 @@ public final class StandardPanelBuilder {
             panel.endSection();
         }
         if (moveAndHide) {
-            panel.moveToggles(store, panelId, bars, icons, header, moveText, hideText);
+            panel.moveToggles(store, panelId, bars, icons, header, moveText, hideText, hideHeader);
         }
         panel.tab(label("appearance"));
         if (sizes) {
             panel.section(text("config.marieslib.moduleoptions.section.sizes")).textAndIconSizes(store, panelId, textSizeLabelKey, iconSize);
             if (bars) {
                 panel.barSize(store, panelId);
+            }
+            if (headerSize) {
+                panel.headerSize(store, panelId, headerSizeLabelKey);
             }
         }
         if (storedBrightness || textBrightness != null || iconBrightness != null) {

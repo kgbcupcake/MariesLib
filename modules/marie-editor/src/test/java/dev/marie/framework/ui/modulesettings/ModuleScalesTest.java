@@ -17,9 +17,34 @@ class ModuleScalesTest {
         assertEquals(1.0, ModuleScales.textScale(store, "m"));
         assertEquals(1.0, ModuleScales.iconScale(store, "m"));
         assertEquals(1.0, ModuleScales.barScale(store, "m"));
+        assertEquals(1.0, ModuleScales.headerScale(store, "m"));
         assertEquals(1.0, ModuleScales.paddingScale(store, "m"));
         assertEquals(1.0, ModuleScales.textBrightness(store, "m"));
         assertEquals(1.0, ModuleScales.iconBrightness(store, "m"));
+    }
+
+    @Test
+    void headerScaleDefaultsToOneAndDoesNotFollowTextSize() {
+        // Unlike icon size, header size has no "follow the text until set" fallback — it mirrors bar
+        // size instead, since it's a brand-new independent slider with no legacy shared-scale history.
+        ModuleScales.setContentScale(store, "m", 1.5);
+        assertEquals(1.0, ModuleScales.headerScale(store, "m"), "header size stays 1.0 even after text size changes");
+    }
+
+    @Test
+    void headerScaleIsStoredUnderItsOwnKeyInTheContentScaleField() {
+        ModuleScales.setHeaderScale(store, "m", 0.9);
+        ComponentState saved = store.data.get("m#headerScale");
+        assertEquals(0.9, saved.contentScale());
+        assertEquals(0.9, ModuleScales.headerScale(store, "m"));
+    }
+
+    @Test
+    void resetSizesAndBrightnessClearsHeaderScaleToo() {
+        ModuleScales.setHeaderScale(store, "m", 0.6);
+        ModuleScales.resetSizesAndBrightness(store, "m");
+        assertEquals(1.0, ModuleScales.headerScale(store, "m"));
+        assertFalse(store.data.containsKey("m#headerScale"));
     }
 
     @Test

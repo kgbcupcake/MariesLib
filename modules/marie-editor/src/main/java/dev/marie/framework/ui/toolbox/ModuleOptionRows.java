@@ -93,6 +93,17 @@ public final class ModuleOptionRows {
                 ContentScaleController.SCALE_STORAGE_MIN, ContentScaleController.SCALE_STORAGE_MAX, SCALE_STEP, ALREADY_SAVED), 1.0d);
     }
 
+    /**
+     * Header size slider (a module's title/header text, independent of Text/Icon/Bar size) — for a module with
+     * {@link dev.marie.framework.ui.api.StandardPanelBuilder#withHeaderSize}. {@code labelKey} {@code null}: the
+     * standard "Header size" label.
+     */
+    public static void addHeaderSize(OptionLayout layout, PersistenceProvider p, String id, String labelKey) {
+        addSlider(layout, new SliderOption(text(labelKey != null ? labelKey : "config.marieslib.moduleoptions.headerSize"),
+                () -> ModuleScales.headerScale(p, id), v -> ModuleScales.setHeaderScale(p, id, v),
+                ContentScaleController.SCALE_STORAGE_MIN, ContentScaleController.SCALE_STORAGE_MAX, SCALE_STEP, ALREADY_SAVED), 1.0d);
+    }
+
     /** "Move Text", "Move Icons", "Move Bars" and "Move All" toggles; turning any on turns the others off. */
     public static void addMoveToggles(OptionLayout layout, PersistenceProvider p, String id) {
         addMoveToggles(layout, p, id, true);
@@ -115,6 +126,11 @@ public final class ModuleOptionRows {
 
     /** Same, but {@code hideText} false also leaves out "Hide Text" — for a module whose text serves no purpose hiding on its own (e.g. it's purely decorative, or hiding the whole module already covers it). */
     public static void addMoveToggles(OptionLayout layout, PersistenceProvider p, String id, boolean bars, boolean icons, boolean header, boolean moveText, boolean hideText) {
+        addMoveToggles(layout, p, id, bars, icons, header, moveText, hideText, false);
+    }
+
+    /** Same, but {@code hideHeader} additionally adds "Hide Header" — independent of {@code hideText} — for a module with a title/header separate from its body text that should be hideable on its own. */
+    public static void addMoveToggles(OptionLayout layout, PersistenceProvider p, String id, boolean bars, boolean icons, boolean header, boolean moveText, boolean hideText, boolean hideHeader) {
         List<String> flagList = new ArrayList<>();
         List<String> labelList = new ArrayList<>();
         if (moveText) {
@@ -153,17 +169,28 @@ public final class ModuleOptionRows {
             toggle.defaultTo(false);
             moveSection.add(toggle);
         }
-        addHideToggles(layout, p, id, bars, icons, hideText);
+        addHideToggles(layout, p, id, bars, icons, hideText, hideHeader);
     }
 
-    /** The collapsible "Hide" group: "Hide Window" (always), "Hide Text", "Hide Icons" and "Hide Bars" (each optional, "Hide Text" mirroring the Move group's "Move Text" above) — all four enforced for every module by {@code ModuleRenderContext}. */
-    private static void addHideToggles(OptionLayout layout, PersistenceProvider p, String id, boolean bars, boolean icons, boolean showText) {
+    /**
+     * The collapsible "Hide" group: "Hide Window" (always), "Hide Text", "Hide Header", "Hide Icons" and "Hide
+     * Bars" (each optional, "Hide Text"/"Hide Header" mirroring the Move group's "Move Text"/"Move Header" above)
+     * — Text/Icons/Bars/Window enforced for every module by {@code ModuleRenderContext}; Header is always the
+     * module's own responsibility to check (see {@link dev.marie.framework.ui.api.MarieModuleSettings#isHeaderHidden}).
+     */
+    private static void addHideToggles(OptionLayout layout, PersistenceProvider p, String id, boolean bars, boolean icons, boolean showText, boolean showHeader) {
         SectionRow hideSection = layout.section(HIDE_SECTION, text("config.marieslib.moduleoptions.section.hide"));
         if (showText) {
             ToggleOption hideText = new ToggleOption(text("config.marieslib.moduleoptions.hideText"),
                     () -> HideFlags.textHidden(p, id), v -> HideFlags.setTextHidden(p, id, v), ALREADY_SAVED);
             hideText.defaultTo(false);
             hideSection.add(hideText);
+        }
+        if (showHeader) {
+            ToggleOption hideHeader = new ToggleOption(text("config.marieslib.moduleoptions.hideHeader"),
+                    () -> HideFlags.headerHidden(p, id), v -> HideFlags.setHeaderHidden(p, id, v), ALREADY_SAVED);
+            hideHeader.defaultTo(false);
+            hideSection.add(hideHeader);
         }
         if (icons) {
             ToggleOption hideIcons = new ToggleOption(text("config.marieslib.moduleoptions.hideIcons"),

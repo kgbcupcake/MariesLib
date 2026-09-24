@@ -69,6 +69,11 @@ public final class MarieModuleSettings {
         return ModuleScales.barScale(store, panelId);
     }
 
+    /** Header size multiplier for {@code panelId} (a module's title/header text, independent of its body text size). 1.0 until set. */
+    public static double headerScale(PersistenceProvider store, String panelId) {
+        return ModuleScales.headerScale(store, panelId);
+    }
+
     /** Text brightness a module keeps in its own store (1.0 until set) — see {@link MarieToolbox.PanelBuilder#storedBrightness}. */
     public static double textBrightness(PersistenceProvider store, String panelId) {
         return ModuleScales.textBrightness(store, panelId);
@@ -186,6 +191,11 @@ public final class MarieModuleSettings {
     /** Whether the module's "Hide Window" toggle is on — hides the whole module, box included. {@link #withDisplaySettings} already skips every draw call (text, icons, bars, fill, border, glow); this is for a host that draws its background box some other way, or wants to skip its render pass entirely. */
     public static boolean isWindowHidden(PersistenceProvider store, String panelId) {
         return HideFlags.windowHidden(store, panelId);
+    }
+
+    /** Whether the module's "Hide Header" toggle is on. A header is always a separate draw call from the rest of a module's text (see {@link #recordHeaderExtent}), so — unlike Hide Text/Icons/Bars/Window — {@link #withDisplaySettings} never checks this for you; a module with {@link StandardPanelBuilder#withHeaderSize} or a header of its own checks it before drawing the header. */
+    public static boolean isHeaderHidden(PersistenceProvider store, String panelId) {
+        return HideFlags.headerHidden(store, panelId);
     }
 
     /** Whether the "Move Icons" toggle is on. */

@@ -17,6 +17,7 @@ public final class ModuleScales {
 
     private static final String ICON_SCALE_SUFFIX = "#iconScale";
     private static final String BAR_SCALE_SUFFIX = "#barScale";
+    private static final String HEADER_SCALE_SUFFIX = "#headerScale";
     private static final String TEXT_BRIGHTNESS_SUFFIX = "#textBrightness";
     private static final String ICON_BRIGHTNESS_SUFFIX = "#iconBrightness";
     private static final ComponentState BLANK = new ComponentState(0, 0, 0, 0, false, false, false, 0);
@@ -69,6 +70,11 @@ public final class ModuleScales {
         return p.load(panelId + BAR_SCALE_SUFFIX).map(ComponentState::contentScale).orElse(ComponentState.DEFAULT_CONTENT_SCALE);
     }
 
+    /** The header size multiplier (a module's title/header text, independent of its body text size); 1.0 until set. */
+    public static double headerScale(PersistenceProvider p, String panelId) {
+        return p.load(panelId + HEADER_SCALE_SUFFIX).map(ComponentState::contentScale).orElse(ComponentState.DEFAULT_CONTENT_SCALE);
+    }
+
     /** Text/icon brightness a module keeps in its own store (1.0 = unchanged) — for modules whose brightness isn't a config value. */
     public static double textBrightness(PersistenceProvider p, String panelId) {
         return p.load(panelId + TEXT_BRIGHTNESS_SUFFIX).map(ComponentState::contentScale).orElse(1.0d);
@@ -98,9 +104,14 @@ public final class ModuleScales {
                 new ComponentState(0, 0, 0, 0, false, false, false, 0, value, ComponentState.DEFAULT_PADDING_SCALE));
     }
 
+    public static void setHeaderScale(PersistenceProvider p, String panelId, double value) {
+        p.save(panelId + HEADER_SCALE_SUFFIX,
+                new ComponentState(0, 0, 0, 0, false, false, false, 0, value, ComponentState.DEFAULT_PADDING_SCALE));
+    }
+
     /**
-     * Clears every stored scale/brightness key for this module — icon size, bar size, text
-     * brightness, icon brightness — for a "reset this whole module" action. Deliberately does NOT
+     * Clears every stored scale/brightness key for this module — icon size, bar size, header size,
+     * text brightness, icon brightness — for a "reset this whole module" action. Deliberately does NOT
      * touch text size or padding: those live as fields on the module's own position/size {@link
      * ComponentState} record (keyed bare by {@code panelId}, no suffix), so a caller resetting those
      * too should clear that record itself rather than duplicate its layout here.
@@ -108,6 +119,7 @@ public final class ModuleScales {
     public static void resetSizesAndBrightness(PersistenceProvider p, String panelId) {
         p.remove(panelId + ICON_SCALE_SUFFIX);
         p.remove(panelId + BAR_SCALE_SUFFIX);
+        p.remove(panelId + HEADER_SCALE_SUFFIX);
         p.remove(panelId + TEXT_BRIGHTNESS_SUFFIX);
         p.remove(panelId + ICON_BRIGHTNESS_SUFFIX);
     }

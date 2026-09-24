@@ -63,6 +63,45 @@ class StandardPanelBuilderTest {
         assertEquals(List.of(label("config.marieslib.moduleoptions.hideText")), sizeSliderLabels(panel));
     }
 
+    @Test
+    void defaultPanelHasNeitherHeaderSizeNorHideHeaderRow() {
+        MarieComponent panel = MarieModuleSettings.standardPanel("Test", store, "m").withoutBars().build();
+        assertFalse(sizeSliderLabels(panel).contains(label("config.marieslib.moduleoptions.headerSize")));
+        assertFalse(hasToggleLabeled(panel, label("config.marieslib.moduleoptions.hideHeader")));
+    }
+
+    @Test
+    void withHeaderSizeAddsHeaderSizeRowAlongsideTextSizeOnly() {
+        MarieComponent panel = MarieModuleSettings.standardPanel("Test", store, "m")
+                .withoutBars().withoutIcons().withHeaderSize().build();
+        assertEquals(List.of(label("config.marieslib.moduleoptions.size"), label("config.marieslib.moduleoptions.headerSize")),
+                sizeSliderLabels(panel));
+    }
+
+    @Test
+    void headerSizeLabelOverridesOnlyTheHeaderSizeRow() {
+        MarieComponent panel = MarieModuleSettings.standardPanel("Test", store, "m")
+                .withoutBars().withoutIcons().withHeaderSize()
+                .headerSizeLabel("config.marieslib.moduleoptions.hideWindow")
+                .build();
+        assertEquals(List.of(label("config.marieslib.moduleoptions.size"), label("config.marieslib.moduleoptions.hideWindow")),
+                sizeSliderLabels(panel));
+    }
+
+    @Test
+    void withHideHeaderAddsHideHeaderRowWithoutAffectingHideText() {
+        MarieComponent panel = MarieModuleSettings.standardPanel("Test", store, "m").withoutBars().withHideHeader().build();
+        assertTrue(hasToggleLabeled(panel, label("config.marieslib.moduleoptions.hideHeader")));
+        assertTrue(hasToggleLabeled(panel, label("config.marieslib.moduleoptions.hideText")));
+    }
+
+    @Test
+    void withoutHideHeaderLeavesHideTextUnaffected() {
+        MarieComponent panel = MarieModuleSettings.standardPanel("Test", store, "m").withoutBars().build();
+        assertFalse(hasToggleLabeled(panel, label("config.marieslib.moduleoptions.hideHeader")));
+        assertTrue(hasToggleLabeled(panel, label("config.marieslib.moduleoptions.hideText")));
+    }
+
     private static List<String> sizeSliderLabels(MarieComponent panel) {
         List<String> labels = new ArrayList<>();
         for (OptionRow row : ((OptionLayout) panel).allRows()) {

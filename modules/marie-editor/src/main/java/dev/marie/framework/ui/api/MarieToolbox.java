@@ -161,6 +161,16 @@ public final class MarieToolbox {
             return this;
         }
 
+        /**
+         * Adds a Header size slider (a module's title/header text, independent of Text/Icon/Bar size) over
+         * {@code persistence}; read it back with {@link MarieModuleSettings#headerScale}. {@code labelKey}
+         * {@code null}: the standard "Header size" label.
+         */
+        public PanelBuilder headerSize(PersistenceProvider persistence, String panelId, String labelKey) {
+            ModuleOptionRows.addHeaderSize(layout, persistence, panelId, labelKey);
+            return this;
+        }
+
         /** Adds the "Move Text", "Move Icons" and "Move Bars" toggles (mutually exclusive) over {@code persistence}; see {@link MarieModuleSettings#isMoveBarsEnabled}. */
         public PanelBuilder moveToggles(PersistenceProvider persistence, String panelId) {
             ModuleOptionRows.addMoveToggles(layout, persistence, panelId);
@@ -188,6 +198,12 @@ public final class MarieToolbox {
         /** Same, additionally leaving out "Hide Text" when {@code hideText} is false (for a module whose text serves no purpose hiding on its own). */
         public PanelBuilder moveToggles(PersistenceProvider persistence, String panelId, boolean bars, boolean icons, boolean header, boolean moveText, boolean hideText) {
             ModuleOptionRows.addMoveToggles(layout, persistence, panelId, bars, icons, header, moveText, hideText);
+            return this;
+        }
+
+        /** Same, additionally adding "Hide Header" when {@code hideHeader} is true — independent of "Hide Text" — for a module with a title/header separate from its body text that should be hideable on its own. */
+        public PanelBuilder moveToggles(PersistenceProvider persistence, String panelId, boolean bars, boolean icons, boolean header, boolean moveText, boolean hideText, boolean hideHeader) {
+            ModuleOptionRows.addMoveToggles(layout, persistence, panelId, bars, icons, header, moveText, hideText, hideHeader);
             return this;
         }
 
