@@ -163,6 +163,17 @@ public final class ModuleOptionRows {
 
     /** Same, but {@code hideHeader} additionally adds "Hide Header" — independent of {@code hideText} — for a module with a title/header separate from its body text that should be hideable on its own. */
     public static void addMoveToggles(OptionLayout layout, PersistenceProvider p, String id, boolean bars, boolean icons, boolean header, boolean moveText, boolean hideText, boolean hideHeader) {
+        addMoveToggles(layout, p, id, bars, icons, header, moveText, hideText, hideHeader, false);
+    }
+
+    /**
+     * Same, but {@code iconInner} additionally adds "Move Icon" — independent of {@code icons}' "Move
+     * Icons" — for a module whose icon draws inside its own small box (e.g. {@code BarRowComponent})
+     * and wants the icon draggable within that box without moving the box itself. Read back with
+     * {@link dev.marie.framework.ui.api.MarieModuleSettings#isMoveIconInnerEnabled}; the offset it
+     * drives is {@link dev.marie.framework.ui.api.MarieModuleSettings#iconInnerOffsetX}.
+     */
+    public static void addMoveToggles(OptionLayout layout, PersistenceProvider p, String id, boolean bars, boolean icons, boolean header, boolean moveText, boolean hideText, boolean hideHeader, boolean iconInner) {
         List<String> flagList = new ArrayList<>();
         List<String> labelList = new ArrayList<>();
         if (moveText) {
@@ -176,6 +187,10 @@ public final class ModuleOptionRows {
         if (icons) {
             flagList.add(ModuleOffsets.moveIconsFlagId(id));
             labelList.add("config.marieslib.moduleoptions.moveIcons");
+        }
+        if (iconInner) {
+            flagList.add(ModuleOffsets.moveIconInnerFlagId(id));
+            labelList.add("config.marieslib.moduleoptions.moveIcon");
         }
         if (bars) {
             flagList.add(ModuleOffsets.moveBarsFlagId(id));
@@ -292,12 +307,14 @@ public final class ModuleOptionRows {
         ModuleOffsets.commitBar(p, id);
         ModuleOffsets.setIcon(p, id, 0, 0);
         ModuleOffsets.commitIcon(p, id);
+        ModuleOffsets.setIconInner(p, id, 0, 0);
+        ModuleOffsets.commitIconInner(p, id);
         ModuleOffsets.setText(p, id, 0, 0);
         ModuleOffsets.commitText(p, id);
         ModuleOffsets.setHeader(p, id, 0, 0);
         ModuleOffsets.commitHeader(p, id);
-        for (String flag : new String[]{id, ModuleOffsets.moveIconsFlagId(id), ModuleOffsets.moveBarsFlagId(id),
-                ModuleOffsets.moveHeaderFlagId(id), ModuleOffsets.moveAllFlagId(id)}) {
+        for (String flag : new String[]{id, ModuleOffsets.moveIconsFlagId(id), ModuleOffsets.moveIconInnerFlagId(id),
+                ModuleOffsets.moveBarsFlagId(id), ModuleOffsets.moveHeaderFlagId(id), ModuleOffsets.moveAllFlagId(id)}) {
             MoveFlags.set(p, flag, false);
         }
     }

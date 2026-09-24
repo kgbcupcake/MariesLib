@@ -257,7 +257,13 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
         // double-applied the icon multiplier and divided by textScale, coupling the rendered icon
         // size to the Text size slider (dragging Text size visibly resized the icon too, even though
         // the persisted Icon size value itself never changed).
-        context.drawItem(iconSupplier.get(), iconX, iconY, textScale);
+        //
+        // iconInner is added here only, on top of what drawItem already adds for iconOffX/iconOffY —
+        // it moves the icon relative to its box (drawn just above, unaffected by it) instead of the
+        // box itself, the "Move Icon" toggle's whole purpose distinct from "Move Icons".
+        int iconInnerOffX = MarieModuleSettings.iconInnerOffsetX(store, id);
+        int iconInnerOffY = MarieModuleSettings.iconInnerOffsetY(store, id);
+        context.drawItem(iconSupplier.get(), iconX + iconInnerOffX, iconY + iconInnerOffY, textScale);
 
         int labelX = bounds.x() + (int) Math.round(26 * scale);
         int labelY = bounds.y() + (int) Math.round(4 * scale);

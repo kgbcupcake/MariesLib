@@ -43,6 +43,7 @@ public final class StandardPanelBuilder {
     private boolean iconFollowsText = true;
     private boolean headerSize;
     private boolean hideHeader;
+    private boolean iconInnerMove;
     private String textSizeLabelKey;
     private String headerSizeLabelKey;
     private DoubleSupplier backgroundShade;
@@ -254,6 +255,20 @@ public final class StandardPanelBuilder {
         return this;
     }
 
+    /**
+     * Adds a "Move Icon" toggle, independent of "Move Icons" — for a module whose icon sits inside its
+     * own small box (e.g. {@code BarRowComponent}'s icon box) and wants the icon draggable within that
+     * box without moving the box itself. Both toggles keep working together: "Move Icons" still moves
+     * the box (and the icon with it, since the icon offset is added on top), while this one moves only
+     * the icon relative to wherever the box currently is. Read the value back with {@link
+     * MarieModuleSettings#iconInnerOffsetX}; the module's render code must add it to its icon draw
+     * coordinates (not its box draw) for this to have any visible effect.
+     */
+    public StandardPanelBuilder withIconInnerMove() {
+        this.iconInnerMove = true;
+        return this;
+    }
+
     /** Leaves out "Move Text", for a module whose body content already moves under some other toggle here (e.g. "Move Bars") and has nothing left for "Move Text" to actually move. */
     public StandardPanelBuilder withoutMoveText() {
         this.moveText = false;
@@ -317,7 +332,7 @@ public final class StandardPanelBuilder {
             panel.endSection();
         }
         if (moveAndHide) {
-            panel.moveToggles(store, panelId, bars, icons, header, moveText, hideText, hideHeader);
+            panel.moveToggles(store, panelId, bars, icons, header, moveText, hideText, hideHeader, iconInnerMove);
         }
         panel.tab(label("appearance"));
         if (sizes) {

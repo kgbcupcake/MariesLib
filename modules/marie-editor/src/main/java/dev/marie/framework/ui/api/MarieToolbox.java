@@ -228,6 +228,12 @@ public final class MarieToolbox {
             return this;
         }
 
+        /** Same, additionally adding "Move Icon" when {@code iconInner} is true — independent of "Move Icons" — for a module whose icon sits in its own small box and wants the icon draggable within that box without moving the box. */
+        public PanelBuilder moveToggles(PersistenceProvider persistence, String panelId, boolean bars, boolean icons, boolean header, boolean moveText, boolean hideText, boolean hideHeader, boolean iconInner) {
+            ModuleOptionRows.addMoveToggles(layout, persistence, panelId, bars, icons, header, moveText, hideText, hideHeader, iconInner);
+            return this;
+        }
+
         /** Adds text and icon brightness sliders over values kept in {@code persistence} (read back with {@link MarieModuleSettings#textBrightness}/{@link MarieModuleSettings#iconBrightness}), for modules whose brightness isn't a config value. */
         public PanelBuilder storedBrightness(PersistenceProvider persistence, String panelId) {
             ModuleOptionRows.addStoredBrightness(layout, persistence, panelId);

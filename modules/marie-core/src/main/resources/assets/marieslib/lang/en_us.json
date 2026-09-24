@@ -104,6 +104,7 @@
   "config.marieslib.moduleoptions.size": "Size",
   "config.marieslib.moduleoptions.moveText": "Move Text",
   "config.marieslib.moduleoptions.moveIcons": "Move Icons",
+  "config.marieslib.moduleoptions.moveIcon": "Move Icon",
   "config.marieslib.moduleoptions.hideIcons": "Hide Icons",
   "config.marieslib.moduleoptions.hideBars": "Hide Bars",
   "config.marieslib.moduleoptions.hideText": "Hide Text",

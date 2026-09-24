@@ -152,6 +152,34 @@ public final class MarieModuleSettings {
     }
 
     /**
+     * Where the icon itself sits relative to its icon box, independent of {@link #iconOffsetX}/{@link
+     * #iconOffsetY} (the box's own offset) — for a module whose icon draws inside a small box of its
+     * own (e.g. {@code BarRowComponent}) and wants "move the icon" and "move its box" as separate
+     * controls. In memory; cheap to call every frame.
+     */
+    public static int iconInnerOffsetX(PersistenceProvider store, String panelId) {
+        return ModuleOffsets.iconInnerX(store, panelId);
+    }
+
+    public static int iconInnerOffsetY(PersistenceProvider store, String panelId) {
+        return ModuleOffsets.iconInnerY(store, panelId);
+    }
+
+    /** Live drag preview of the icon-inner offset; call {@link #commitIconInnerOffset} when the drag ends. */
+    public static void setIconInnerOffset(PersistenceProvider store, String panelId, int x, int y) {
+        ModuleOffsets.setIconInner(store, panelId, x, y);
+    }
+
+    public static void commitIconInnerOffset(PersistenceProvider store, String panelId) {
+        ModuleOffsets.commitIconInner(store, panelId);
+    }
+
+    /** Whether the "Move Icon" (inside its box) toggle is on. */
+    public static boolean isMoveIconInnerEnabled(PersistenceProvider store, String panelId) {
+        return MoveFlags.isOn(store, ModuleOffsets.moveIconInnerFlagId(panelId));
+    }
+
+    /**
      * Where the module last drew the part {@code mode} moves (text, header, icons, bars — or all four for {@link
      * MoveDrag.Mode#ALL}), in screen coordinates and after its offsets, for an edit screen to outline just that
      * part; {@code null} if the module drew none of it in its latest render (fall back to the whole box). Text,
@@ -164,7 +192,7 @@ public final class MarieModuleSettings {
         return switch (mode) {
             case TEXT -> ModuleExtents.of(store, panelId, ModuleExtents.Kind.TEXT);
             case HEADER -> ModuleExtents.of(store, panelId, ModuleExtents.Kind.HEADER);
-            case ICONS -> ModuleExtents.of(store, panelId, ModuleExtents.Kind.ICON);
+            case ICONS, ICON_INNER -> ModuleExtents.of(store, panelId, ModuleExtents.Kind.ICON);
             case BARS -> ModuleExtents.of(store, panelId, ModuleExtents.Kind.BAR);
             case ALL -> ModuleExtents.all(store, panelId);
         };
@@ -286,6 +314,9 @@ public final class MarieModuleSettings {
         }
         if (isMoveIconsEnabled(store, panelId)) {
             return MoveDrag.Mode.ICONS;
+        }
+        if (isMoveIconInnerEnabled(store, panelId)) {
+            return MoveDrag.Mode.ICON_INNER;
         }
         if (isMoveHeaderEnabled(store, panelId)) {
             return MoveDrag.Mode.HEADER;

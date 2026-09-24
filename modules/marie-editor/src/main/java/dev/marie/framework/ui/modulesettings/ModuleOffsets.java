@@ -19,6 +19,7 @@ public final class ModuleOffsets {
 
     private static final String BAR_KEY = "#barOffset";
     private static final String ICON_KEY = "#iconOffset";
+    private static final String ICON_INNER_KEY = "#iconInnerOffset";
     private static final String TEXT_KEY = "#textOffset";
     private static final String HEADER_KEY = "#headerOffset";
     private static final Map<PersistenceProvider, Map<String, int[]>> OFFSETS = new WeakHashMap<>();
@@ -73,6 +74,28 @@ public final class ModuleOffsets {
 
     public static void commitIcon(PersistenceProvider p, String panelId) {
         commit(p, panelId, ICON_KEY);
+    }
+
+    /** Where the icon itself sits relative to its icon box, independent of {@link #iconX}/{@link #iconY} (the box's own offset). */
+    public static int iconInnerX(PersistenceProvider p, String panelId) {
+        return offset(p, panelId, ICON_INNER_KEY)[0];
+    }
+
+    public static int iconInnerY(PersistenceProvider p, String panelId) {
+        return offset(p, panelId, ICON_INNER_KEY)[1];
+    }
+
+    public static void setIconInner(PersistenceProvider p, String panelId, int x, int y) {
+        set(p, panelId, ICON_INNER_KEY, x, y);
+    }
+
+    public static void commitIconInner(PersistenceProvider p, String panelId) {
+        commit(p, panelId, ICON_INNER_KEY);
+    }
+
+    /** Id whose {@link MoveFlags} flag is this module's "move icon" (inside its box) mode. */
+    public static String moveIconInnerFlagId(String panelId) {
+        return panelId + ".iconInner";
     }
 
     /** Where a module's header (a title separate from its body text) sits relative to its default place. */

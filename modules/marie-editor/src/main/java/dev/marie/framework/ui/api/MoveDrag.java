@@ -22,6 +22,13 @@ public final class MoveDrag {
         TEXT, ICONS, BARS,
         /** A separate title's offset (see {@link MarieModuleSettings#headerOffsetX}); only for modules that ask for a header toggle. */
         HEADER,
+        /**
+         * The icon itself, independent of {@link #ICONS}' icon-box offset (see {@link
+         * MarieModuleSettings#iconInnerOffsetX}) — for a module whose icon sits in its own small box
+         * (e.g. {@code BarRowComponent}) and wants the icon draggable inside that box without moving
+         * the box. Not part of {@link #ALL}, since that would defeat the point of keeping it separate.
+         */
+        ICON_INNER,
         /** Text, icons and bars together: one drag shifts all three offsets by the same amount (see {@link #startAll}). */
         ALL
     }
