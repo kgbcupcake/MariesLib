@@ -6,7 +6,7 @@ import dev.marie.framework.ui.ThemeKey;
 import java.util.EnumMap;
 import java.util.Map;
 
-/** Built-in light palette. No Nourished analog exists yet — values chosen for contrast parity with {@link DarkTheme}. */
+/** Built-in light palette. No prior consumer-mod analog exists yet — values chosen for contrast parity with {@link DarkTheme}. */
 public final class LightTheme implements Theme {
 
     public static final Theme INSTANCE = new LightTheme();

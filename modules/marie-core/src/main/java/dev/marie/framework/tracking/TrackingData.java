@@ -323,7 +323,7 @@ public class TrackingData {
     @ApiStatus.Experimental
     public long lastTickTime = 0L;
 
-    // Tracker system state — separate from values/total (nutrient bars), which stay untouched.
+    // Tracker system state — separate from values/total (value bars), which stay untouched.
     // MarieLib has no domain knowledge of what a tracker measures.
     @ApiStatus.Experimental
     public final Map<ResourceLocation, Float> trackingAccumulators = new LinkedHashMap<>();

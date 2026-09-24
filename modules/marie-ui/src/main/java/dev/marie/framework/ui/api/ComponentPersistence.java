@@ -8,8 +8,8 @@ import dev.marie.framework.ui.geometry.Bounds;
 import java.util.Map;
 
 /**
- * Generalized version of the panel-relative sub-box resolution pattern first written for Nourished's
- * Diet Screen ({@code DietScreenPersistence#resolveRelativeToPanel}): a component's live drag/resize
+ * Generalized version of the panel-relative sub-box resolution pattern first written for an earlier
+ * consumer mod's HUD screen (its own {@code resolveRelativeToPanel} helper): a component's live drag/resize
  * preview if one is active this frame, else a persisted local-unit offset/size if the user has
  * manually moved/resized it, otherwise a natural stacked default position — always clamped to stay
  * inside the owning panel and between two caller-supplied horizontal bounds.

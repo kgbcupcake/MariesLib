@@ -6,11 +6,11 @@ import net.minecraft.client.Minecraft;
 import java.util.List;
 
 /**
- * Per-target edit-mode state and screen lifecycle. Generalizes Nourished's HUDEditMode/
- * DietScreenEditMode, which each tracked a single static boolean and could therefore only ever
- * have one editable target active at a time. Here each editable target (a HUD panel, a Diet
- * Screen, a future crafting-station panel, etc.) owns its own controller instance, so any number
- * of targets can independently be in edit mode.
+ * Per-target edit-mode state and screen lifecycle. Generalizes two earlier consumer-specific
+ * edit-mode trackers, which each tracked a single static boolean and could therefore only ever
+ * have one editable target active at a time. Here each editable target (a HUD panel, a
+ * configuration screen, a future crafting-station panel, etc.) owns its own controller instance,
+ * so any number of targets can independently be in edit mode.
  */
 public final class EditModeController {
 

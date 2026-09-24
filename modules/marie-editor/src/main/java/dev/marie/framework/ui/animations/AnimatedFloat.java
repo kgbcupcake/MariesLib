@@ -4,8 +4,8 @@ import dev.marie.framework.api.ApiStatus;
 
 /**
  * Frame-rate-independent value smoother: eases a float toward whatever target it's fed, at a fixed
- * time constant, instead of jumping to it immediately. Generalizes the dt-based lerp Nourished's
- * Diet Screen and HUD nutrient bars each hand-rolled independently as a private {@code Map<String,
+ * time constant, instead of jumping to it immediately. Generalizes the dt-based lerp an earlier
+ * consumer mod's HUD screen and its bar components each hand-rolled independently as a private {@code Map<String,
  * Float>} field updated once per render frame ({@code cur + (target - cur) * min(1, dt / duration)})
  * — this is that same formula as a small reusable primitive, for any bar/value display that wants a
  * value to visibly ease toward a changing target rather than snapping to it.
@@ -13,7 +13,7 @@ import dev.marie.framework.api.ApiStatus;
  * <p>Not thread-safe; intended for one instance per animated value, updated from the render thread.
  * A consumer whose backing component is rebuilt every frame (e.g. a {@code SelfPositioningModule}
  * following the {@code BalanceComponent} pattern) keeps the {@link AnimatedFloat} itself in a
- * longer-lived cache (keyed by whatever identifies the value, e.g. a nutrient key) and calls {@link
+ * longer-lived cache (keyed by whatever identifies the value, e.g. a consumer's value key) and calls {@link
  * #update} once per frame from the freshly-built component's constructor, rather than creating a new
  * instance each frame — a fresh instance has no memory of the eased value, so it would never animate.
  *

@@ -26,7 +26,7 @@ import dev.marie.framework.ui.geometry.Bounds;
  *
  * <p>Position is persisted as an offset relative to the owner's own bounds, not an absolute
  * screen position — so this module rides along automatically when the owner itself is dragged or
- * resized, the same behavior Nourished's {@code CalorieHudScreen} hand-rolled for its row
+ * resized, the same behavior an earlier consumer mod's HUD screen hand-rolled for its row
  * sub-box before this class existed (persisting {@code bounds.x() - panelBounds.x()} etc. itself,
  * outside its {@code DraggableResizable}). Size is stored as-is, unaffected by the owner's size.
  *

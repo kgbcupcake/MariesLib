@@ -14,8 +14,8 @@ import java.util.function.Supplier;
 
 /**
  * Generic centered title-plus-divider header block, with optional decorative prefix/suffix accent
- * text (e.g. Nourished's {@code "✧✧"} flourishes either side of "Intake Breakdown") —
- * ported from {@code DietRightColumnComponent}'s hand-drawn header so any host with a similar
+ * text (e.g. an earlier consumer mod's {@code "✧✧"} flourishes either side of its section title) —
+ * ported from that mod's hand-drawn header so any host with a similar
  * "centered title, divider line either side" block can reuse it.
  */
 @ApiStatus.Experimental

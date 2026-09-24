@@ -412,9 +412,9 @@ public final class ScannerSpecRegistry {
              * The {@code c} namespace tag directory (e.g. {@code "foods/"}) that
              * {@link dev.marie.framework.scanner.stages.CommunityTagResolutionStage} scans for community
              * tag matches, and that scanner traces/labels are built from. Defaults to {@code "foods/"} to
-             * preserve Nourished's original behavior; a non-food consumer mod (e.g. one classifying tools
-             * or armor) can override this in its own {@code scanner_spec.json} to something like
-             * {@code "materials/"}.
+             * preserve the framework's original default behavior; a consumer mod classifying a different
+             * kind of item (e.g. tools or armor) can override this in its own {@code scanner_spec.json} to
+             * something like {@code "materials/"}.
              */
             String communityTagDirectory,
             Map<String, Map<String, Float>> namespaceWeights,
@@ -439,11 +439,11 @@ public final class ScannerSpecRegistry {
              * data can only introduce brand-new categories, never displace an existing one. A
              * category must be named here for recipe weight to be allowed to beat the name.</p>
              *
-             * <p>Example — a food mod that trusts its crafting graph over item names for protein
-             * content would put in its {@code scanner_spec.json}:
-             * <pre>{@code "contestable_values": ["proteins", "vegetables"]}</pre>
-             * so that e.g. a "chicken_salad" whose recipe is overwhelmingly vegetables resolves to
-             * {@code vegetables} instead of being locked to {@code proteins} by the "chicken" token.</p>
+             * <p>Example — a consumer mod that trusts its crafting graph over item names for a
+             * "metals" category would put in its {@code scanner_spec.json}:
+             * <pre>{@code "contestable_values": ["metals", "woods"]}</pre>
+             * so that e.g. an "iron_reinforced_frame" whose recipe is overwhelmingly wood resolves to
+             * {@code woods} instead of being locked to {@code metals} by the "iron" token.</p>
              */
             Set<String> contestableValues,
             String[] stemmerDictionary,

@@ -12,7 +12,7 @@ import java.util.List;
 /**
  * Internal storage for tracker milestone definitions registered via the public API.
  * Structurally parallel to {@link MilestoneRegistry} but keyed against generic MarieLib
- * trackers rather than nutrient/value keys, and fully decoupled from it.
+ * trackers rather than a consumer's own registered value keys, and fully decoupled from it.
  */
 public final class TrackerMilestoneRegistry {
 

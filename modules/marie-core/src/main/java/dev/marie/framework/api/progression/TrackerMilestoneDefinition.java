@@ -10,7 +10,7 @@ import javax.annotation.Nullable;
 /**
  * Defines a milestone that fires once when a player reaches a goal value on a generic
  * MarieLib tracker (see {@code MarieTracking}). Structurally parallel to
- * {@link MilestoneDefinition} but tracks tracker values instead of nutrient/value intake, and
+ * {@link MilestoneDefinition} but tracks tracker values instead of a consumer's own registered value keys, and
  * is fully decoupled from it — separate storage, separate events, no shared feature flag.
  *
  * <p>Use the {@link Builder} to construct instances and register them via

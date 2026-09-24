@@ -16,14 +16,15 @@ import java.util.function.Supplier;
 
 /**
  * Generic bottom-of-panel-style "legend" box: a centered title, N equal columns each with a colored
- * swatch and two lines of text, separated by vertical divider lines — ported from Nourished's Diet
- * Screen intake legend ({@code drawLegendBar}/{@code drawLegendEntry}) so any host with a similar
- * "here's what these colors mean" box can reuse the same drawing code instead of hand-rolling it.
+ * swatch and two lines of text, separated by vertical divider lines — ported from an earlier
+ * consumer mod's HUD intake legend ({@code drawLegendBar}/{@code drawLegendEntry}) so any host with
+ * a similar "here's what these colors mean" box can reuse the same drawing code instead of
+ * hand-rolling it.
  */
 @ApiStatus.Experimental
 public final class LegendComponent implements MarieComponent, SelfPositioningModule {
 
-    /** One column of the legend: two lines of text (both colored with {@code accentColor}, no separate swatch — see {@link #drawEntry}) and small per-entry pixel offsets (in local units, before scale) preserved from the original hand-tuned Diet Screen layout. */
+    /** One column of the legend: two lines of text (both colored with {@code accentColor}, no separate swatch — see {@link #drawEntry}) and small per-entry pixel offsets (in local units, before scale) preserved from the original hand-tuned consumer-mod layout this was ported from. */
     public record LegendEntry(
             IntSupplier accentColor,
             Supplier<String> line1,

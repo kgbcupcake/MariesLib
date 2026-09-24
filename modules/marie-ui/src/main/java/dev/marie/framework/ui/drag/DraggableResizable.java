@@ -13,9 +13,9 @@ import java.util.function.BiConsumer;
 
 /**
  * Generic drag/resize gesture tracker for a single {@link MarieComponent} target. Extracted from
- * Nourished's DietScreenEditController, which hand-rolled this same grab-offset drag and
- * origin+diagonal-ratio resize math three times (main panel, recent-meals sub-box, eat-more
- * sub-box) as static fields on one class.
+ * an earlier consumer mod's edit-mode controller, which hand-rolled this same grab-offset drag and
+ * origin+diagonal-ratio resize math three times (main panel and two sub-boxes) as static fields
+ * on one class.
  *
  * <p>This is a composed helper rather than a mixin base class: {@link MarieComponent} is an
  * interface, so any component that wants gesture support holds a {@code DraggableResizable}
@@ -99,8 +99,8 @@ public final class DraggableResizable {
     /**
      * Replaces the min/max/preferred bounds used by {@link #clampWidth}/{@link #clampHeight} for
      * every subsequent call, including mid-gesture. Callers whose reference size depends on a scale
-     * that can change across a single edit-mode session (e.g. the diet panel's scale, if the panel
-     * itself gets resized) should call this every frame with a freshly-computed {@link Constraint} —
+     * that can change across a single edit-mode session (e.g. the owning panel's own scale, if the
+     * panel itself gets resized) should call this every frame with a freshly-computed {@link Constraint} —
      * otherwise the clamp stays frozen at whatever scale was active when this tracker was
      * constructed, and a resize committed at a very different live scale can convert to a wildly
      * wrong persisted size.

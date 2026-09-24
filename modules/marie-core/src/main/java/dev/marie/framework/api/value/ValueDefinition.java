@@ -357,7 +357,7 @@ public final class ValueDefinition {
             return this;
         }
 
-        /** Sets the food-tag list for this value, defensively copied. Default: empty list. */
+        /** Sets the tag list for this value, defensively copied. Default: empty list. */
         @ApiStatus.Stable
         public Builder tags(List<String> tags) {
             this.tags = List.copyOf(tags);

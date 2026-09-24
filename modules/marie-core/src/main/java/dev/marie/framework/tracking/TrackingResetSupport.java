@@ -28,7 +28,7 @@ public final class TrackingResetSupport {
         return changed;
     }
 
-    /** Clears source/category/family memory and calorie total. */
+    /** Clears source/category/family memory and the accumulated value total. */
     public static void clearApplicationMemory(TrackingData tracking) {
         tracking.sourceMemory.clear();
         tracking.categoryMemory.clear();

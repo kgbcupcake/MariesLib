@@ -16,8 +16,8 @@ import java.util.List;
 
 /**
  * Transparent full-screen overlay that captures all input while one or more {@link MarieComponent}
- * targets are being edited (dragged/resized). Generalizes Nourished's HUDEditScreen/
- * DietScreenEditScreen, which were structurally identical aside from their hint text, exit key,
+ * targets are being edited (dragged/resized). Generalizes two earlier consumer-specific overlay
+ * screens, which were structurally identical aside from their hint text, exit key,
  * and delegate target. isPauseScreen()=false keeps the world ticking; input is forwarded to every
  * target in {@code targets} rather than handled here — each target is trusted to self-gate on
  * mouseX/mouseY internally (same as today's single-target behavior), so targets not hit by a given

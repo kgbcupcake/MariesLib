@@ -77,7 +77,7 @@ public class SourceRegistry {
         EXTERNAL_CLASSIFICATIONS.computeIfAbsent(sourceId, k -> new ConcurrentHashMap<>()).put(valueKey, amount);
         // Only registrations made outside a datapack reload (mod init / KubeJS startup / runtime API) are
         // mirrored so they can survive clearExternalClassifications(). Datapack-reload-scoped callers —
-        // nutrient-tag bridging and the datapack source_classifications/*.json directory — rebuild their
+        // value-tag bridging and the datapack source_classifications/*.json directory — rebuild their
         // entries in full on every reload, so mirroring them here would resurrect entries that were later
         // removed from the source files (stale EXTERNAL_CLASSIFICATION), which is exactly what this guards against.
         if (MarieAPIState.getPhase() != MarieAPIState.Phase.DATAPACK_RELOAD) {

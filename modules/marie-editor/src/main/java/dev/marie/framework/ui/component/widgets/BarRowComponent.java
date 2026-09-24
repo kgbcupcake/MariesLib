@@ -15,12 +15,12 @@ import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
 /**
- * Generic "icon box + label + fill bar + percent + trend arrow" row — the shape Nourished's Diet
- * Screen intake rows, and any similar HUD/screen row (icon, label, a 0..1 progress bar, a percent
- * readout, an up/down trend arrow against a previous value) share. Data-driven entirely through
- * suppliers so one class serves every row instead of one bespoke class per row kind.
+ * Generic "icon box + label + fill bar + percent + trend arrow" row — the shape an earlier
+ * consumer mod's HUD intake rows, and any similar HUD/screen row (icon, label, a 0..1 progress bar,
+ * a percent readout, an up/down trend arrow against a previous value) share. Data-driven entirely
+ * through suppliers so one class serves every row instead of one bespoke class per row kind.
  *
- * <p>Follows the same self-positioning module shape as Nourished's {@code BalanceComponent}: the
+ * <p>Follows the same self-positioning module shape as that earlier mod's own balance-row component: the
  * host resolves this row's screen {@link Bounds} itself (see {@code ComponentPersistence}) and hands
  * them to the constructor — this class does not know about panels, columns, or local-unit layout
  * coordinate systems, only the screen-pixel {@link Bounds} it was given and a natural reference
@@ -29,7 +29,7 @@ import java.util.function.Supplier;
 @ApiStatus.Experimental
 public final class BarRowComponent implements MarieComponent, SelfPositioningModule {
 
-    /** Alpha byte for the dimmed percent text — matches the classic Diet Screen intake row. */
+    /** Alpha byte for the dimmed percent text — matches the classic consumer-mod intake row this was ported from. */
     public static final int DEFAULT_PERCENT_DIM_ALPHA = 0x99;
 
     private final String id;
@@ -118,8 +118,8 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
      *
      * <p>{@code overlayColorSupplier} — a brief highlight overlay drawn over the bar's fill rect each
      * frame it returns a non-transparent ARGB color (alpha byte {@code > 0}), for a "this value just
-     * changed" pulse affordance (e.g. Nourished's Diet Screen intake rows flash briefly when a
-     * nutrient is gained — see {@code MarieClientCache#flashAlpha}). {@code null} (every other
+     * changed" pulse affordance (e.g. an earlier consumer mod's HUD intake rows flash briefly when a
+     * value is gained — see {@code MarieClientCache#flashAlpha}). {@code null} (every other
      * constructor) draws no overlay at all, so existing/other consumers of this class aren't forced
      * to wire one.
      *
@@ -220,11 +220,11 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
         }
         // Position/layout geometry (where things sit) is always driven by the fixed base scale —
         // the host's own panel scale, independent of this box's live bounds (resizing changes only
-        // how much of the fixed-size content the clip below reveals, matching RecentMealsComponent).
+        // how much of the fixed-size content the clip below reveals, matching this row's sibling components).
         // The SIZE each piece actually renders at additionally multiplies in that piece's own
         // Text/Icon/Bar size slider (see MarieModuleSettings#textScale/iconScale/barScale) — the same
         // "base scale for layout, independent per-element multiplier for render size" split the HUD's
-        // NutrientBarComponent already uses, so those sliders (present in this row's Style tab) do
+        // other bar components already use, so those sliders (present in this row's Style tab) do
         // something instead of being silently ignored.
         double scale = contentScale;
         float textScale = (float) (scale * MarieModuleSettings.textScale(store, id));

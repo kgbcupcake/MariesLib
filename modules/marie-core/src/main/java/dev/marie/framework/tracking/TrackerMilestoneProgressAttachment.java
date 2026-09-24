@@ -14,7 +14,7 @@ import java.util.function.Supplier;
 /**
  * NeoForge data attachment for {@link TrackerMilestoneProgressData}. Its own attachment
  * namespace, entirely separate from {@link MilestoneProgressAttachment} — no shared storage
- * with the nutrient milestone system.
+ * with the value-based milestone system.
  */
 @ApiStatus.Internal
 public final class TrackerMilestoneProgressAttachment {

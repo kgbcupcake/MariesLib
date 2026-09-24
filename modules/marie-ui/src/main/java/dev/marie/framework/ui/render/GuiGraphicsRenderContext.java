@@ -140,13 +140,14 @@ public final class GuiGraphicsRenderContext implements RenderContext {
     public void drawItem(ItemStack stack, int x, int y, float scale) {
         // Same pairing requirement as drawText above: graphics.renderItem() resolves the stack's
         // BakedModel and can throw (a transiently-unbaked/unregistered item id — plausible for a
-        // Nourished nutrient icon resolved mid-sync while values are updating rapidly, e.g. while
-        // eating). Without this try/finally, that throw skips popPose(), leaving this translate+scale
-        // baked into GuiGraphics' shared PoseStack for every remaining fill()/drawString()/
-        // renderItem() call this frame (fill() draws its quad through the current pose transform) —
-        // a small bar/icon fill elsewhere can then be stretched into covering the whole screen, which
-        // self-heals next successful call and re-corrupts on the next throw, producing the rapid
-        // full-screen black flashing reported while eating repeatedly retriggers the same edge case.
+        // consumer mod's value-key icon resolved mid-sync while its values are updating rapidly,
+        // e.g. in response to a fast-repeating trigger). Without this try/finally, that throw skips
+        // popPose(), leaving this translate+scale baked into GuiGraphics' shared PoseStack for every
+        // remaining fill()/drawString()/renderItem() call this frame (fill() draws its quad through
+        // the current pose transform) — a small bar/icon fill elsewhere can then be stretched into
+        // covering the whole screen, which self-heals next successful call and re-corrupts on the
+        // next throw, producing the rapid full-screen black flashing reported when the fast-repeating
+        // trigger retriggers the same edge case.
         PoseStack pose = graphics.pose();
         pose.pushPose();
         try {

@@ -134,7 +134,7 @@ public final class ColorRegistry {
             Files.createDirectories(configDir);
             JsonArray arr = new JsonArray();
             // Persist every key currently held, not just ones matching a registered value id —
-            // ColorKey-based overrides (nutrient/activity/panel/etc., keyed by full ResourceLocation
+            // ColorKey-based overrides (value/activity/panel/etc., keyed by full ResourceLocation
             // string) are never value ids, so filtering to ValueRegistry would silently drop them.
             for (Map.Entry<String, Integer> e : INSTANCE.entries().entrySet()) {
                 JsonObject obj = new JsonObject();

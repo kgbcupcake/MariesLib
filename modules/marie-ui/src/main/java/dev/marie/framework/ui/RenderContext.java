@@ -54,7 +54,7 @@ public interface RenderContext {
      * "rounded rect" fake used throughout Minecraft GUIs: the outermost corner pixel is left
      * untouched (transparent) and the pixel diagonally inset from it is drawn in
      * {@code borderColor}, producing an octagonal cut instead of a hard square corner. Ported
-     * from Nourished's pre-MarieUI {@code DietScreen#drawRoundedPanel}, collapsed to a single
+     * from an earlier consumer mod's pre-MarieUI panel-drawing routine, collapsed to a single
      * border color — that legacy version used separate light-top/dark-bottom bevel shades, which
      * none of marie-ui's current callers need. Geometry is exact for {@code thickness == 1} (the
      * only value any caller uses today); other thicknesses scale the corner inset by
@@ -131,7 +131,7 @@ public interface RenderContext {
 
     /**
      * Draws an already-resolved {@link ItemStack} as a scaled icon at (x, y). Callers are
-     * responsible for resolving whatever domain key (e.g. a Nourished nutrient key) to an
+     * responsible for resolving whatever domain key (e.g. a consumer's own value key) to an
      * {@code ItemStack} themselves — this primitive only knows how to draw one.
      */
     void drawItem(ItemStack stack, int x, int y, float scale);
@@ -158,7 +158,7 @@ public interface RenderContext {
      * Draws a resize-handle square at (x, y) — the handle's own top-left corner, e.g. from
      * {@link DraggableResizable#handleBounds(Bounds)} — with a corner glyph, colored via
      * {@link ThemeKey#HANDLE_ACTIVE}/{@link ThemeKey#HANDLE_HOVER}/{@link ThemeKey#HANDLE_BACKGROUND}.
-     * Ported from Nourished's {@code HudDrawHelpers#drawResizeHandle} geometry, minus the "Drag to
+     * Ported from an earlier consumer mod's resize-handle-drawing geometry, minus the "Drag to
      * resize" tooltip — that's presentation text a caller can add from its own render() if wanted.
      */
     default void drawResizeHandle(int x, int y, boolean hovered, boolean active) {
@@ -204,16 +204,16 @@ public interface RenderContext {
         }
     }
 
-    /** Title baseline y, local to the box top — ported from Nourished's {@code DietPanelContainer} title row. */
+    /** Title baseline y, local to the box top — ported from an earlier consumer mod's window-chrome title row. */
     int WINDOW_CHROME_TITLE_TEXT_Y = 9;
 
-    /** Divider y, local to the box top, i.e. the title row's height — ported from {@code DietPanelContainer}'s {@code dividerTop} local y. */
+    /** Divider y, local to the box top, i.e. the title row's height — ported from that same window chrome's divider local y. */
     int WINDOW_CHROME_TITLE_ROW_HEIGHT = 26;
 
-    /** Divider line color — ported from {@code DietPanelContainer.COL_DIVIDER}. */
+    /** Divider line color — ported from that same window chrome's divider color. */
     int WINDOW_CHROME_DIVIDER_COLOR = 0xFF2E2E2E;
 
-    /** Draws a {@code DietPanelContainer}-style window frame — filled/bordered rounded rect, centered title, divider beneath it — and returns the content {@link Bounds} below the divider. */
+    /** Draws a window-chrome-style frame — filled/bordered rounded rect, centered title, divider beneath it — and returns the content {@link Bounds} below the divider. */
     default Bounds drawWindowChrome(int x, int y, int width, int height, String title, int titleColor) {
         drawRoundedRect(x, y, width, height, 1, theme().color(ThemeKey.PANEL_BACKGROUND), theme().color(ThemeKey.BORDER));
         int titleX = x + (width - textWidth(title, 1f)) / 2;
