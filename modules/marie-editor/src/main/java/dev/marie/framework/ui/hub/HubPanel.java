@@ -299,7 +299,12 @@ public final class HubPanel {
                         context.fillRect(content.x(), y, SIDEBAR_WIDTH, SIDEBAR_ROW_HEIGHT, theme.color(ThemeKey.HANDLE_BACKGROUND));
                         context.fillRect(content.x(), y, SIDEBAR_SELECTION_BAR_WIDTH, SIDEBAR_ROW_HEIGHT, accentColor(theme));
                     }
-                    int textColor = theme.color(selected ? ThemeKey.TEXT_PRIMARY : ThemeKey.TEXT_SECONDARY);
+                    // Unlike the header title, the collapsed-strip label and a selected group's child rows
+                    // (all of which already draw through titleColor()), this row's text used to always come
+                    // from the theme's TEXT_PRIMARY/TEXT_SECONDARY regardless of a custom titleColor override
+                    // — so a hub with its own chrome colors set (e.g. Nourished's Diet Screen editor) left the
+                    // sidebar list itself unchanged while everything else it drew picked up the override.
+                    int textColor = titleColor != null ? titleColor() : theme.color(selected ? ThemeKey.TEXT_PRIMARY : ThemeKey.TEXT_SECONDARY);
                     context.drawText(entry.label().getString(), content.x() + SIDEBAR_ROW_INSET, y + SIDEBAR_ROW_HEIGHT / 2 - 4, textColor, 1f);
                     sidebarHits.add(new SidebarHit(entry, rowBounds));
                 }
