@@ -80,10 +80,21 @@ public final class ModuleOptionRows {
      * this whole group (the caller should skip calling this at all in that case).
      */
     public static void addSizes(OptionLayout layout, PersistenceProvider p, String id, String textLabelKey, boolean showTextSize, boolean showIconSize) {
+        addSizes(layout, p, id, textLabelKey, showTextSize, showIconSize, true);
+    }
+
+    /**
+     * Same, but {@code iconFollowsText} false makes the icon size fully independent from the start:
+     * its Text size row (if shown) never auto-pins icon size on its first edit, and its Icon size row
+     * (and any render code reading {@link ModuleScales#iconScale(PersistenceProvider, String, boolean)}
+     * the same way) never falls back to the text size while unset — see {@link
+     * dev.marie.framework.ui.api.StandardPanelBuilder#independentIconSize} for when to reach for this.
+     */
+    public static void addSizes(OptionLayout layout, PersistenceProvider p, String id, String textLabelKey, boolean showTextSize, boolean showIconSize, boolean iconFollowsText) {
         if (showTextSize) {
             String defaultLabelKey = showIconSize ? "config.marieslib.moduleoptions.textSize" : "config.marieslib.moduleoptions.size";
             SliderOption textSize = new SliderOption(text(textLabelKey != null ? textLabelKey : defaultLabelKey),
-                    () -> ModuleScales.textScale(p, id), v -> ModuleScales.setTextScale(p, id, v),
+                    () -> ModuleScales.textScale(p, id), v -> ModuleScales.setTextScale(p, id, v, iconFollowsText),
                     ContentScaleController.SCALE_STORAGE_MIN, ContentScaleController.SCALE_STORAGE_MAX, SCALE_STEP, ALREADY_SAVED);
             // Reset without pinning the icon size, so the icon size can be reset (follow the text again) independently.
             textSize.resetWith(() -> ModuleScales.setContentScale(p, id, 1.0d));
@@ -93,7 +104,7 @@ public final class ModuleOptionRows {
             return;
         }
         SliderOption iconSize = new SliderOption(text("config.marieslib.moduleoptions.iconSize"),
-                () -> ModuleScales.iconScale(p, id), v -> ModuleScales.setIconScale(p, id, v),
+                () -> ModuleScales.iconScale(p, id, iconFollowsText), v -> ModuleScales.setIconScale(p, id, v),
                 ContentScaleController.SCALE_STORAGE_MIN, ContentScaleController.SCALE_STORAGE_MAX, SCALE_STEP, ALREADY_SAVED);
         iconSize.resetWith(() -> ModuleScales.clearIconScale(p, id));
         layout.addRow(iconSize);

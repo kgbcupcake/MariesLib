@@ -64,6 +64,16 @@ public final class MarieModuleSettings {
         return ModuleScales.iconScale(store, panelId);
     }
 
+    /**
+     * Same, but {@code followText} false never falls back to {@link #textScale} — unset resolves to
+     * the plain 100% default instead. Use this for a module whose panel was built with {@link
+     * StandardPanelBuilder#independentIconSize}, so its render code's icon-scale read matches what the
+     * options panel's icon-scale write actually means.
+     */
+    public static double iconScale(PersistenceProvider store, String panelId, boolean followText) {
+        return ModuleScales.iconScale(store, panelId, followText);
+    }
+
     /** Bar size multiplier for {@code panelId}: bar length and thickness, and the value text at the bar's end. 1.0 until set. */
     public static double barScale(PersistenceProvider store, String panelId) {
         return ModuleScales.barScale(store, panelId);

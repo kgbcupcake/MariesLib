@@ -40,6 +40,7 @@ public final class StandardPanelBuilder {
     private boolean sizes = true;
     private boolean textSize = true;
     private boolean iconSize = true;
+    private boolean iconFollowsText = true;
     private boolean headerSize;
     private boolean hideHeader;
     private String textSizeLabelKey;
@@ -163,6 +164,23 @@ public final class StandardPanelBuilder {
     @ApiStatus.Experimental
     public StandardPanelBuilder withoutTextSize() {
         this.textSize = false;
+        return this;
+    }
+
+    /**
+     * Makes icon size fully independent of text size from the start, instead of the default "follows
+     * text size until icon size has been explicitly set" behavior ({@link #withHeaderSize}'s doc and
+     * {@link dev.marie.framework.ui.modulesettings.ModuleScales#iconScale(PersistenceProvider, String, boolean)}
+     * explain why that default exists). Reach for this when a module's persisted text scale can carry a
+     * stale/leftover value the player never meant as an icon size — e.g. after {@link #withoutTextSize}
+     * removes the Text size row entirely (its old value, no longer visible or settable, would otherwise
+     * silently keep sizing the icon) — or any module that would rather icon size always start at a
+     * plain 100% than visually track whatever Text size happens to be set to. The module's own render
+     * code must read icon scale the same way, via {@link MarieModuleSettings#iconScale(PersistenceProvider, String, boolean)}
+     * with {@code followText = false}, or this has no visible effect.
+     */
+    public StandardPanelBuilder independentIconSize() {
+        this.iconFollowsText = false;
         return this;
     }
 
@@ -303,7 +321,7 @@ public final class StandardPanelBuilder {
         }
         panel.tab(label("appearance"));
         if (sizes) {
-            panel.section(text("config.marieslib.moduleoptions.section.sizes")).textAndIconSizes(store, panelId, textSizeLabelKey, textSize, iconSize);
+            panel.section(text("config.marieslib.moduleoptions.section.sizes")).textAndIconSizes(store, panelId, textSizeLabelKey, textSize, iconSize, iconFollowsText);
             if (bars) {
                 panel.barSize(store, panelId);
             }

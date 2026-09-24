@@ -166,6 +166,16 @@ public final class MarieToolbox {
             return this;
         }
 
+        /**
+         * Same, but {@code iconFollowsText} false makes icon size fully independent from the start —
+         * see {@link StandardPanelBuilder#independentIconSize} and {@link
+         * ModuleOptionRows#addSizes(OptionLayout, PersistenceProvider, String, String, boolean, boolean, boolean)}.
+         */
+        public PanelBuilder textAndIconSizes(PersistenceProvider persistence, String panelId, String textLabelKey, boolean showTextSize, boolean showIconSize, boolean iconFollowsText) {
+            ModuleOptionRows.addSizes(layout, persistence, panelId, textLabelKey, showTextSize, showIconSize, iconFollowsText);
+            return this;
+        }
+
         /** Adds a Bar size slider (bar length and thickness, and the value text at the bar's end) over {@code persistence}; read it back with {@link MarieModuleSettings#barScale}. */
         public PanelBuilder barSize(PersistenceProvider persistence, String panelId) {
             ModuleOptionRows.addBarSize(layout, persistence, panelId);

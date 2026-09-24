@@ -34,13 +34,30 @@ public final class ModuleScales {
 
     /** The icon size multiplier; the text size until an icon size has been set. */
     public static double iconScale(PersistenceProvider p, String panelId) {
+        return iconScale(p, panelId, true);
+    }
+
+    /**
+     * Same, but {@code followText} false never falls back to the text size — unset resolves to the
+     * plain default (100%) instead. For a module whose Sizes panel was built with {@link
+     * dev.marie.framework.ui.api.StandardPanelBuilder#independentIconSize}: without this, a module
+     * that previously had only one combined size slider (before an icon size was split out, or after
+     * its Text size row is removed entirely in favor of some other slider) leaves icon size reading a
+     * stale/leftover {@code contentScale} value the player can no longer see or intend as an icon size.
+     */
+    public static double iconScale(PersistenceProvider p, String panelId, boolean followText) {
         return p.load(panelId + ICON_SCALE_SUFFIX)
                 .map(ComponentState::contentScale)
-                .orElseGet(() -> textScale(p, panelId));
+                .orElseGet(() -> followText ? textScale(p, panelId) : ComponentState.DEFAULT_CONTENT_SCALE);
     }
 
     public static void setTextScale(PersistenceProvider p, String panelId, double value) {
-        if (p.load(panelId + ICON_SCALE_SUFFIX).isEmpty()) {
+        setTextScale(p, panelId, value, true);
+    }
+
+    /** Same, but {@code pinIcon} false never auto-pins the icon size to the pre-edit text size — see {@link #iconScale(PersistenceProvider, String, boolean)}. */
+    public static void setTextScale(PersistenceProvider p, String panelId, double value, boolean pinIcon) {
+        if (pinIcon && p.load(panelId + ICON_SCALE_SUFFIX).isEmpty()) {
             setIconScale(p, panelId, textScale(p, panelId));
         }
         setContentScale(p, panelId, value);
