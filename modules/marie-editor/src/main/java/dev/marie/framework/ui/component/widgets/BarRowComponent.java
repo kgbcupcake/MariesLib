@@ -231,8 +231,9 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
         float iconScale = (float) (scale * MarieModuleSettings.iconScale(store, id));
         float barScale = (float) (scale * MarieModuleSettings.barScale(store, id));
 
-        int boxFill = boxFillColorSupplier.getAsInt();
-        int boxBorder = boxBorderColorSupplier.getAsInt();
+        int boxFill = MarieModuleSettings.styledBackground(boxFillColorSupplier.getAsInt(), store, id);
+        int boxBorder = MarieModuleSettings.styledBorder(boxBorderColorSupplier.getAsInt(), store, id);
+        MarieModuleSettings.drawBoxGlow(context, store, id, bounds.x(), bounds.y(), bounds.width(), bounds.height());
         context.drawRoundedRect(bounds.x(), bounds.y(), bounds.width(), bounds.height(), 1, boxFill, boxBorder);
 
         context.pushClip(bounds.x(), bounds.y(), bounds.width(), bounds.height());
@@ -263,7 +264,11 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
         // box itself, the "Move Icon" toggle's whole purpose distinct from "Move Icons".
         int iconInnerOffX = MarieModuleSettings.iconInnerOffsetX(store, id);
         int iconInnerOffY = MarieModuleSettings.iconInnerOffsetY(store, id);
-        context.drawItem(iconSupplier.get(), iconX + iconInnerOffX, iconY + iconInnerOffY, textScale);
+        // Icon-in-box size, independent of the box itself (drawn just above, unaffected by it) — the
+        // same "moves/sizes relative to the box, not the box itself" split iconInnerOffset already
+        // gives "Move Icon" over "Move Icons".
+        float iconInnerScale = (float) MarieModuleSettings.iconInnerScale(store, id);
+        context.drawItem(iconSupplier.get(), iconX + iconInnerOffX, iconY + iconInnerOffY, textScale * iconInnerScale);
 
         int labelX = bounds.x() + (int) Math.round(26 * scale);
         int labelY = bounds.y() + (int) Math.round(4 * scale);

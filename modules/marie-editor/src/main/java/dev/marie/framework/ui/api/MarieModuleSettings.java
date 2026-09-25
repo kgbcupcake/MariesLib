@@ -1,6 +1,7 @@
 package dev.marie.framework.ui.api;
 
 import dev.marie.framework.api.ApiStatus;
+import dev.marie.framework.color.MarieColors;
 import dev.marie.framework.ui.PersistenceProvider;
 import dev.marie.framework.ui.RenderContext;
 import dev.marie.framework.ui.component.MarieComponent;
@@ -8,9 +9,11 @@ import dev.marie.framework.ui.modulesettings.BrightnessRenderContext;
 import dev.marie.framework.ui.modulesettings.HideFlags;
 import dev.marie.framework.ui.geometry.Bounds;
 import dev.marie.framework.ui.modulesettings.ModuleExtents;
+import dev.marie.framework.ui.modulesettings.ModuleGlow;
 import dev.marie.framework.ui.modulesettings.ModuleOffsets;
 import dev.marie.framework.ui.modulesettings.ModuleRenderContext;
 import dev.marie.framework.ui.modulesettings.ModuleScales;
+import dev.marie.framework.ui.modulesettings.ModuleStyle;
 import dev.marie.framework.ui.modulesettings.MoveFlags;
 import net.minecraft.network.chat.Component;
 
@@ -72,6 +75,17 @@ public final class MarieModuleSettings {
      */
     public static double iconScale(PersistenceProvider store, String panelId, boolean followText) {
         return ModuleScales.iconScale(store, panelId, followText);
+    }
+
+    /**
+     * The icon-in-box size multiplier: how large the icon graphic draws relative to its own icon box
+     * (e.g. {@code BarRowComponent}'s icon box), independent of {@link #iconScale}, which sizes the
+     * box itself — mirrors {@link #iconInnerOffsetX} being independent of the box-moving icon offset.
+     * 1.0 (unchanged) until set. Requires {@link StandardPanelBuilder#withIconInnerSize} for the
+     * options panel to expose a slider for it.
+     */
+    public static double iconInnerScale(PersistenceProvider store, String panelId) {
+        return ModuleScales.iconInnerScale(store, panelId);
     }
 
     /** Bar size multiplier for {@code panelId}: bar length and thickness, and the value text at the bar's end. 1.0 until set. */
@@ -332,6 +346,60 @@ public final class MarieModuleSettings {
     /** {@code argb} with RGB scaled by {@code brightness} (alpha untouched, capped at 255). */
     public static int scaleBrightness(int argb, double brightness) {
         return BrightnessRenderContext.scale(argb, brightness);
+    }
+
+    /**
+     * {@code baseArgb} (a module's own background fill color) adjusted by its self-contained
+     * Background opacity/shade (see {@link StandardPanelBuilder#withOwnStyle}) — {@code baseArgb}
+     * itself at the neutral defaults (opacity 100%, shade 0%), so a module that never opted in, or
+     * whose player never touched these sliders, looks unchanged.
+     */
+    public static int styledBackground(int baseArgb, PersistenceProvider store, String panelId) {
+        double opacity = ModuleStyle.backgroundOpacity(store, panelId);
+        double shade = ModuleStyle.backgroundShade(store, panelId);
+        int shaded = shade != 0.0d ? MarieColors.shade(baseArgb, shade) : baseArgb;
+        return withOpacity(shaded, opacity);
+    }
+
+    /** Same as {@link #styledBackground}, but over the module's Border opacity/shade instead. */
+    public static int styledBorder(int baseArgb, PersistenceProvider store, String panelId) {
+        double opacity = ModuleStyle.borderOpacity(store, panelId);
+        double shade = ModuleStyle.borderShade(store, panelId);
+        int shaded = shade != 0.0d ? MarieColors.shade(baseArgb, shade) : baseArgb;
+        return withOpacity(shaded, opacity);
+    }
+
+    private static int withOpacity(int argb, double opacity) {
+        if (opacity == 1.0d) {
+            return argb;
+        }
+        int alpha = Math.min(255, Math.max(0, (int) Math.round(((argb >>> 24) & 0xFF) * opacity)));
+        return (alpha << 24) | (argb & 0x00FFFFFF);
+    }
+
+    /**
+     * Draws the module's own Border shadow and Border glow (see {@link StandardPanelBuilder#withShadow}/
+     * {@link StandardPanelBuilder#withGlow}), if either is configured — a no-op at the neutral
+     * defaults (both 0%). Call this once, immediately before a module draws its own background/border
+     * box at {@code (x, y, width, height)}, so the box paints over the innermost ring and only the
+     * outward rings remain visible (the same technique {@code drawGlow} already uses for the
+     * edit-mode movable highlight). Border shadow/glow cannot be applied generically the way text/bar
+     * shadow and glow are (a box's border is just one of many {@code fillRect} calls a module makes,
+     * indistinguishable from content fills at the {@link RenderContext} layer), so a module's own
+     * box-drawing code calls this explicitly.
+     */
+    public static void drawBoxGlow(RenderContext context, PersistenceProvider store, String panelId, int x, int y, int width, int height) {
+        double shadowStrength = ModuleGlow.borderShadowStrength(store, panelId);
+        if (shadowStrength > 0) {
+            int alpha = Math.min(255, (int) Math.round(shadowStrength * 255));
+            context.drawGlow(x, y, width, height, alpha << 24);
+        }
+        double glowStrength = ModuleGlow.borderGlowStrength(store, panelId);
+        if (glowStrength > 0) {
+            int alpha = Math.min(255, (int) Math.round(glowStrength * 255));
+            int color = ModuleGlow.borderGlowColor(store, panelId);
+            context.drawGlow(x, y, width, height, (alpha << 24) | (color & 0xFFFFFF));
+        }
     }
 
     /**

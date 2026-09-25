@@ -40,11 +40,18 @@ public final class ModuleRenderContext implements RenderContext {
     private final boolean hideWindow;
     private final PersistenceProvider store;
     private final String panelId;
+    private final double textShadowStrength;
+    private final double textGlowStrength;
+    private final int textGlowColor;
+    private final double barGlowStrength;
+    private final int barGlowColor;
 
     private ModuleRenderContext(RenderContext delegate, int textDx, int textDy, int iconDx, int iconDy,
                                 float iconRatio, double textBrightness, double iconBrightness,
                                 int barDx, int barDy, float barScale, boolean hideIcons, boolean hideBars, boolean hideText,
-                                boolean hideWindow, PersistenceProvider store, String panelId) {
+                                boolean hideWindow, PersistenceProvider store, String panelId,
+                                double textShadowStrength, double textGlowStrength, int textGlowColor,
+                                double barGlowStrength, int barGlowColor) {
         this.delegate = delegate;
         this.textDx = textDx;
         this.textDy = textDy;
@@ -62,6 +69,11 @@ public final class ModuleRenderContext implements RenderContext {
         this.hideWindow = hideWindow;
         this.store = store;
         this.panelId = panelId;
+        this.textShadowStrength = textShadowStrength;
+        this.textGlowStrength = textGlowStrength;
+        this.textGlowColor = textGlowColor;
+        this.barGlowStrength = barGlowStrength;
+        this.barGlowColor = barGlowColor;
     }
 
     /** {@code delegate} wrapped with {@code panelId}'s settings read from {@code store} now; {@code delegate} itself if all are default. */
@@ -99,10 +111,16 @@ public final class ModuleRenderContext implements RenderContext {
         boolean hideBars = HideFlags.barsHidden(store, panelId);
         boolean hideText = HideFlags.textHidden(store, panelId);
         boolean hideWindow = HideFlags.windowHidden(store, panelId);
+        double textShadowStrength = ModuleGlow.textShadowStrength(store, panelId);
+        double textGlowStrength = ModuleGlow.textGlowStrength(store, panelId);
+        int textGlowColor = ModuleGlow.textGlowColor(store, panelId);
+        double barGlowStrength = ModuleGlow.barGlowStrength(store, panelId);
+        int barGlowColor = ModuleGlow.barGlowColor(store, panelId);
         // Always wrapped, even at all-default settings: the wrapper is what records where the module draws (see ModuleExtents).
         ModuleExtents.begin(store, panelId);
         return new ModuleRenderContext(delegate, textDx, textDy, iconDx, iconDy, ratio,
-                textBrightness, iconBrightness, barDx, barDy, barScale, hideIcons, hideBars, hideText, hideWindow, store, panelId);
+                textBrightness, iconBrightness, barDx, barDy, barScale, hideIcons, hideBars, hideText, hideWindow, store, panelId,
+                textShadowStrength, textGlowStrength, textGlowColor, barGlowStrength, barGlowColor);
     }
 
     @Override
@@ -110,8 +128,20 @@ public final class ModuleRenderContext implements RenderContext {
         if (hideText || hideWindow) {
             return;
         }
-        ModuleExtents.add(store, panelId, ModuleExtents.Kind.TEXT, x + textDx, y + textDy, delegate.textWidth(text, scale), Math.round(9 * scale));
-        delegate.drawText(text, x + textDx, y + textDy, BrightnessRenderContext.scale(argbColor, textBrightness), scale);
+        int drawX = x + textDx;
+        int drawY = y + textDy;
+        int width = delegate.textWidth(text, scale);
+        int height = Math.round(9 * scale);
+        ModuleExtents.add(store, panelId, ModuleExtents.Kind.TEXT, drawX, drawY, width, height);
+        if (textGlowStrength > 0) {
+            int alpha = Math.min(255, (int) Math.round(textGlowStrength * 255));
+            delegate.drawGlow(drawX, drawY, width, height, (alpha << 24) | (textGlowColor & 0xFFFFFF));
+        }
+        if (textShadowStrength > 0) {
+            int alpha = Math.min(255, (int) Math.round(textShadowStrength * 255));
+            delegate.drawText(text, drawX + 1, drawY + 1, alpha << 24, scale);
+        }
+        delegate.drawText(text, drawX, drawY, BrightnessRenderContext.scale(argbColor, textBrightness), scale);
     }
 
     @Override
@@ -194,8 +224,13 @@ public final class ModuleRenderContext implements RenderContext {
         if (hideBars || hideWindow) {
             return;
         }
-        ModuleExtents.add(store, panelId, ModuleExtents.Kind.BAR, x + barDx, y + barDy, scaled(width), scaled(height));
-        delegate.drawBar(x + barDx, y + barDy, scaled(width), scaled(height), fillPct, backgroundColor, fillColor);
+        int drawX = x + barDx;
+        int drawY = y + barDy;
+        int w = scaled(width);
+        int h = scaled(height);
+        ModuleExtents.add(store, panelId, ModuleExtents.Kind.BAR, drawX, drawY, w, h);
+        drawBarGlow(drawX, drawY, w, h);
+        delegate.drawBar(drawX, drawY, w, h, fillPct, backgroundColor, fillColor);
     }
 
     @Override
@@ -203,8 +238,21 @@ public final class ModuleRenderContext implements RenderContext {
         if (hideBars || hideWindow) {
             return;
         }
-        ModuleExtents.add(store, panelId, ModuleExtents.Kind.BAR, x + barDx, y + barDy, scaled(width), scaled(height));
-        delegate.drawVerticalBar(x + barDx, y + barDy, scaled(width), scaled(height), fillPct, backgroundColor, fillColor);
+        int drawX = x + barDx;
+        int drawY = y + barDy;
+        int w = scaled(width);
+        int h = scaled(height);
+        ModuleExtents.add(store, panelId, ModuleExtents.Kind.BAR, drawX, drawY, w, h);
+        drawBarGlow(drawX, drawY, w, h);
+        delegate.drawVerticalBar(drawX, drawY, w, h, fillPct, backgroundColor, fillColor);
+    }
+
+    private void drawBarGlow(int x, int y, int width, int height) {
+        if (barGlowStrength <= 0) {
+            return;
+        }
+        int alpha = Math.min(255, (int) Math.round(barGlowStrength * 255));
+        delegate.drawGlow(x, y, width, height, (alpha << 24) | (barGlowColor & 0xFFFFFF));
     }
 
     /** A bar dimension scaled by the module's bar size (never below 1 for a non-empty bar). */

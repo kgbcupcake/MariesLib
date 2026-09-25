@@ -16,6 +16,7 @@ import dev.marie.framework.ui.component.ComponentState;
 public final class ModuleScales {
 
     private static final String ICON_SCALE_SUFFIX = "#iconScale";
+    private static final String ICON_INNER_SCALE_SUFFIX = "#iconInnerScale";
     private static final String BAR_SCALE_SUFFIX = "#barScale";
     private static final String HEADER_SCALE_SUFFIX = "#headerScale";
     private static final String TEXT_BRIGHTNESS_SUFFIX = "#textBrightness";
@@ -98,6 +99,26 @@ public final class ModuleScales {
         p.remove(panelId + ICON_SCALE_SUFFIX);
     }
 
+    /**
+     * The icon-in-box size multiplier — how large the icon graphic itself draws relative to its own
+     * icon box (e.g. {@code BarRowComponent}'s icon box), independent of {@link #iconScale}, which
+     * still sizes the box. 1.0 (unchanged) until set — mirrors {@link #iconInnerOffsetX} being
+     * independent of {@link #iconScale}'s box-moving counterpart.
+     */
+    public static double iconInnerScale(PersistenceProvider p, String panelId) {
+        return p.load(panelId + ICON_INNER_SCALE_SUFFIX).map(ComponentState::contentScale).orElse(ComponentState.DEFAULT_CONTENT_SCALE);
+    }
+
+    public static void setIconInnerScale(PersistenceProvider p, String panelId, double value) {
+        p.save(panelId + ICON_INNER_SCALE_SUFFIX,
+                new ComponentState(0, 0, 0, 0, false, false, false, 0, value, ComponentState.DEFAULT_PADDING_SCALE));
+    }
+
+    /** Forgets the separate icon-in-box size, so the icon graphic draws at its box's own size again. */
+    public static void clearIconInnerScale(PersistenceProvider p, String panelId) {
+        p.remove(panelId + ICON_INNER_SCALE_SUFFIX);
+    }
+
     /** The bar size multiplier (bar length and thickness, and the value text at the bar's end); 1.0 until set. */
     public static double barScale(PersistenceProvider p, String panelId) {
         return p.load(panelId + BAR_SCALE_SUFFIX).map(ComponentState::contentScale).orElse(ComponentState.DEFAULT_CONTENT_SCALE);
@@ -151,6 +172,7 @@ public final class ModuleScales {
      */
     public static void resetSizesAndBrightness(PersistenceProvider p, String panelId) {
         p.remove(panelId + ICON_SCALE_SUFFIX);
+        p.remove(panelId + ICON_INNER_SCALE_SUFFIX);
         p.remove(panelId + BAR_SCALE_SUFFIX);
         p.remove(panelId + HEADER_SCALE_SUFFIX);
         p.remove(panelId + TEXT_BRIGHTNESS_SUFFIX);

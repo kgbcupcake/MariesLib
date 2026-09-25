@@ -3,6 +3,10 @@ package dev.marie.framework.ui.api;
 import dev.marie.framework.api.ApiStatus;
 import dev.marie.framework.ui.PersistenceProvider;
 import dev.marie.framework.ui.component.MarieComponent;
+import dev.marie.framework.ui.edit.ContentScaleController;
+import dev.marie.framework.ui.modulesettings.ModuleGlow;
+import dev.marie.framework.ui.modulesettings.ModuleScales;
+import dev.marie.framework.ui.modulesettings.ModuleStyle;
 import net.minecraft.network.chat.Component;
 
 import java.util.function.Consumer;
@@ -44,6 +48,10 @@ public final class StandardPanelBuilder {
     private boolean headerSize;
     private boolean hideHeader;
     private boolean iconInnerMove;
+    private boolean iconInnerSize;
+    private boolean shadow;
+    private boolean glow;
+    private boolean ownStyle;
     private String textSizeLabelKey;
     private String headerSizeLabelKey;
     private DoubleSupplier backgroundShade;
@@ -269,6 +277,57 @@ public final class StandardPanelBuilder {
         return this;
     }
 
+    /**
+     * Adds an "Icon size (in box)" slider to the Sizes group, independent of the ordinary Icon size
+     * row — for a module whose icon draws inside its own small box (e.g. {@code BarRowComponent})
+     * and wants the icon graphic resizable within that box without resizing the box itself. Pairs
+     * with {@link #withIconInnerMove} the same way Icon size pairs with "Move Icons". Read the value
+     * back with {@link MarieModuleSettings#iconInnerScale}; the module's render code must apply it to
+     * its icon draw scale (not its box) for this to have any visible effect.
+     */
+    public StandardPanelBuilder withIconInnerSize() {
+        this.iconInnerSize = true;
+        return this;
+    }
+
+    /**
+     * Adds a "Shadow" group to the Style tab: Text shadow and Border shadow strength sliders (0-100%,
+     * self-contained — no config field needed). Border shadow needs the module's own box-drawing code
+     * to call {@link MarieModuleSettings#drawBoxGlow} before it draws its box; Text shadow applies
+     * automatically to any text the module draws through {@link MarieModuleSettings#withDisplaySettings}.
+     */
+    public StandardPanelBuilder withShadow() {
+        this.shadow = true;
+        return this;
+    }
+
+    /**
+     * Adds a "Glow" tab: Text glow and Border glow (color + strength), plus Bar glow when the module
+     * has bars ({@link #withoutBars} not called) — all self-contained, no config field needed. Text
+     * and Bar glow apply automatically to anything the module draws through {@link
+     * MarieModuleSettings#withDisplaySettings}; Border glow needs the module's own box-drawing code
+     * to call {@link MarieModuleSettings#drawBoxGlow} before it draws its box.
+     */
+    public StandardPanelBuilder withGlow() {
+        this.glow = true;
+        return this;
+    }
+
+    /**
+     * Adds self-contained Background opacity/shade and Border opacity/shade sliders — no config field
+     * needed — for a module with no background/border color of its own to bind {@link #opacity}/
+     * {@link #backgroundShade}/{@link #borderOpacity}/{@link #borderShade} to. Read the values back
+     * with {@link MarieModuleSettings#styledBackground}/{@link MarieModuleSettings#styledBorder},
+     * which the module's own box-drawing code applies to its base fill/border color. Has no effect on
+     * a section whose caller-bound variant ({@link #opacity}, {@link #backgroundShade}, {@link
+     * #borderOpacity} or {@link #borderShade}) was already called — a module never gets two competing
+     * sliders for the same concept.
+     */
+    public StandardPanelBuilder withOwnStyle() {
+        this.ownStyle = true;
+        return this;
+    }
+
     /** Leaves out "Move Text", for a module whose body content already moves under some other toggle here (e.g. "Move Bars") and has nothing left for "Move Text" to actually move. */
     public StandardPanelBuilder withoutMoveText() {
         this.moveText = false;
@@ -337,6 +396,12 @@ public final class StandardPanelBuilder {
         panel.tab(label("appearance"));
         if (sizes) {
             panel.section(text("config.marieslib.moduleoptions.section.sizes")).textAndIconSizes(store, panelId, textSizeLabelKey, textSize, iconSize, iconFollowsText);
+            if (iconInnerSize) {
+                panel.slider(text("config.marieslib.moduleoptions.iconInnerSize"),
+                        () -> ModuleScales.iconInnerScale(store, panelId),
+                        v -> ModuleScales.setIconInnerScale(store, panelId, v),
+                        ContentScaleController.SCALE_STORAGE_MIN, ContentScaleController.SCALE_STORAGE_MAX, 0.05d, onCommit).defaultValue(1.0d);
+            }
             if (bars) {
                 panel.barSize(store, panelId);
             }
@@ -358,7 +423,11 @@ public final class StandardPanelBuilder {
             panel.slider(text("config.marieslib.moduleoptions.iconBrightness"), iconBrightness, setIconBrightness,
                     MIN_BRIGHTNESS, MAX_BRIGHTNESS, 0.01d, onCommit).defaultValue(1.0d);
         }
-        if (opacity != null || backgroundShade != null) {
+        // Self-contained fallback only when the caller never bound its own background/border values —
+        // a module never gets two competing sliders for the same concept.
+        boolean selfBackground = ownStyle && opacity == null && backgroundShade == null;
+        boolean selfBorder = ownStyle && borderOpacity == null && borderShade == null;
+        if (opacity != null || backgroundShade != null || selfBackground) {
             panel.section(text("config.marieslib.moduleoptions.section.background"));
         }
         if (opacity != null) {
@@ -366,25 +435,73 @@ public final class StandardPanelBuilder {
             if (hasOpacityDefault) {
                 panel.defaultValue(opacityDefault);
             }
+        } else if (selfBackground) {
+            panel.slider(text("config.marieslib.moduleoptions.backgroundOpacity"),
+                    () -> ModuleStyle.backgroundOpacity(store, panelId), v -> ModuleStyle.setBackgroundOpacity(store, panelId, v),
+                    0.0d, 1.0d, 0.01d, onCommit).defaultValue(1.0d);
         }
         if (backgroundShade != null) {
             panel.slider(text("config.marieslib.moduleoptions.backgroundShade"), backgroundShade, setBackgroundShade,
                     -1.0d, 1.0d, 0.01d, onCommit).defaultValue(0.0d);
+        } else if (selfBackground) {
+            panel.slider(text("config.marieslib.moduleoptions.backgroundShade"),
+                    () -> ModuleStyle.backgroundShade(store, panelId), v -> ModuleStyle.setBackgroundShade(store, panelId, v),
+                    -1.0d, 1.0d, 0.01d, onCommit).defaultValue(0.0d);
         }
-        if (borderOpacity != null || borderShade != null) {
+        if (borderOpacity != null || borderShade != null || selfBorder) {
             panel.section(text("config.marieslib.moduleoptions.section.border"));
         }
         if (borderOpacity != null) {
             panel.slider(text("config.marieslib.moduleoptions.borderOpacity"), borderOpacity, setBorderOpacity,
                     0.0d, 1.0d, 0.01d, onCommit).defaultValue(1.0d);
+        } else if (selfBorder) {
+            panel.slider(text("config.marieslib.moduleoptions.borderOpacity"),
+                    () -> ModuleStyle.borderOpacity(store, panelId), v -> ModuleStyle.setBorderOpacity(store, panelId, v),
+                    0.0d, 1.0d, 0.01d, onCommit).defaultValue(1.0d);
         }
         if (borderShade != null) {
             panel.slider(text("config.marieslib.moduleoptions.borderShade"), borderShade, setBorderShade,
                     -1.0d, 1.0d, 0.01d, onCommit).defaultValue(0.0d);
+        } else if (selfBorder) {
+            panel.slider(text("config.marieslib.moduleoptions.borderShade"),
+                    () -> ModuleStyle.borderShade(store, panelId), v -> ModuleStyle.setBorderShade(store, panelId, v),
+                    -1.0d, 1.0d, 0.01d, onCommit).defaultValue(0.0d);
+        }
+        if (shadow) {
+            panel.section(text("config.marieslib.moduleoptions.section.shadow"));
+            panel.slider(text("config.marieslib.moduleoptions.textShadow"),
+                    () -> ModuleGlow.textShadowStrength(store, panelId), v -> ModuleGlow.setTextShadowStrength(store, panelId, v),
+                    0.0d, 1.0d, 0.01d, onCommit).defaultValue(0.0d);
+            panel.slider(text("config.marieslib.moduleoptions.borderShadow"),
+                    () -> ModuleGlow.borderShadowStrength(store, panelId), v -> ModuleGlow.setBorderShadowStrength(store, panelId, v),
+                    0.0d, 1.0d, 0.01d, onCommit).defaultValue(0.0d);
         }
         panel.endSection();
         if (styleRows != null) {
             styleRows.accept(panel);
+        }
+        if (glow) {
+            panel.tab(text("config.marieslib.moduleoptions.tab.glow"));
+            panel.color(text("config.marieslib.moduleoptions.textGlow"),
+                    () -> ModuleGlow.textGlowColor(store, panelId), rgb -> ModuleGlow.setTextGlowColor(store, panelId, rgb),
+                    0xFFFFFF, onCommit);
+            panel.slider(text("config.marieslib.moduleoptions.textGlowStrength"),
+                    () -> ModuleGlow.textGlowStrength(store, panelId), v -> ModuleGlow.setTextGlowStrength(store, panelId, v),
+                    0.0d, 1.0d, 0.01d, onCommit).defaultValue(0.0d);
+            panel.color(text("config.marieslib.moduleoptions.borderGlow"),
+                    () -> ModuleGlow.borderGlowColor(store, panelId), rgb -> ModuleGlow.setBorderGlowColor(store, panelId, rgb),
+                    0xFFFFFF, onCommit);
+            panel.slider(text("config.marieslib.moduleoptions.borderGlowStrength"),
+                    () -> ModuleGlow.borderGlowStrength(store, panelId), v -> ModuleGlow.setBorderGlowStrength(store, panelId, v),
+                    0.0d, 1.0d, 0.01d, onCommit).defaultValue(0.0d);
+            if (bars) {
+                panel.color(text("config.marieslib.moduleoptions.barGlow"),
+                        () -> ModuleGlow.barGlowColor(store, panelId), rgb -> ModuleGlow.setBarGlowColor(store, panelId, rgb),
+                        0xFFFFFF, onCommit);
+                panel.slider(text("config.marieslib.moduleoptions.barGlowStrength"),
+                        () -> ModuleGlow.barGlowStrength(store, panelId), v -> ModuleGlow.setBarGlowStrength(store, panelId, v),
+                        0.0d, 1.0d, 0.01d, onCommit).defaultValue(0.0d);
+            }
         }
         if (extraTabs != null) {
             extraTabs.accept(panel);

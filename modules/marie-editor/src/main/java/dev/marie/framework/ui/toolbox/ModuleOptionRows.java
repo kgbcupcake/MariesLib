@@ -4,8 +4,10 @@ import dev.marie.framework.api.ApiStatus;
 import dev.marie.framework.ui.PersistenceProvider;
 import dev.marie.framework.ui.edit.ContentScaleController;
 import dev.marie.framework.ui.modulesettings.HideFlags;
+import dev.marie.framework.ui.modulesettings.ModuleGlow;
 import dev.marie.framework.ui.modulesettings.ModuleOffsets;
 import dev.marie.framework.ui.modulesettings.ModuleScales;
+import dev.marie.framework.ui.modulesettings.ModuleStyle;
 import dev.marie.framework.ui.modulesettings.MoveFlags;
 import net.minecraft.network.chat.Component;
 
@@ -291,6 +293,8 @@ public final class ModuleOptionRows {
         layout.addRow(new ButtonOption(text("config.marieslib.moduleoptions.resetModule"), "RESET", () -> {
             resetOffsetsAndMoveFlags(p, id);
             ModuleScales.resetSizesAndBrightness(p, id);
+            ModuleStyle.reset(p, id);
+            ModuleGlow.reset(p, id);
             // Bare panelId key: the module's own drag/resize ComponentState (position, size, and —
             // as fields on that same record — text size and padding), all wiped in one call so it
             // falls back to its natural default on the very next read.
