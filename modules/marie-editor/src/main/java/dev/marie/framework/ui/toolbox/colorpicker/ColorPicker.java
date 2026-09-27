@@ -48,6 +48,7 @@ public final class ColorPicker implements MarieComponent {
     private Bounds resetBounds = new Bounds(0, 0, 0, 0);
     private final List<Bounds> favoriteBounds = new ArrayList<>();
     private Bounds addFavoriteBounds = new Bounds(0, 0, 0, 0);
+    private Bounds removeFavoriteBounds = new Bounds(0, 0, 0, 0);
 
     /** {@code resetCaption} supplies the (localized) text of the Reset button, read each frame. */
     public ColorPicker(Supplier<String> resetCaption) {
@@ -145,11 +146,11 @@ public final class ColorPicker implements MarieComponent {
     }
 
     /**
-     * A row of saved-color swatches (see {@link ColorFavorites}) plus a trailing "+" button that
-     * saves the picker's current color — the classic "custom colors" strip most color pickers have,
-     * so a shade used in one panel doesn't have to be re-dialed by eye in the next. Swatches beyond
-     * what fits {@code width} are simply not drawn (favorites are capped low enough that this only
-     * matters at extreme scale-down); left-click a swatch to apply it, right-click to remove it.
+     * A row of saved-color swatches (see {@link ColorFavorites}) plus trailing "+"/"-" buttons that
+     * save/remove the picker's current color — the classic "custom colors" strip most color pickers
+     * have, so a shade used in one panel doesn't have to be re-dialed by eye in the next. Swatches
+     * beyond what fits {@code width} are simply not drawn (favorites are capped low enough that this
+     * only matters at extreme scale-down); left-click a swatch to apply it, right-click to remove it.
      */
     private void drawFavorites(RenderContext context, int x, int y, int width, int rowH, float scale, float textScale, int currentRgb) {
         favoriteBounds.clear();
@@ -157,7 +158,7 @@ public final class ColorPicker implements MarieComponent {
         int size = rowH;
         int gap = Math.max(1, Math.round(2 * scale));
         int addSize = size;
-        int maxSlots = Math.max(0, (width - addSize - gap) / (size + gap));
+        int maxSlots = Math.max(0, (width - 2 * addSize - 2 * gap) / (size + gap));
         int shown = Math.min(favorites.size(), maxSlots);
         int cx = x;
         for (int i = 0; i < shown; i++) {
@@ -168,11 +169,17 @@ public final class ColorPicker implements MarieComponent {
             context.drawBorder(b.x(), b.y(), b.width(), b.height(), 1, context.theme().color(ThemeKey.BORDER));
             cx += size + gap;
         }
+        removeFavoriteBounds = new Bounds(x + width - 2 * addSize - gap, y, addSize, addSize);
         addFavoriteBounds = new Bounds(x + width - addSize, y, addSize, addSize);
-        context.drawRoundedRect(addFavoriteBounds.x(), addFavoriteBounds.y(), addSize, addSize, 1, Math.max(1, addSize / 4),
+        drawSquareButton(context, removeFavoriteBounds, "-", textScale);
+        drawSquareButton(context, addFavoriteBounds, "+", textScale);
+    }
+
+    private static void drawSquareButton(RenderContext context, Bounds b, String glyph, float textScale) {
+        context.drawRoundedRect(b.x(), b.y(), b.width(), b.height(), 1, Math.max(1, b.width() / 4),
                 context.theme().color(ThemeKey.PANEL_BACKGROUND), context.theme().color(ThemeKey.BORDER));
-        context.drawText("+", addFavoriteBounds.x() + addSize / 2 - Math.round(2 * textScale),
-                addFavoriteBounds.y() + Math.max(0, (addSize - Math.round(8 * textScale)) / 2),
+        context.drawText(glyph, b.x() + b.width() / 2 - Math.round(2 * textScale),
+                b.y() + Math.max(0, (b.height() - Math.round(8 * textScale)) / 2),
                 context.theme().color(ThemeKey.TEXT_PRIMARY), textScale);
     }
 
@@ -251,6 +258,10 @@ public final class ColorPicker implements MarieComponent {
         }
         if (button == 0 && addFavoriteBounds.contains(mx, my)) {
             ColorFavorites.add(slot.rgb());
+            return true;
+        }
+        if (button == 0 && removeFavoriteBounds.contains(mx, my)) {
+            ColorFavorites.remove(slot.rgb());
             return true;
         }
         if (button != 0) {

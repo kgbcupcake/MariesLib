@@ -13,6 +13,15 @@ dependencies {
     implementation project(':marie-core')
     implementation project(':marie-ui')
 
+    // Gson and FMLPaths are on the compile classpath transitively via NeoForge, but that
+    // classpath isn't wired into plain JUnit tests (unlike marie-core, this module has no mod
+    // metadata to run the moddev unitTest bootstrap against) — so tests need them declared
+    // explicitly. FMLPaths.CONFIGDIR isn't bootstrapped outside a real FML runtime either way,
+    // but the classes still need to be loadable; ColorFavorites treats an unbootstrapped
+    // (null) config dir as "nothing to persist" rather than failing.
+    testRuntimeOnly "com.google.code.gson:gson:2.10.1"
+    testRuntimeOnly "net.neoforged.fancymodloader:loader:4.0.42"
+
     testImplementation platform('org.junit:junit-bom:5.10.2')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

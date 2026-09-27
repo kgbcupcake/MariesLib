@@ -488,6 +488,14 @@ public final class StandardPanelBuilder {
             panel.slider(text("config.marieslib.moduleoptions.textGlowStrength"),
                     () -> ModuleGlow.textGlowStrength(store, panelId), v -> ModuleGlow.setTextGlowStrength(store, panelId, v),
                     0.0d, 1.0d, 0.01d, onCommit).defaultValue(0.0d);
+            if (header) {
+                panel.color(text("config.marieslib.moduleoptions.headerGlow"),
+                        () -> ModuleGlow.headerGlowColor(store, panelId), rgb -> ModuleGlow.setHeaderGlowColor(store, panelId, rgb),
+                        0xFFFFFF, onCommit);
+                panel.slider(text("config.marieslib.moduleoptions.headerGlowStrength"),
+                        () -> ModuleGlow.headerGlowStrength(store, panelId), v -> ModuleGlow.setHeaderGlowStrength(store, panelId, v),
+                        0.0d, 1.0d, 0.01d, onCommit).defaultValue(0.0d);
+            }
             panel.color(text("config.marieslib.moduleoptions.borderGlow"),
                     () -> ModuleGlow.borderGlowColor(store, panelId), rgb -> ModuleGlow.setBorderGlowColor(store, panelId, rgb),
                     0xFFFFFF, onCommit);

@@ -137,6 +137,8 @@
   "config.marieslib.moduleoptions.tab.glow": "Glow",
   "config.marieslib.moduleoptions.textGlow": "Text glow",
   "config.marieslib.moduleoptions.textGlowStrength": "Text glow strength",
+  "config.marieslib.moduleoptions.headerGlow": "Header glow",
+  "config.marieslib.moduleoptions.headerGlowStrength": "Header glow strength",
   "config.marieslib.moduleoptions.borderGlow": "Border glow",
   "config.marieslib.moduleoptions.borderGlowStrength": "Border glow strength",
   "config.marieslib.moduleoptions.barGlow": "Bar glow",

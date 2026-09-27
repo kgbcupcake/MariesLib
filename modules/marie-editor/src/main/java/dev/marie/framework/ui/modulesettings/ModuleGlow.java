@@ -18,6 +18,8 @@ public final class ModuleGlow {
     private static final String BORDER_SHADOW_SUFFIX = "#borderShadowStrength";
     private static final String TEXT_GLOW_COLOR_SUFFIX = "#textGlowColor";
     private static final String TEXT_GLOW_STRENGTH_SUFFIX = "#textGlowStrength";
+    private static final String HEADER_GLOW_COLOR_SUFFIX = "#headerGlowColor";
+    private static final String HEADER_GLOW_STRENGTH_SUFFIX = "#headerGlowStrength";
     private static final String BORDER_GLOW_COLOR_SUFFIX = "#borderGlowColor";
     private static final String BORDER_GLOW_STRENGTH_SUFFIX = "#borderGlowStrength";
     private static final String BAR_GLOW_COLOR_SUFFIX = "#barGlowColor";
@@ -58,6 +60,22 @@ public final class ModuleGlow {
         setStrength(p, panelId, TEXT_GLOW_STRENGTH_SUFFIX, value);
     }
 
+    public static int headerGlowColor(PersistenceProvider p, String panelId) {
+        return color(p, panelId, HEADER_GLOW_COLOR_SUFFIX);
+    }
+
+    public static void setHeaderGlowColor(PersistenceProvider p, String panelId, int rgb) {
+        setColor(p, panelId, HEADER_GLOW_COLOR_SUFFIX, rgb);
+    }
+
+    public static double headerGlowStrength(PersistenceProvider p, String panelId) {
+        return strength(p, panelId, HEADER_GLOW_STRENGTH_SUFFIX);
+    }
+
+    public static void setHeaderGlowStrength(PersistenceProvider p, String panelId, double value) {
+        setStrength(p, panelId, HEADER_GLOW_STRENGTH_SUFFIX, value);
+    }
+
     public static int borderGlowColor(PersistenceProvider p, String panelId) {
         return color(p, panelId, BORDER_GLOW_COLOR_SUFFIX);
     }
@@ -96,6 +114,8 @@ public final class ModuleGlow {
         p.remove(panelId + BORDER_SHADOW_SUFFIX);
         p.remove(panelId + TEXT_GLOW_COLOR_SUFFIX);
         p.remove(panelId + TEXT_GLOW_STRENGTH_SUFFIX);
+        p.remove(panelId + HEADER_GLOW_COLOR_SUFFIX);
+        p.remove(panelId + HEADER_GLOW_STRENGTH_SUFFIX);
         p.remove(panelId + BORDER_GLOW_COLOR_SUFFIX);
         p.remove(panelId + BORDER_GLOW_STRENGTH_SUFFIX);
         p.remove(panelId + BAR_GLOW_COLOR_SUFFIX);

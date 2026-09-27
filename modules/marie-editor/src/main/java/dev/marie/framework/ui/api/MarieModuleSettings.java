@@ -160,6 +160,47 @@ public final class MarieModuleSettings {
         return TextGlowRenderContext.wrap(context, store, panelId);
     }
 
+    /**
+     * Same, but for a module's header/title text specifically: glows with the dedicated Header glow
+     * setting (see {@link StandardPanelBuilder#withHeader}) instead of the body Text glow, since a
+     * header with its own offset is drawn through a separate context from the body anyway. No bar
+     * glow — a header never draws a bar.
+     */
+    public static RenderContext withHeaderTextEffects(RenderContext context, PersistenceProvider store, String panelId) {
+        return TextGlowRenderContext.wrapHeader(context, store, panelId);
+    }
+
+    /**
+     * Same, but for content that's conceptually a module's "bar" (moves/sizes with Move Bars/Bar
+     * size) yet is drawn as plain text rather than through {@link RenderContext#drawBar} — glows with
+     * Bar glow instead of Text glow, so it tracks the slider a player would expect to control it.
+     */
+    public static RenderContext withBarTextEffects(RenderContext context, PersistenceProvider store, String panelId) {
+        return TextGlowRenderContext.wrapBarText(context, store, panelId);
+    }
+
+    /**
+     * Raw Bar glow color/strength for {@code panelId} (see {@link ModuleGlow}), for a consumer that
+     * needs its own dedicated glow control outside a {@link StandardPanelBuilder} panel — e.g. one
+     * bar-glow slot per item in a multi-row module (a sibling grid of items each with their own glow,
+     * rather than one shared per-module setting a {@code withGlow()} panel would give).
+     */
+    public static int barGlowColor(PersistenceProvider store, String panelId) {
+        return ModuleGlow.barGlowColor(store, panelId);
+    }
+
+    public static void setBarGlowColor(PersistenceProvider store, String panelId, int rgb) {
+        ModuleGlow.setBarGlowColor(store, panelId, rgb);
+    }
+
+    public static double barGlowStrength(PersistenceProvider store, String panelId) {
+        return ModuleGlow.barGlowStrength(store, panelId);
+    }
+
+    public static void setBarGlowStrength(PersistenceProvider store, String panelId, double value) {
+        ModuleGlow.setBarGlowStrength(store, panelId, value);
+    }
+
     /** Where the module's icons sit relative to their default place. In memory; cheap to call every frame. */
     public static int iconOffsetX(PersistenceProvider store, String panelId) {
         return ModuleOffsets.iconX(store, panelId);

@@ -13,9 +13,9 @@ import dev.marie.framework.ui.RenderContext;
 @ApiStatus.Internal
 final class TextGlowRenderer {
 
-    private static final int[][] RINGS = {
-            {2, 0}, {-2, 0}, {0, 2}, {0, -2}, {1, 1}, {1, -1}, {-1, 1}, {-1, -1},
-            {1, 0}, {-1, 0}, {0, 1}, {0, -1}
+    /** Single 1px ring (8 directions) — a second, wider ring made the glow read as a blurry smear rather than a crisp outline. */
+    private static final int[][] RING = {
+            {1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {1, -1}, {-1, 1}, {-1, -1}
     };
 
     private TextGlowRenderer() {}
@@ -23,12 +23,10 @@ final class TextGlowRenderer {
     static void drawGlowAndShadow(RenderContext delegate, String text, int x, int y, float scale,
                                    double textGlowStrength, int textGlowColor, double textShadowStrength) {
         if (textGlowStrength > 0) {
-            int baseAlpha = Math.min(255, (int) Math.round(textGlowStrength * 200));
-            int glowRgb = textGlowColor & 0xFFFFFF;
-            for (int[] ring : RINGS) {
-                int dist = Math.max(Math.abs(ring[0]), Math.abs(ring[1]));
-                int ringAlpha = dist >= 2 ? baseAlpha / 3 : baseAlpha * 2 / 3;
-                delegate.drawText(text, x + ring[0], y + ring[1], (ringAlpha << 24) | glowRgb, scale);
+            int alpha = Math.min(255, (int) Math.round(textGlowStrength * 180));
+            int glowArgb = (alpha << 24) | (textGlowColor & 0xFFFFFF);
+            for (int[] offset : RING) {
+                delegate.drawText(text, x + offset[0], y + offset[1], glowArgb, scale);
             }
         }
         if (textShadowStrength > 0) {

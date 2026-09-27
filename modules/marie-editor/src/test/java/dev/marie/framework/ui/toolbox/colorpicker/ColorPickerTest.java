@@ -80,7 +80,9 @@ class ColorPickerTest {
         picker.setSlot(slot(value, sets, commits, 0x102030));
         Bounds b = new Bounds(0, 0, 150, 176);
         picker.render(counting(new ArrayList<>()), b);
-        // Ring: 12 o'clock-ish is unknown without layout, so scan for a ring hit.
+        // Ring: 12 o'clock-ish is unknown without layout, so scan for a ring hit. A click on the
+        // disc/slider starts a drag, so only a point where release also reports "handled" is one
+        // (a favorites-row button click also returns true from mouseClicked, but doesn't drag).
         double hitX = -1;
         double hitY = -1;
         outer:
@@ -89,7 +91,7 @@ class ColorPickerTest {
                 ColorPicker probe = new ColorPicker(() -> "Reset");
                 probe.setSlot(slot(new int[]{0xFF0000}, new AtomicInteger(), new AtomicInteger(), 0));
                 probe.render(counting(new ArrayList<>()), b);
-                if (probe.mouseClicked(x, y, 0)) {
+                if (probe.mouseClicked(x, y, 0) && probe.mouseReleased(x, y, 0)) {
                     hitX = x; hitY = y;
                     break outer;
                 }

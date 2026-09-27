@@ -26,7 +26,7 @@ import java.util.List;
 final class ColorFavorites {
 
     private static final Gson GSON = new Gson();
-    private static final Path FILE = FMLPaths.CONFIGDIR.get().resolve("marieslib-color-favorites.json");
+    private static final String FILE_NAME = "marieslib-color-favorites.json";
     /** Kept small enough to always fit the picker's fixed width in one row at any reasonable scale. */
     private static final int MAX = 10;
 
@@ -63,28 +63,39 @@ final class ColorFavorites {
             return;
         }
         cache = new ArrayList<>();
-        if (!Files.exists(FILE)) {
+        Path file = resolveFile();
+        if (file == null || !Files.exists(file)) {
             return;
         }
-        try (Reader r = Files.newBufferedReader(FILE)) {
+        try (Reader r = Files.newBufferedReader(file)) {
             Type type = new TypeToken<List<Integer>>() {}.getType();
             List<Integer> loaded = GSON.fromJson(r, type);
             if (loaded != null) {
                 cache.addAll(loaded);
             }
         } catch (IOException e) {
-            MarieCore.LOGGER.error("[MarieUI] Failed to load {}, discarding saved color favorites", FILE, e);
+            MarieCore.LOGGER.error("[MarieUI] Failed to load {}, discarding saved color favorites", file, e);
         }
     }
 
     private static void save() {
+        Path file = resolveFile();
+        if (file == null) {
+            return;
+        }
         try {
-            Files.createDirectories(FILE.getParent());
-            try (Writer w = Files.newBufferedWriter(FILE)) {
+            Files.createDirectories(file.getParent());
+            try (Writer w = Files.newBufferedWriter(file)) {
                 GSON.toJson(cache, w);
             }
         } catch (IOException e) {
-            MarieCore.LOGGER.error("[MarieUI] Failed to save {}", FILE, e);
+            MarieCore.LOGGER.error("[MarieUI] Failed to save {}", file, e);
         }
+    }
+
+    /** Resolved lazily per call, never cached in a static initializer: the config dir isn't available until FML has bootstrapped. */
+    private static Path resolveFile() {
+        Path dir = FMLPaths.CONFIGDIR.get();
+        return dir == null ? null : dir.resolve(FILE_NAME);
     }
 }
