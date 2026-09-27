@@ -15,6 +15,7 @@ import dev.marie.framework.ui.modulesettings.ModuleRenderContext;
 import dev.marie.framework.ui.modulesettings.ModuleScales;
 import dev.marie.framework.ui.modulesettings.ModuleStyle;
 import dev.marie.framework.ui.modulesettings.MoveFlags;
+import dev.marie.framework.ui.modulesettings.TextGlowRenderContext;
 import net.minecraft.network.chat.Component;
 
 import java.util.function.Consumer;
@@ -145,6 +146,18 @@ public final class MarieModuleSettings {
      */
     public static RenderContext withDisplaySettings(RenderContext context, PersistenceProvider store, String panelId, boolean iconFollowsText) {
         return ModuleRenderContext.wrap(context, store, panelId, iconFollowsText);
+    }
+
+    /**
+     * {@code context} with {@code panelId}'s Glow-tab text glow/shadow and bar glow applied — no
+     * position, scale or brightness change, unlike {@link #withDisplaySettings}. For a module whose
+     * renderer resolves its own text/icon/bar offsets and scale by hand (its own "Move"/"Size"
+     * sliders, read directly rather than through the wrapper) and therefore can't use {@link
+     * #withDisplaySettings} without those offsets being applied twice, but still wants Glow to work.
+     * {@code context} itself when every Glow setting is at its default (off).
+     */
+    public static RenderContext withTextEffects(RenderContext context, PersistenceProvider store, String panelId) {
+        return TextGlowRenderContext.wrap(context, store, panelId);
     }
 
     /** Where the module's icons sit relative to their default place. In memory; cheap to call every frame. */

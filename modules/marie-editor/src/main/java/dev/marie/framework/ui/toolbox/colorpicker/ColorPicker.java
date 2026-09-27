@@ -8,6 +8,8 @@ import dev.marie.framework.ui.component.Constraint;
 import dev.marie.framework.ui.component.MarieComponent;
 import dev.marie.framework.ui.geometry.Bounds;
 import dev.marie.framework.ui.toolbox.OptionStyle;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Supplier;
 
 /**
@@ -27,7 +29,7 @@ import java.util.function.Supplier;
 public final class ColorPicker implements MarieComponent {
 
     private static final float REF_WIDTH = 150f;
-    private static final float REF_HEIGHT = 176f;
+    private static final float REF_HEIGHT = 192f;
 
     private enum Drag { NONE, DISC, VALUE }
 
@@ -44,6 +46,8 @@ public final class ColorPicker implements MarieComponent {
     private int outerRadius;
     private Bounds valueBounds = new Bounds(0, 0, 0, 0);
     private Bounds resetBounds = new Bounds(0, 0, 0, 0);
+    private final List<Bounds> favoriteBounds = new ArrayList<>();
+    private Bounds addFavoriteBounds = new Bounds(0, 0, 0, 0);
 
     /** {@code resetCaption} supplies the (localized) text of the Reset button, read each frame. */
     public ColorPicker(Supplier<String> resetCaption) {
@@ -100,6 +104,8 @@ public final class ColorPicker implements MarieComponent {
         int top = bounds.y() + pad;
 
         drawReadout(context, left, top, rowH, textScale, rgb);
+        int favRowY = top + rowH + pad;
+        drawFavorites(context, left, favRowY, width, rowH, scale, textScale, rgb);
         int footY = bounds.y() + bounds.height() - pad - rowH;
         drawReset(context, left, footY, width, rowH, scale, textScale);
 
@@ -107,7 +113,7 @@ public final class ColorPicker implements MarieComponent {
         int sliderY = footY - pad - sliderH;
         valueBounds = new Bounds(left, sliderY, width, sliderH);
 
-        int midTop = top + rowH + pad;
+        int midTop = favRowY + rowH + pad;
         int midHeight = sliderY - pad - midTop;
         int diameter = Math.min(width, midHeight);
         if (diameter < 12) {
@@ -135,6 +141,38 @@ public final class ColorPicker implements MarieComponent {
         context.drawBorder(x, y + 1, swatch, swatch, 1, context.theme().color(ThemeKey.BORDER));
         String hex = HexColors.formatRgbHex(rgb);
         context.drawText(hex, x + swatch + 4, y + Math.max(0, (rowH - Math.round(8 * textScale)) / 2),
+                context.theme().color(ThemeKey.TEXT_PRIMARY), textScale);
+    }
+
+    /**
+     * A row of saved-color swatches (see {@link ColorFavorites}) plus a trailing "+" button that
+     * saves the picker's current color — the classic "custom colors" strip most color pickers have,
+     * so a shade used in one panel doesn't have to be re-dialed by eye in the next. Swatches beyond
+     * what fits {@code width} are simply not drawn (favorites are capped low enough that this only
+     * matters at extreme scale-down); left-click a swatch to apply it, right-click to remove it.
+     */
+    private void drawFavorites(RenderContext context, int x, int y, int width, int rowH, float scale, float textScale, int currentRgb) {
+        favoriteBounds.clear();
+        List<Integer> favorites = ColorFavorites.get();
+        int size = rowH;
+        int gap = Math.max(1, Math.round(2 * scale));
+        int addSize = size;
+        int maxSlots = Math.max(0, (width - addSize - gap) / (size + gap));
+        int shown = Math.min(favorites.size(), maxSlots);
+        int cx = x;
+        for (int i = 0; i < shown; i++) {
+            int fav = favorites.get(i);
+            Bounds b = new Bounds(cx, y, size, size);
+            favoriteBounds.add(b);
+            context.fillRect(b.x(), b.y(), b.width(), b.height(), 0xFF000000 | fav);
+            context.drawBorder(b.x(), b.y(), b.width(), b.height(), 1, context.theme().color(ThemeKey.BORDER));
+            cx += size + gap;
+        }
+        addFavoriteBounds = new Bounds(x + width - addSize, y, addSize, addSize);
+        context.drawRoundedRect(addFavoriteBounds.x(), addFavoriteBounds.y(), addSize, addSize, 1, Math.max(1, addSize / 4),
+                context.theme().color(ThemeKey.PANEL_BACKGROUND), context.theme().color(ThemeKey.BORDER));
+        context.drawText("+", addFavoriteBounds.x() + addSize / 2 - Math.round(2 * textScale),
+                addFavoriteBounds.y() + Math.max(0, (addSize - Math.round(8 * textScale)) / 2),
                 context.theme().color(ThemeKey.TEXT_PRIMARY), textScale);
     }
 
@@ -192,11 +230,32 @@ public final class ColorPicker implements MarieComponent {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button != 0 || slot == null) {
+        if (slot == null || (button != 0 && button != 1)) {
             return false;
         }
         int mx = (int) mouseX;
         int my = (int) mouseY;
+        for (int i = 0; i < favoriteBounds.size(); i++) {
+            if (!favoriteBounds.get(i).contains(mx, my)) {
+                continue;
+            }
+            int fav = ColorFavorites.get().get(i);
+            if (button == 1) {
+                ColorFavorites.remove(fav);
+            } else {
+                syncFrom(fav);
+                slot.setter().accept(fav);
+                slot.onCommit().run();
+            }
+            return true;
+        }
+        if (button == 0 && addFavoriteBounds.contains(mx, my)) {
+            ColorFavorites.add(slot.rgb());
+            return true;
+        }
+        if (button != 0) {
+            return false;
+        }
         if (resetBounds.contains(mx, my)) {
             syncFrom(slot.defaultValue() & 0xFFFFFF);
             slot.setter().accept(lastRgb);
