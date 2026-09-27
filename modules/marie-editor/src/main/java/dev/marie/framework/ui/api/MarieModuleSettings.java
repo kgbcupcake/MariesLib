@@ -201,6 +201,23 @@ public final class MarieModuleSettings {
         ModuleGlow.setBarGlowStrength(store, panelId, value);
     }
 
+    /** Same as {@link #barGlowColor}/{@link #setBarGlowColor} etc., for Text glow instead. */
+    public static int textGlowColor(PersistenceProvider store, String panelId) {
+        return ModuleGlow.textGlowColor(store, panelId);
+    }
+
+    public static void setTextGlowColor(PersistenceProvider store, String panelId, int rgb) {
+        ModuleGlow.setTextGlowColor(store, panelId, rgb);
+    }
+
+    public static double textGlowStrength(PersistenceProvider store, String panelId) {
+        return ModuleGlow.textGlowStrength(store, panelId);
+    }
+
+    public static void setTextGlowStrength(PersistenceProvider store, String panelId, double value) {
+        ModuleGlow.setTextGlowStrength(store, panelId, value);
+    }
+
     /** Where the module's icons sit relative to their default place. In memory; cheap to call every frame. */
     public static int iconOffsetX(PersistenceProvider store, String panelId) {
         return ModuleOffsets.iconX(store, panelId);

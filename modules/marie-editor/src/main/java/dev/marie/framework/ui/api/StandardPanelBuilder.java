@@ -63,6 +63,7 @@ public final class StandardPanelBuilder {
     private Consumer<MarieToolbox.PanelBuilder> layoutRows;
     private Consumer<MarieToolbox.PanelBuilder> behaviorRows;
     private Consumer<MarieToolbox.PanelBuilder> styleRows;
+    private Consumer<MarieToolbox.PanelBuilder> glowRows;
     private Consumer<MarieToolbox.PanelBuilder> extraTabs;
 
     StandardPanelBuilder(String title, PersistenceProvider store, String panelId) {
@@ -363,6 +364,19 @@ public final class StandardPanelBuilder {
     }
 
     /**
+     * Lets the caller add rows of its own to the end of the Glow tab (no-op if {@link #withGlow} was
+     * never called, since there's then no Glow tab for it to land on); {@code rows} receives the
+     * builder once, when {@link #build()} runs, positioned after the standard Text/Header/Border/Bar
+     * glow rows. Typically used with {@link MarieToolbox.PanelBuilder#openSection}/{@code
+     * closeSection} to group extra glow controls under a collapsible heading (e.g. one per item in a
+     * multi-row module, each with its own dedicated glow) rather than a flat run of rows.
+     */
+    public StandardPanelBuilder glowRows(Consumer<MarieToolbox.PanelBuilder> rows) {
+        this.glowRows = rows;
+        return this;
+    }
+
+    /**
      * Lets the caller append tabs of its own after the standard ones (e.g. a {@code colorTab}); {@code more}
      * receives the builder once, when {@link #build()} runs, positioned after the last standard tab.
      */
@@ -509,6 +523,9 @@ public final class StandardPanelBuilder {
                 panel.slider(text("config.marieslib.moduleoptions.barGlowStrength"),
                         () -> ModuleGlow.barGlowStrength(store, panelId), v -> ModuleGlow.setBarGlowStrength(store, panelId, v),
                         0.0d, 1.0d, 0.01d, onCommit).defaultValue(0.0d);
+            }
+            if (glowRows != null) {
+                glowRows.accept(panel);
             }
         }
         if (extraTabs != null) {

@@ -47,6 +47,12 @@ public final class BrightnessRenderContext implements RenderContext {
         delegate.drawText(text, x, y, scale(argbColor, textBrightness), scale);
     }
 
+    /** Forwards to {@code delegate} unchanged — brightness has no bearing on the glow, and without this override calls through this wrapper would silently fall back to {@link RenderContext}'s plain-offset default instead of reaching whatever real implementation {@code delegate} eventually provides. */
+    @Override
+    public void drawTextGlow(String text, int x, int y, float scale, int glowColor, double strength) {
+        delegate.drawTextGlow(text, x, y, scale, glowColor, strength);
+    }
+
     @Override
     public void drawItem(ItemStack stack, int x, int y, float scale) {
         float tint = (float) iconBrightness;

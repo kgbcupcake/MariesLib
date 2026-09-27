@@ -137,6 +137,21 @@ public final class ModuleRenderContext implements RenderContext {
         delegate.drawText(text, drawX, drawY, BrightnessRenderContext.scale(argbColor, textBrightness), scale);
     }
 
+    /**
+     * Forwards to {@code delegate} with the same text offset/hide handling as {@link #drawText} —
+     * nothing in this codebase calls this directly on a {@code ModuleRenderContext} today (it only
+     * ever reaches {@code delegate} via {@link TextGlowRenderer} inside {@link #drawText} above), but
+     * without this override a future direct call would silently fall back to {@link
+     * RenderContext}'s plain-offset default instead of this module's offset and hide rules.
+     */
+    @Override
+    public void drawTextGlow(String text, int x, int y, float scale, int glowColor, double strength) {
+        if (hideText || hideWindow) {
+            return;
+        }
+        delegate.drawTextGlow(text, x + textDx, y + textDy, scale, glowColor, strength);
+    }
+
     @Override
     public void drawItem(ItemStack stack, int x, int y, float scale) {
         if (hideIcons || hideWindow) {

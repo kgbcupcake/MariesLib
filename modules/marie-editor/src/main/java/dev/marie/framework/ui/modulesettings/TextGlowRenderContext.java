@@ -87,6 +87,12 @@ public final class TextGlowRenderContext implements RenderContext {
         delegate.drawText(text, x, y, argbColor, scale);
     }
 
+    /** Forwards to {@code delegate} unchanged — see {@link BrightnessRenderContext#drawTextGlow} for why this override exists at all. */
+    @Override
+    public void drawTextGlow(String text, int x, int y, float scale, int glowColor, double strength) {
+        delegate.drawTextGlow(text, x, y, scale, glowColor, strength);
+    }
+
     @Override
     public void drawItem(ItemStack stack, int x, int y, float scale) {
         delegate.drawItem(stack, x, y, scale);

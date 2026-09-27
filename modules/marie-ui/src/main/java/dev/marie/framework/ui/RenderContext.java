@@ -39,6 +39,31 @@ public interface RenderContext {
     void drawGlow(int x, int y, int width, int height, int argbColor);
 
     /**
+     * Draws a soft glow behind {@code text}'s glyphs — the caller still draws the real, crisp text
+     * itself afterward at {@code (x, y)}; this only draws what sits behind it. Unlike {@link
+     * #drawGlow}, which glows a plain rectangle, this follows the actual letter shapes.
+     *
+     * <p>This interface has no offscreen-buffer or shader capability of its own to blur with, so the
+     * default implementation only approximates a glow with a few 1px-offset copies of the text — a
+     * host capable of rendering to an off-screen texture (see {@code GuiGraphicsRenderContext})
+     * overrides this with a real blurred halo instead. A decorator wrapping another {@code
+     * RenderContext} (e.g. one applying an offset/brightness/hide rule before delegating) must
+     * override this too and forward to its own delegate, or calls through it silently fall back to
+     * this default and never reach the real implementation further down the chain.
+     */
+    default void drawTextGlow(String text, int x, int y, float scale, int glowColor, double strength) {
+        if (strength <= 0) {
+            return;
+        }
+        int alpha = Math.min(255, (int) Math.round(strength * 130));
+        int argb = (alpha << 24) | (glowColor & 0xFFFFFF);
+        drawText(text, x + 1, y, argb, scale);
+        drawText(text, x - 1, y, argb, scale);
+        drawText(text, x, y + 1, argb, scale);
+        drawText(text, x, y - 1, argb, scale);
+    }
+
+    /**
      * Rounded rectangle with a real corner {@code radius} (in pixels): each corner is a stepped quarter
      * circle (for example radius 4 cuts 2, 1, 1, 0 pixels from the first four rows), unlike the
      * fixed one-pixel notch of the overload without a radius. {@code thickness} is the border band
