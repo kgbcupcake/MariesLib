@@ -134,8 +134,20 @@ public final class ModuleRenderContext implements RenderContext {
         int height = Math.round(9 * scale);
         ModuleExtents.add(store, panelId, ModuleExtents.Kind.TEXT, drawX, drawY, width, height);
         if (textGlowStrength > 0) {
-            int alpha = Math.min(255, (int) Math.round(textGlowStrength * 255));
-            delegate.drawGlow(drawX, drawY, width, height, (alpha << 24) | (textGlowColor & 0xFFFFFF));
+            // Redraws the glyphs themselves at radiating offsets instead of a rectangle behind them
+            // (what `drawGlow` does for boxes/bars) — a filled rect glows around the text's bounding
+            // box, not the letter shapes, which reads as a glowing box rather than glowing text.
+            int baseAlpha = Math.min(255, (int) Math.round(textGlowStrength * 200));
+            int glowRgb = textGlowColor & 0xFFFFFF;
+            int[][] rings = {
+                    {2, 0}, {-2, 0}, {0, 2}, {0, -2}, {1, 1}, {1, -1}, {-1, 1}, {-1, -1},
+                    {1, 0}, {-1, 0}, {0, 1}, {0, -1}
+            };
+            for (int[] ring : rings) {
+                int dist = Math.max(Math.abs(ring[0]), Math.abs(ring[1]));
+                int ringAlpha = dist >= 2 ? baseAlpha / 3 : baseAlpha * 2 / 3;
+                delegate.drawText(text, drawX + ring[0], drawY + ring[1], (ringAlpha << 24) | glowRgb, scale);
+            }
         }
         if (textShadowStrength > 0) {
             int alpha = Math.min(255, (int) Math.round(textShadowStrength * 255));
