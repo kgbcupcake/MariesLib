@@ -51,6 +51,7 @@ public final class StandardPanelBuilder {
     private boolean iconInnerSize;
     private boolean shadow;
     private boolean glow;
+    private boolean barGlow = true;
     private boolean ownStyle;
     private String textSizeLabelKey;
     private String headerSizeLabelKey;
@@ -315,6 +316,18 @@ public final class StandardPanelBuilder {
     }
 
     /**
+     * Drops the panel-wide Bar glow row the Glow tab would otherwise add for a module {@link #bars
+     * has bars} — for a module made up of several independently-glowable bars (e.g. the Nutrient
+     * HUD, whose {@link #glowRows} adds one Bar glow per nutrient) where a single panel-wide Bar glow
+     * on top would be a redundant, ambiguous third setting alongside those. Text/Header/Border glow
+     * are unaffected.
+     */
+    public StandardPanelBuilder withoutBarGlow() {
+        this.barGlow = false;
+        return this;
+    }
+
+    /**
      * Adds self-contained Background opacity/shade and Border opacity/shade sliders — no config field
      * needed — for a module with no background/border color of its own to bind {@link #opacity}/
      * {@link #backgroundShade}/{@link #borderOpacity}/{@link #borderShade} to. Read the values back
@@ -496,27 +509,20 @@ public final class StandardPanelBuilder {
         }
         if (glow) {
             panel.tab(text("config.marieslib.moduleoptions.tab.glow"));
-            panel.color(text("config.marieslib.moduleoptions.textGlow"),
-                    () -> ModuleGlow.textGlowColor(store, panelId), rgb -> ModuleGlow.setTextGlowColor(store, panelId, rgb),
-                    0xFFFFFF, onCommit);
-            panel.slider(text("config.marieslib.moduleoptions.textGlowStrength"),
-                    () -> ModuleGlow.textGlowStrength(store, panelId), v -> ModuleGlow.setTextGlowStrength(store, panelId, v),
-                    0.0d, 1.0d, 0.01d, onCommit).defaultValue(0.0d);
-            if (header) {
-                panel.color(text("config.marieslib.moduleoptions.headerGlow"),
-                        () -> ModuleGlow.headerGlowColor(store, panelId), rgb -> ModuleGlow.setHeaderGlowColor(store, panelId, rgb),
-                        0xFFFFFF, onCommit);
-                panel.slider(text("config.marieslib.moduleoptions.headerGlowStrength"),
-                        () -> ModuleGlow.headerGlowStrength(store, panelId), v -> ModuleGlow.setHeaderGlowStrength(store, panelId, v),
-                        0.0d, 1.0d, 0.01d, onCommit).defaultValue(0.0d);
-            }
+            // Text glow and Header glow (glyph-shaped, drawn as offset copies of the letters) are
+            // deliberately not offered: at Minecraft's small UI font size the offsets cover the whole
+            // glyph, so it reads as the text's color being replaced by the glow color rather than an
+            // outline framing it — not fixable by tuning, a real soft blur would need an offscreen
+            // render target, and a first attempt at that corrupted the game's rendering outright.
+            // Border glow and Bar glow (plain rectangle outlines, not glyph-shaped) don't have this
+            // problem and stay.
             panel.color(text("config.marieslib.moduleoptions.borderGlow"),
                     () -> ModuleGlow.borderGlowColor(store, panelId), rgb -> ModuleGlow.setBorderGlowColor(store, panelId, rgb),
                     0xFFFFFF, onCommit);
             panel.slider(text("config.marieslib.moduleoptions.borderGlowStrength"),
                     () -> ModuleGlow.borderGlowStrength(store, panelId), v -> ModuleGlow.setBorderGlowStrength(store, panelId, v),
                     0.0d, 1.0d, 0.01d, onCommit).defaultValue(0.0d);
-            if (bars) {
+            if (bars && barGlow) {
                 panel.color(text("config.marieslib.moduleoptions.barGlow"),
                         () -> ModuleGlow.barGlowColor(store, panelId), rgb -> ModuleGlow.setBarGlowColor(store, panelId, rgb),
                         0xFFFFFF, onCommit);

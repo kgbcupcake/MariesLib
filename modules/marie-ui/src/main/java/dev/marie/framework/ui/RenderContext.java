@@ -39,28 +39,35 @@ public interface RenderContext {
     void drawGlow(int x, int y, int width, int height, int argbColor);
 
     /**
-     * Draws a soft glow behind {@code text}'s glyphs — the caller still draws the real, crisp text
-     * itself afterward at {@code (x, y)}; this only draws what sits behind it. Unlike {@link
-     * #drawGlow}, which glows a plain rectangle, this follows the actual letter shapes.
+     * Draws a solid colored outline behind {@code text}'s glyphs — the caller still draws the real
+     * text itself afterward at {@code (x, y)}; this only draws what sits behind it. Unlike {@link
+     * #drawGlow}, which outlines a plain rectangle, this follows the actual letter shapes.
      *
-     * <p>This interface has no offscreen-buffer or shader capability of its own to blur with, so the
-     * default implementation only approximates a glow with a few 1px-offset copies of the text — a
-     * host capable of rendering to an off-screen texture (see {@code GuiGraphicsRenderContext})
-     * overrides this with a real blurred halo instead. A decorator wrapping another {@code
-     * RenderContext} (e.g. one applying an offset/brightness/hide rule before delegating) must
-     * override this too and forward to its own delegate, or calls through it silently fall back to
-     * this default and never reach the real implementation further down the chain.
+     * <p>This is deliberately a crisp outline, not a soft blurred halo: this interface has no
+     * offscreen-buffer or shader capability to blur with (only immediate-mode fills and text draws),
+     * and approximating a soft glow by stacking <em>translucent</em> offset copies of the same glyphs
+     * reads as a muddy smear rather than a glow once more than one copy overlaps the same pixel — a
+     * real blur needs an actual render-to-texture pass, which is a much larger, riskier piece of
+     * platform-specific rendering to get right blind. Drawing the offsets at (near) full opacity
+     * instead sidesteps that entirely: overlapping opaque copies just paint the same solid color
+     * again, so the result is a clean, reliable stroke around the letters at any strength. {@code
+     * strength} still fades the outline in from transparent, it just reaches solid well before 100%.
+     *
+     * <p>A decorator wrapping another {@code RenderContext} (e.g. one applying an offset/brightness/
+     * hide rule before delegating) must override this too and forward to its own delegate, or calls
+     * through it silently fall back to this default and never reach the real implementation further
+     * down the chain.
      */
     default void drawTextGlow(String text, int x, int y, float scale, int glowColor, double strength) {
         if (strength <= 0) {
             return;
         }
-        int alpha = Math.min(255, (int) Math.round(strength * 130));
+        int alpha = Math.min(255, (int) Math.round(strength * 255));
         int argb = (alpha << 24) | (glowColor & 0xFFFFFF);
-        drawText(text, x + 1, y, argb, scale);
-        drawText(text, x - 1, y, argb, scale);
-        drawText(text, x, y + 1, argb, scale);
-        drawText(text, x, y - 1, argb, scale);
+        int[][] ring = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {1, -1}, {-1, 1}, {-1, -1}};
+        for (int[] offset : ring) {
+            drawText(text, x + offset[0], y + offset[1], argb, scale);
+        }
     }
 
     /**

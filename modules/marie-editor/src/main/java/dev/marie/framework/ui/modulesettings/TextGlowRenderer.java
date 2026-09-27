@@ -5,11 +5,10 @@ import dev.marie.framework.ui.RenderContext;
 
 /**
  * Shared glow/shadow draw logic for {@link ModuleRenderContext} and {@link TextGlowRenderContext}.
- * The glow itself is delegated to {@link RenderContext#drawTextGlow} — a real blurred halo on a host
- * capable of off-screen rendering ({@code GuiGraphicsRenderContext}), or a plain offset-copy
- * approximation otherwise — so the actual glow technique lives in exactly one place regardless of
- * which wrapper reaches it. The shadow is simple enough (one dark copy, no blur expected of it) to
- * keep drawing directly here rather than through another indirection.
+ * The glow itself is delegated to {@link RenderContext#drawTextGlow} (a crisp solid outline around
+ * the glyphs — see its doc for why this is deliberately not a soft blur) so the actual technique
+ * lives in exactly one place regardless of which wrapper reaches it. The shadow is simple enough
+ * (one dark copy) to keep drawing directly here rather than through another indirection.
  */
 @ApiStatus.Internal
 final class TextGlowRenderer {

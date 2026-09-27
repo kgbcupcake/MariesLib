@@ -48,23 +48,6 @@ public final class TextGlowRenderContext implements RenderContext {
     }
 
     /**
-     * Same, but {@code drawText} glows with the module's dedicated Header glow (see {@link
-     * ModuleGlow#headerGlowStrength}) instead of its body Text glow — for a module whose header/title
-     * is drawn separately from its body content (its own "Move Header"/"Header size" offset, read by
-     * hand outside any wrapper) and needs its own glow rather than sharing the body's. No bar glow:
-     * a header never draws a bar.
-     */
-    public static RenderContext wrapHeader(RenderContext delegate, PersistenceProvider store, String panelId) {
-        double textShadowStrength = ModuleGlow.textShadowStrength(store, panelId);
-        double headerGlowStrength = ModuleGlow.headerGlowStrength(store, panelId);
-        if (textShadowStrength <= 0 && headerGlowStrength <= 0) {
-            return delegate;
-        }
-        int headerGlowColor = ModuleGlow.headerGlowColor(store, panelId);
-        return new TextGlowRenderContext(delegate, textShadowStrength, headerGlowStrength, headerGlowColor, 0, 0);
-    }
-
-    /**
      * Same, but {@code drawText} glows with the module's Bar glow instead of its body Text glow — for
      * a module whose renderer draws what's conceptually its "bar" content as plain text rather than
      * through {@link RenderContext#drawBar} (e.g. Recent Meals' row names, which move/size with "Move

@@ -161,16 +161,6 @@ public final class MarieModuleSettings {
     }
 
     /**
-     * Same, but for a module's header/title text specifically: glows with the dedicated Header glow
-     * setting (see {@link StandardPanelBuilder#withHeader}) instead of the body Text glow, since a
-     * header with its own offset is drawn through a separate context from the body anyway. No bar
-     * glow — a header never draws a bar.
-     */
-    public static RenderContext withHeaderTextEffects(RenderContext context, PersistenceProvider store, String panelId) {
-        return TextGlowRenderContext.wrapHeader(context, store, panelId);
-    }
-
-    /**
      * Same, but for content that's conceptually a module's "bar" (moves/sizes with Move Bars/Bar
      * size) yet is drawn as plain text rather than through {@link RenderContext#drawBar} — glows with
      * Bar glow instead of Text glow, so it tracks the slider a player would expect to control it.

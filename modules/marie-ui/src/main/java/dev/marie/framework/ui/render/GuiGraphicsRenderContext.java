@@ -1,24 +1,12 @@
 package dev.marie.framework.ui.render;
 
-import com.mojang.blaze3d.pipeline.TextureTarget;
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.BufferUploader;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.Tesselator;
-import com.mojang.blaze3d.vertex.VertexFormat;
-import com.mojang.blaze3d.vertex.VertexSorting;
 import dev.marie.framework.ui.RenderContext;
 import dev.marie.framework.ui.Theme;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemStack;
-import org.joml.Matrix4f;
-import org.joml.Matrix4fStack;
-import org.lwjgl.opengl.GL11;
 
 import java.util.ArrayDeque;
 
@@ -120,120 +108,6 @@ public final class GuiGraphicsRenderContext implements RenderContext {
             graphics.fill(rx, ry + 1, rx + 1, ry + rh - 1, ringColor);
             graphics.fill(rx + rw - 1, ry + 1, rx + rw, ry + rh - 1, ringColor);
         }
-    }
-
-    /** Padding (local, pre-scale pixels) reserved around the glyphs in the offscreen texture so the blurred passes below have room to spread into instead of clipping at the texture edge. */
-    private static final int GLOW_TEXTURE_PADDING = 4;
-    /** Composited back at each of these scale factors (of the small glyph texture) with the paired alpha fraction — larger/fainter passes underneath a smaller/stronger one approximate a soft radial falloff via hardware bilinear upsampling, since this pipeline has no real blur shader. */
-    private static final float[] GLOW_PASS_SCALES = {2.2f, 1.6f, 1.15f};
-    private static final float[] GLOW_PASS_ALPHA_FRACTIONS = {0.16f, 0.30f, 0.55f};
-
-    /**
-     * Real blurred glow, unlike the interface's plain offset-copy default: renders {@code text} into
-     * a small offscreen texture, then composites that texture back over the real screen position at a
-     * few increasing scales with decreasing alpha — magnifying a small texture with bilinear filtering
-     * softens it, which is the closest approximation to an actual blur this pipeline can do without a
-     * dedicated blur shader. The real crisp text is not drawn here; the caller still draws it on top
-     * afterward, same contract as every other {@code drawTextGlow} implementation.
-     *
-     * <p>Allocates and destroys a GL framebuffer+texture on every call — correctness-first for now;
-     * a hot path calling this every frame for several simultaneously-glowing texts is a real
-     * candidate for caching a reusable target later, but isn't done here yet.
-     */
-    @Override
-    public void drawTextGlow(String text, int x, int y, float scale, int glowColor, double strength) {
-        if (strength <= 0 || text.isEmpty()) {
-            return;
-        }
-        int rawWidth = minecraft.font.width(text);
-        if (rawWidth <= 0) {
-            return;
-        }
-        int texW = rawWidth + GLOW_TEXTURE_PADDING * 2;
-        int texH = 9 + GLOW_TEXTURE_PADDING * 2;
-
-        TextureTarget target = new TextureTarget(texW, texH, false, Minecraft.ON_OSX);
-        try {
-            renderGlyphsToTexture(target, text, texW, texH);
-            compositeGlowPasses(target, x, y, texW, texH, glowColor, strength);
-        } finally {
-            target.destroyBuffers();
-        }
-    }
-
-    /**
-     * Renders {@code text} (plain white — the glow color is applied later while compositing, via
-     * per-vertex tint) into {@code target}, then restores the main render target/viewport/projection
-     * exactly as {@link net.minecraft.client.renderer.GameRenderer} itself does after its own
-     * off-screen post-effect passes — every state change here MUST be undone before returning,
-     * regardless of how drawString behaves, or every draw call for the rest of this frame (ours and
-     * every other mod's) inherits a wrong projection/viewport pointed at a since-destroyed texture.
-     */
-    private void renderGlyphsToTexture(TextureTarget target, String text, int texW, int texH) {
-        target.setClearColor(1f, 1f, 1f, 0f);
-        target.clear(Minecraft.ON_OSX);
-        target.setFilterMode(GL11.GL_LINEAR);
-        target.bindWrite(true);
-        RenderSystem.backupProjectionMatrix();
-        try {
-            Matrix4f projection = new Matrix4f().setOrtho(0f, texW, texH, 0f, 1000f, 21000f);
-            RenderSystem.setProjectionMatrix(projection, VertexSorting.ORTHOGRAPHIC_Z);
-            Matrix4fStack modelView = RenderSystem.getModelViewStack();
-            modelView.pushMatrix();
-            try {
-                modelView.translation(0f, 0f, -11000f);
-                RenderSystem.applyModelViewMatrix();
-                GuiGraphics inner = new GuiGraphics(minecraft, minecraft.renderBuffers().bufferSource());
-                inner.drawString(minecraft.font, text, GLOW_TEXTURE_PADDING, GLOW_TEXTURE_PADDING, 0xFFFFFFFF, false);
-                inner.flush();
-            } finally {
-                modelView.popMatrix();
-                RenderSystem.applyModelViewMatrix();
-            }
-        } finally {
-            RenderSystem.restoreProjectionMatrix();
-            target.unbindWrite();
-            minecraft.getMainRenderTarget().bindWrite(true);
-        }
-    }
-
-    /** Blits {@code target}'s glyph texture back over the real on-screen position at {@link #GLOW_PASS_SCALES}, tinted by {@code glowColor} and scaled by {@code strength}. */
-    private void compositeGlowPasses(TextureTarget target, int x, int y, int texW, int texH, int glowColor, double strength) {
-        int baseAlpha = Math.min(255, (int) Math.round(strength * 255));
-        for (int i = 0; i < GLOW_PASS_SCALES.length; i++) {
-            int alpha = Math.round(baseAlpha * GLOW_PASS_ALPHA_FRACTIONS[i]);
-            if (alpha <= 0) {
-                continue;
-            }
-            float s = GLOW_PASS_SCALES[i];
-            float w = texW * s;
-            float h = texH * s;
-            float dx = x - GLOW_TEXTURE_PADDING + (texW - w) / 2f;
-            float dy = y - GLOW_TEXTURE_PADDING + (texH - h) / 2f;
-            blitTintedTexture(target.getColorTextureId(), dx, dy, w, h, (alpha << 24) | (glowColor & 0xFFFFFF));
-        }
-        RenderSystem.disableBlend();
-    }
-
-    /** A tinted textured quad at the current pose — the same shader/vertex format {@code GuiGraphics#innerBlit} uses, just against a raw GL texture id instead of a registered {@link net.minecraft.resources.ResourceLocation}. */
-    private void blitTintedTexture(int glTextureId, float x, float y, float width, float height, int argbColor) {
-        RenderSystem.setShaderTexture(0, glTextureId);
-        RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-        float a = ((argbColor >>> 24) & 0xFF) / 255f;
-        float r = ((argbColor >>> 16) & 0xFF) / 255f;
-        float g = ((argbColor >>> 8) & 0xFF) / 255f;
-        float b = (argbColor & 0xFF) / 255f;
-        Matrix4f matrix4f = graphics.pose().last().pose();
-        float x2 = x + width;
-        float y2 = y + height;
-        BufferBuilder bufferbuilder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
-        bufferbuilder.addVertex(matrix4f, x, y, 0f).setUv(0f, 0f).setColor(r, g, b, a);
-        bufferbuilder.addVertex(matrix4f, x, y2, 0f).setUv(0f, 1f).setColor(r, g, b, a);
-        bufferbuilder.addVertex(matrix4f, x2, y2, 0f).setUv(1f, 1f).setColor(r, g, b, a);
-        bufferbuilder.addVertex(matrix4f, x2, y, 0f).setUv(1f, 0f).setColor(r, g, b, a);
-        BufferUploader.drawWithShader(bufferbuilder.buildOrThrow());
     }
 
     @Override
