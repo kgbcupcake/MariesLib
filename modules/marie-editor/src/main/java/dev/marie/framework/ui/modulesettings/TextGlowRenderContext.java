@@ -4,6 +4,8 @@ import dev.marie.framework.api.ApiStatus;
 import dev.marie.framework.ui.PersistenceProvider;
 import dev.marie.framework.ui.RenderContext;
 import dev.marie.framework.ui.Theme;
+import net.minecraft.core.Holder;
+import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.item.ItemStack;
 
 /**
@@ -79,6 +81,11 @@ public final class TextGlowRenderContext implements RenderContext {
     @Override
     public void drawItem(ItemStack stack, int x, int y, float scale) {
         delegate.drawItem(stack, x, y, scale);
+    }
+
+    @Override
+    public void drawEffectIcon(Holder<MobEffect> effect, int x, int y, float scale) {
+        delegate.drawEffectIcon(effect, x, y, scale);
     }
 
     @Override

@@ -57,6 +57,8 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
     private final IntSupplier overlayColorSupplier;
     /** Nullable — see {@link #render}; a row that doesn't pass one compares {@link #currentFillSupplier} against {@link #previousFillSupplier} for the trend arrow, same as before this field existed. */
     private final DoubleSupplier trendCurrentSupplier;
+    /** Nullable — the icon's box uses {@link #boxBorderColorSupplier} when absent. */
+    private final IntSupplier iconBorderColorSupplier;
 
     public BarRowComponent(
             String id,
@@ -156,6 +158,40 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
             IntSupplier overlayColorSupplier,
             DoubleSupplier trendCurrentSupplier
     ) {
+        this(id, store, resolvedBounds, visible, naturalLocalWidth, naturalLocalHeight, contentScale, percentDimAlpha,
+                iconSupplier, labelSupplier, labelColorSupplier, currentFillSupplier, previousFillSupplier,
+                fillColorSupplier, trackColorSupplier, percentColorSupplier,
+                arrowUpColorSupplier, arrowDownColorSupplier, boxFillColorSupplier, boxBorderColorSupplier,
+                overlayColorSupplier, trendCurrentSupplier, null);
+    }
+
+    /** Same as above, plus a separate border color for the icon's box; {@code null} reuses the row border. */
+    public BarRowComponent(
+            String id,
+            PersistenceProvider store,
+            Bounds resolvedBounds,
+            boolean visible,
+            int naturalLocalWidth,
+            int naturalLocalHeight,
+            double contentScale,
+            int percentDimAlpha,
+            Supplier<ItemStack> iconSupplier,
+            Supplier<String> labelSupplier,
+            IntSupplier labelColorSupplier,
+            DoubleSupplier currentFillSupplier,
+            DoubleSupplier previousFillSupplier,
+            IntSupplier fillColorSupplier,
+            IntSupplier trackColorSupplier,
+            IntSupplier percentColorSupplier,
+            IntSupplier arrowUpColorSupplier,
+            IntSupplier arrowDownColorSupplier,
+            IntSupplier boxFillColorSupplier,
+            IntSupplier boxBorderColorSupplier,
+            IntSupplier overlayColorSupplier,
+            DoubleSupplier trendCurrentSupplier,
+            IntSupplier iconBorderColorSupplier
+    ) {
+        this.iconBorderColorSupplier = iconBorderColorSupplier;
         this.id = id;
         this.store = store;
         this.resolvedBounds = resolvedBounds;
@@ -249,7 +285,9 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
         // behind at the un-shifted position.
         int iconOffX = MarieModuleSettings.iconOffsetX(store, id);
         int iconOffY = MarieModuleSettings.iconOffsetY(store, id);
-        context.drawRoundedRect(iconX + iconOffX, iconY + iconOffY, iconSize, iconSize, 1, boxFill, boxBorder);
+        int iconBorder = iconBorderColorSupplier == null ? boxBorder
+                : MarieModuleSettings.styledBorder(iconBorderColorSupplier.getAsInt(), store, id);
+        context.drawRoundedRect(iconX + iconOffX, iconY + iconOffY, iconSize, iconSize, 1, boxFill, iconBorder);
         // `context` here is the withDisplaySettings-wrapped RenderContext, whose drawItem already
         // multiplies whatever scale it's given by iconScale/textScale internally (see
         // ModuleRenderContext#drawItem) — so the argument must be on the TEXT-scale timeline

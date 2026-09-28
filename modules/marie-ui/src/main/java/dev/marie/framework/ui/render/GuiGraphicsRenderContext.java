@@ -5,7 +5,10 @@ import dev.marie.framework.ui.RenderContext;
 import dev.marie.framework.ui.Theme;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.core.Holder;
 import net.minecraft.util.Mth;
+import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayDeque;
@@ -154,6 +157,20 @@ public final class GuiGraphicsRenderContext implements RenderContext {
             pose.translate(x, y, 0);
             pose.scale(scale, scale, 1f);
             graphics.renderItem(stack, 0, 0);
+        } finally {
+            pose.popPose();
+        }
+    }
+
+    @Override
+    public void drawEffectIcon(Holder<MobEffect> effect, int x, int y, float scale) {
+        TextureAtlasSprite sprite = minecraft.getMobEffectTextures().get(effect);
+        PoseStack pose = graphics.pose();
+        pose.pushPose();
+        try {
+            pose.translate(x, y, 0);
+            pose.scale(scale, scale, 1f);
+            graphics.blit(0, 0, 0, 16, 16, sprite);
         } finally {
             pose.popPose();
         }

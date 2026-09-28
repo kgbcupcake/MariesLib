@@ -283,6 +283,17 @@ public final class MarieModuleSettings {
     }
 
     /**
+     * Records that the module drew part of its icon group at this screen rectangle (after {@link #iconOffsetX}/{@link
+     * #iconOffsetY}), for something that moves with the icons but isn't drawn through {@link RenderContext#drawItem}/
+     * {@link RenderContext#drawEffectIcon} (e.g. a marker glyph beside each icon), so {@link #moveOutline}'s
+     * {@link MoveDrag.Mode#ICONS}/{@link MoveDrag.Mode#ALL} outline covers it. Call after {@link #withDisplaySettings}
+     * in the same render.
+     */
+    public static void recordIconExtent(PersistenceProvider store, String panelId, int x, int y, int width, int height) {
+        ModuleExtents.add(store, panelId, ModuleExtents.Kind.ICON, x, y, width, height);
+    }
+
+    /**
      * Records that the module drew its header at this screen rectangle (after {@link #headerOffsetX}/{@link
      * #headerOffsetY}), for a module with {@link StandardPanelBuilder#withHeader} whose header is a separate draw
      * call from the rest of its text (so it isn't already covered by {@link #withDisplaySettings}'s own text

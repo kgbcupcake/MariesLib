@@ -5,6 +5,8 @@ import dev.marie.framework.api.ApiStatus;
 import dev.marie.framework.ui.PersistenceProvider;
 import dev.marie.framework.ui.RenderContext;
 import dev.marie.framework.ui.Theme;
+import net.minecraft.core.Holder;
+import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.item.ItemStack;
 
 /**
@@ -154,6 +156,20 @@ public final class ModuleRenderContext implements RenderContext {
 
     @Override
     public void drawItem(ItemStack stack, int x, int y, float scale) {
+        drawIcon(x, y, scale, (drawX, drawY, drawScale) -> delegate.drawItem(stack, drawX, drawY, drawScale));
+    }
+
+    /** Same icon offset/size/brightness/hide handling as {@link #drawItem}, so a module's effect icons move under "Move Icons" like its item icons do. */
+    @Override
+    public void drawEffectIcon(Holder<MobEffect> effect, int x, int y, float scale) {
+        drawIcon(x, y, scale, (drawX, drawY, drawScale) -> delegate.drawEffectIcon(effect, drawX, drawY, drawScale));
+    }
+
+    private interface IconDraw {
+        void draw(int x, int y, float scale);
+    }
+
+    private void drawIcon(int x, int y, float scale, IconDraw draw) {
         if (hideIcons || hideWindow) {
             return;
         }
@@ -161,13 +177,13 @@ public final class ModuleRenderContext implements RenderContext {
         ModuleExtents.add(store, panelId, ModuleExtents.Kind.ICON, x + iconDx, y + iconDy, Math.round(16 * drawScale), Math.round(16 * drawScale));
         if (iconBrightness == 1.0d) {
             // No tint to apply, and setting the shader color would overwrite a fade the host has set.
-            delegate.drawItem(stack, x + iconDx, y + iconDy, drawScale);
+            draw.draw(x + iconDx, y + iconDy, drawScale);
             return;
         }
         float tint = (float) iconBrightness;
         RenderSystem.setShaderColor(tint, tint, tint, 1f);
         try {
-            delegate.drawItem(stack, x + iconDx, y + iconDy, drawScale);
+            draw.draw(x + iconDx, y + iconDy, drawScale);
         } finally {
             RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
         }

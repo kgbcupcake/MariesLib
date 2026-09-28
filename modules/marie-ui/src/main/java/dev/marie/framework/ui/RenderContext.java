@@ -3,6 +3,8 @@ package dev.marie.framework.ui;
 import dev.marie.framework.ui.component.MarieComponent;
 import dev.marie.framework.ui.drag.DraggableResizable;
 import dev.marie.framework.ui.geometry.Bounds;
+import net.minecraft.core.Holder;
+import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.item.ItemStack;
 
 /**
@@ -167,6 +169,18 @@ public interface RenderContext {
      * {@code ItemStack} themselves — this primitive only knows how to draw one.
      */
     void drawItem(ItemStack stack, int x, int y, float scale);
+
+    /**
+     * Draws {@code effect}'s status-effect icon (the one the inventory's effect list shows) at (x, y),
+     * sized like {@link #drawItem} — 16x16 at scale 1 — so the two line up when a module mixes them.
+     * The default draws nothing: the icon is an atlas sprite this contract has no generic way to reach.
+     *
+     * <p>A decorator wrapping another {@code RenderContext} must override this too and forward to its
+     * own delegate (applying whatever icon offset/brightness/hide rule it applies to {@link #drawItem}),
+     * or calls through it silently fall back to this no-op default — same caveat as {@link #drawTextGlow}.
+     */
+    default void drawEffectIcon(Holder<MobEffect> effect, int x, int y, float scale) {
+    }
 
     /**
      * Pushes a rectangular scissor/clip region — nothing drawn between this call and the matching

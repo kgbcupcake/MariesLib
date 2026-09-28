@@ -4,6 +4,8 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import dev.marie.framework.api.ApiStatus;
 import dev.marie.framework.ui.RenderContext;
 import dev.marie.framework.ui.Theme;
+import net.minecraft.core.Holder;
+import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.item.ItemStack;
 
 /**
@@ -59,6 +61,17 @@ public final class BrightnessRenderContext implements RenderContext {
         RenderSystem.setShaderColor(tint, tint, tint, 1f);
         try {
             delegate.drawItem(stack, x, y, scale);
+        } finally {
+            RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
+        }
+    }
+
+    @Override
+    public void drawEffectIcon(Holder<MobEffect> effect, int x, int y, float scale) {
+        float tint = (float) iconBrightness;
+        RenderSystem.setShaderColor(tint, tint, tint, 1f);
+        try {
+            delegate.drawEffectIcon(effect, x, y, scale);
         } finally {
             RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
         }
