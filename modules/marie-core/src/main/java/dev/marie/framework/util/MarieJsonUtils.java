@@ -1,10 +1,12 @@
 package dev.marie.framework.util;
 
 import com.google.gson.JsonObject;
+import dev.marie.framework.api.ApiStatus;
 
 /**
  * Gson {@link JsonObject} helpers, modeled on {@link dev.marie.framework.data.MarieDataLoader}.
  */
+@ApiStatus.Stable
 public final class MarieJsonUtils {
 
     private MarieJsonUtils() {}

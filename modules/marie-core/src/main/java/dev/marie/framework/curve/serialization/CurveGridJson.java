@@ -11,7 +11,7 @@ import javax.annotation.Nullable;
  * JSON serialization helpers for {@link CurveGrid}.
  * Schema: {@code { "xCells": int, "yCells": int, "multipliers": [float...] }}
  */
-@ApiStatus.Internal
+@ApiStatus.Stable
 public final class CurveGridJson {
 
     private CurveGridJson() {}

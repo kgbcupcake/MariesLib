@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 
 import com.mojang.logging.LogUtils;
 
+import dev.marie.framework.api.ApiStatus;
 import dev.marie.framework.config.MariesLibConfigIO;
 import dev.marie.framework.network.MarieNetworking;
 import dev.marie.framework.tracking.tracker.network.TrackerNetworking;
@@ -17,6 +18,12 @@ import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.Mod;
 
+/**
+ * NeoForge mod entry point. Holds shared internal constants (mod id, logger, session id) used
+ * across MarieLib's own modules for wiring and diagnostics. Not an addon entry point — addons
+ * bootstrap through {@link MarieBootstrap} instead.
+ */
+@ApiStatus.Internal
 @Mod(MarieCore.MOD_ID)
 public final class MarieCore {
 

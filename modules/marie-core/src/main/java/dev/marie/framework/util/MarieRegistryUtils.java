@@ -1,5 +1,6 @@
 package dev.marie.framework.util;
 
+import dev.marie.framework.api.ApiStatus;
 import dev.marie.framework.core.MarieContext;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -11,6 +12,7 @@ import net.minecraft.world.item.ItemStack;
 /**
  * Small helpers for registry keys, tags, and value id strings.
  */
+@ApiStatus.Stable
 public final class MarieRegistryUtils {
 
     private MarieRegistryUtils() {}

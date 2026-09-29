@@ -2,6 +2,7 @@ package dev.marie.framework.util;
 
 import com.google.gson.JsonArray;
 import com.mojang.logging.LogUtils;
+import dev.marie.framework.api.ApiStatus;
 import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
 
@@ -11,6 +12,7 @@ import java.util.Map;
 /**
  * Static input validation helpers. Every throwing method logs the violation at WARN before throwing.
  */
+@ApiStatus.Stable
 public final class MarieValidation {
 
     private static final Logger LOGGER = LogUtils.getLogger();
