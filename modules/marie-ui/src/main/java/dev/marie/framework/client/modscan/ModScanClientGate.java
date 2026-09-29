@@ -12,9 +12,11 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 /**
  * Tells the mod-file scan (marie-core, no client classes) that the client has finished loading: the
  * first tick with no loading overlay. Until then the scan stays armed but does not start.
+ *
+ * <p>Internal event-bus wiring for MarieLib's own bootstrap — not an extension point.
  */
 @EventBusSubscriber(modid = MarieCore.MOD_ID, value = Dist.CLIENT)
-@ApiStatus.Experimental
+@ApiStatus.Internal
 public final class ModScanClientGate {
 
     private static boolean signalled;

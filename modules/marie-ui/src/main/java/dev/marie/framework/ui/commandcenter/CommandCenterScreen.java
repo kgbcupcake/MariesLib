@@ -25,8 +25,14 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Shared, domain-agnostic screen rendering every registered {@link CommandCenterRegistry} category/card — sidebar-navigated, no knowledge of what any card actually does. */
-@ApiStatus.Experimental
+/**
+ * Shared, domain-agnostic screen rendering every registered {@link CommandCenterRegistry}
+ * category/card — sidebar-navigated, no knowledge of what any card actually does.
+ *
+ * <p>Rendering machinery backing {@code MarieCommandCenter}; consuming mods open it via {@code
+ * MarieCommandCenter.openScreen()} rather than constructing it directly.
+ */
+@ApiStatus.Internal
 public final class CommandCenterScreen extends Screen {
 
     private static final int SIDEBAR_WIDTH = 100;

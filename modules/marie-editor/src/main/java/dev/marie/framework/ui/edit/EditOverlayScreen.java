@@ -24,8 +24,12 @@ import java.util.List;
  * target in {@code targets} rather than handled here — each target is trusted to self-gate on
  * mouseX/mouseY internally (same as today's single-target behavior), so targets not hit by a given
  * event are expected to no-op rather than this screen picking one via its own bounds check.
+ *
+ * <p>Rendering machinery backing {@code EditModeController}/{@code EditModeCoordinator}; consuming
+ * mods reach it through {@code EditModeCoordinator}'s facade methods, not by constructing it
+ * directly.
  */
-@ApiStatus.Experimental
+@ApiStatus.Internal
 public final class EditOverlayScreen extends Screen {
 
     private final List<MarieComponent> targets;

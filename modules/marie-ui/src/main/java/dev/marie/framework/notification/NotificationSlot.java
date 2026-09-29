@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.function.BiFunction;
 
 /** Mutable runtime state for one active slot in the notification stack. */
-@ApiStatus.Experimental
+@ApiStatus.Internal
 final class NotificationSlot {
 
     List<List<TextSegment>> content;
