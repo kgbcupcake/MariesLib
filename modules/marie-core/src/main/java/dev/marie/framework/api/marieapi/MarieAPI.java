@@ -448,13 +448,16 @@ public final class MarieAPI {
      * @deprecated {@link ExportResolver} carries no registry key, so this overload has no way
      * to know which registry to iterate — it cannot be implemented correctly. Use
      * {@link #registerExportResolver(String, net.minecraft.resources.ResourceKey, ExportResolver)}
-     * instead, which takes the registry key explicitly.
+     * instead, which takes the registry key explicitly. Scheduled for removal in the next
+     * major version (see {@link MarieAPIVersion}); until then it stays present, {@code @Stable},
+     * and always throwing, per this library's semver contract that {@code @Stable} signatures
+     * are only removed on a major bump.
      * @param resolver the resolver (unused — this overload always throws)
      * @param <T> the registry entry type
      * @throws UnsupportedOperationException always
      */
     @ApiStatus.Stable
-    @Deprecated
+    @Deprecated(since = "1.1.0", forRemoval = true)
     public static <T> void registerExportResolver(ExportResolver<T> resolver) {
         HookProviderRegistrationDelegate.registerExportResolver(resolver);
     }

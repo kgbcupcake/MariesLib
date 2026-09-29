@@ -139,10 +139,10 @@ void registerGenericStateSyncHandler(BiConsumer<ServerPlayer, GenericStateSyncPa
 
 ```java
 <T> void registerExportResolver(String key, ResourceKey<Registry<T>> registryKey, ExportResolver<T> resolver)  // Stable — real path
-@Deprecated <T> void registerExportResolver(ExportResolver<T> resolver)  // Stable but non-functional — see below
+@Deprecated(since = "1.1.0", forRemoval = true) <T> void registerExportResolver(ExportResolver<T> resolver)  // Stable but non-functional — see below
 ```
 
-The single-arg overload is deprecated and structurally cannot work (no way to know which registry to iterate). Use the two-arg overload.
+The single-arg overload is deprecated and structurally cannot work (no way to know which registry to iterate) — calling it always throws `UnsupportedOperationException`. Use the two-arg overload. It is scheduled for removal in the next major version; per this library's own [versioning contract](#versioning) it stays in place (present, `@Stable`, always throwing) until then rather than being removed mid-major-version.
 
 ### Custom triggers — `@Stable`
 
@@ -411,6 +411,8 @@ MarieAPIVersion.isCompatible(1)  // true if MAJOR >= required
 ```
 
 Semantic versioning. Major bumps may break `@Stable` APIs with a migration guide. Minor bumps may evolve `@Experimental` APIs.
+
+A `@Stable` method marked `@Deprecated(forRemoval = true)` (currently just `registerExportResolver(ExportResolver)`, see [Export](#export)) is kept in place, still throwing/working as documented, until the next major version removes it — deprecation alone never removes or changes behavior of a `@Stable` signature mid-major-version.
 
 ---
 
