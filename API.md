@@ -331,6 +331,15 @@ Source families and module locks load through `MarieDataLoader` (a real, active 
 
 Legacy/older file layouts for excluded items and source classifications are auto-migrated on load, you don't need to manually move existing files.
 
+### Datapack schema versioning contract
+
+Every datapack-loaded file type (`values`, `effects`, `synergies`, `milestones`, `tracker_milestones`, `source_classifications`, `food_overrides`, `source_pair_synergies` (`source_synergies` dir), `tracking_profiles`, `compat`, `source_families`, `module_locks`) accepts an optional top-level integer key, `marie_schema_version`.
+
+- **One version for all of them.** It's a single MarieLib-wide number (`SchemaDefinition.VERSION`, currently `1`), not versioned per file type — every schema factory (`SchemaDefinition.forValue()`, `forEffect()`, etc.) stamps the same constant.
+- **Bumped only for breaking changes**: a required field removed, a key renamed, or a field's type narrowed/changed. A new optional field, or a whole new file type, does not bump it.
+- **Informational only, never load-bearing.** A file with no `marie_schema_version`, or one that doesn't match the current version, produces a `WARN` diagnostic (visible via `/marieslib`) and nothing else — the file still loads and its fields are still parsed normally. The only thing that causes a file to be skipped is a real validation `ERROR`: a missing required field or a field of the wrong type.
+- **No silent migration.** MarieLib always parses the current field layout; it does not reinterpret older files based on their declared version. Treat a version mismatch as a nudge to re-check the file against the current schema, not as something MarieLib will paper over for you.
+
 ---
 
 ## Commands

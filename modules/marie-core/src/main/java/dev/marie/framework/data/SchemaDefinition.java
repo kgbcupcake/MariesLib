@@ -4,9 +4,40 @@ import dev.marie.framework.api.ApiStatus;
 
 import java.util.List;
 
+/**
+ * Describes the fields MarieLib expects for one datapack file type ({@code forValue()},
+ * {@code forEffect()}, etc.) and carries the schema version every {@code forXxx()} factory
+ * stamps into its definition.
+ *
+ * <h2>Schema versioning contract</h2>
+ * <ul>
+ *   <li><b>One version, not per-type.</b> {@link #VERSION} is a single library-wide integer.
+ *       Every {@code forXxx()} factory below passes the same constant — there is no independent
+ *       version per file type (values, effects, synergies, etc.). Bumping it is a MarieLib-wide
+ *       event, not a per-schema one.</li>
+ *   <li><b>When it bumps.</b> Only for a breaking change to an existing field on any schema:
+ *       removing a required field, renaming a key, or narrowing/changing a field's
+ *       {@link SchemaType}. Adding a new optional field, or a new {@code forXxx()} schema
+ *       entirely, does not require a bump.</li>
+ *   <li><b>{@code marie_schema_version} is informational, never load-bearing.</b> A datapack
+ *       file's declared version is compared against {@link #getVersion()} by
+ *       {@link DatapackValidator#validate}, but a mismatch — or the key being absent entirely —
+ *       only ever produces a {@link DatapackDiagnostic.Severity#WARN}. It is surfaced to server
+ *       owners (e.g. via {@code /marieslib}) as a hint to re-check the file against the current
+ *       schema; it never blocks the file from loading and never changes how its fields are
+ *       parsed. Only a missing required field or a wrong field type is a
+ *       {@link DatapackDiagnostic.Severity#ERROR}, which is what actually causes
+ *       {@code MarieDataLoader} to skip the file.</li>
+ *   <li><b>No automatic migration.</b> MarieLib does not read old field layouts differently based
+ *       on the declared version — the parser always reads the current field names/types. A
+ *       version bump is a signal for datapack authors to update their files, not a promise that
+ *       older files are transparently upgraded.</li>
+ * </ul>
+ */
 @ApiStatus.Experimental
 public final class SchemaDefinition {
 
+    /** Current MarieLib-wide datapack schema version. See the class-level contract above. */
     private static final int VERSION = 1;
     private final String typeName;
     private final int version;
@@ -22,6 +53,7 @@ public final class SchemaDefinition {
         return typeName;
     }
 
+    /** The schema version this definition was constructed with. See the class-level versioning contract. */
     public int getVersion() {
         return version;
     }
