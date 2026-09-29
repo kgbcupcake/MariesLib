@@ -5,6 +5,7 @@ import dev.marie.framework.api.marieapi.MarieAPIState;
 import dev.marie.framework.color.ColorDefinitionRegistry;
 import dev.marie.framework.core.MarieContext;
 import dev.marie.framework.core.MarieCore;
+import dev.marie.framework.core.MarieModRegistry;
 import dev.marie.framework.data.MarieDataManager;
 import dev.marie.framework.registry.RegistryLifecycleManager;
 import dev.marie.framework.tracking.tracker.registry.TrackerRegistry;
@@ -62,13 +63,16 @@ public class ReloadGuardListener {
      * callers of this hook (e.g. {@code MarieAPI.registerTracker}) assert the window is open and
      * would otherwise throw "Registration closed". Both the registries and the phase are restored
      * to their prior state in a {@code finally} block regardless of whether the hook throws.</p>
+     *
+     * <p>Both registries are shared across every attached mod, so every mod's hook runs — not just
+     * the last-attached one — so each mod gets the chance to re-register its own trackers/colors.</p>
      */
     public static void reloadAndBroadcast(MinecraftServer server) {
         if (MarieContext.isRegistered()) {
             TrackerRegistry.unfreezeInternal();
             ColorDefinitionRegistry.unfreezeInternal();
             try (MarieAPIState.DatapackReloadScope scope = MarieAPIState.openForDatapackReload()) {
-                MarieContext.get().reloadBroadcastHook().accept(server);
+                MarieModRegistry.forEach(modCtx -> modCtx.reloadBroadcastHook().accept(server));
             } finally {
                 TrackerRegistry.freezeInternal();
                 ColorDefinitionRegistry.freezeInternal();

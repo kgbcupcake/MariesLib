@@ -92,7 +92,7 @@ public final class AutoCompatDiscovery {
             }
 
             ItemStack stack = new ItemStack(item);
-            if (!MarieContext.get().sourceItemFilter().test(stack)) {
+            if (!MarieContext.isSourceItemAllowed(stack)) {
                 continue;
             }
 

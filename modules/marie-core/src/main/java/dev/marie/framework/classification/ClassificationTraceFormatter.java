@@ -47,7 +47,7 @@ public final class ClassificationTraceFormatter {
         String itemId = trace.itemId();
         String namespace = itemId.contains(":") ? itemId.substring(0, itemId.indexOf(':')) : itemId;
         boolean sourceCapable = MarieContext.isRegistered()
-                && MarieContext.get().sourceItemFilter().test(stack);
+                && MarieContext.isSourceItemAllowed(stack);
         appendKv(sb, "ID", itemId);
         appendKv(sb, "Namespace", namespace);
         appendKv(sb, "Source-capable", sourceCapable ? "YES" : "NO");

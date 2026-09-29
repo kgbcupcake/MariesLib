@@ -199,7 +199,7 @@ public final class TrackerManager {
         tracking.trackerPeriodStates.put(id, openPeriod(definition, now));
         TrackerNetworking.sendPeriodResync(player, id, tracking);
         if (MarieContext.isRegistered()) {
-            MarieContext.get().onTrackerPeriodCompletedHook().accept(player, entry);
+            MarieContext.forTracker(id).onTrackerPeriodCompletedHook().accept(player, entry);
         }
     }
 

@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
 
@@ -64,5 +65,18 @@ public final class MarieModRegistry {
 
     public static synchronized boolean isRegistered(String modId) {
         return MODS.containsKey(modId);
+    }
+
+    /**
+     * Invokes {@code action} once per registered mod context, in registration order. Use this for
+     * hooks that apply to a whole player/tracking blob rather than a single value key (effect
+     * application, tracking sync, respawn handling, tracker-period callbacks) so every attached mod
+     * gets a chance to act on shared player state instead of only the last-attached one.
+     */
+    @ApiStatus.Experimental
+    public static void forEach(Consumer<MarieContext> action) {
+        for (MarieContext ctx : getAll()) {
+            action.accept(ctx);
+        }
     }
 }

@@ -45,13 +45,24 @@ public final class SourceCollector {
         List<ClassificationResult> out = new ArrayList<>();
         Map<ResourceLocation, ClassificationResult> classified = new HashMap<>();
         var excluded = ScannerSpecRegistry.get().excludedItems();
-        var tagScoresProvider = MarieContext.get().valueTagScoresProvider();
+        // Merge every attached mod's tag-score provider instead of only the last-attached mod's.
+        java.util.List<java.util.function.Function<Item, Map<String, Float>>> tagScoreProviders =
+                dev.marie.framework.core.MarieModRegistry.getAll().stream()
+                        .map(MarieContext::valueTagScoresProvider)
+                        .toList();
+        java.util.function.Function<Item, Map<String, Float>> tagScoresProvider = item -> {
+            Map<String, Float> merged = new HashMap<>();
+            for (var provider : tagScoreProviders) {
+                merged.putAll(provider.apply(item));
+            }
+            return merged;
+        };
         RecipeInheritanceResolver recipeResolver =
                 recipeManager != null ? new RecipeInheritanceResolver(recipeManager) : null;
 
         for (Item item : BuiltInRegistries.ITEM) {
             ItemStack stack = new ItemStack(item);
-            if (!MarieContext.get().sourceItemFilter().test(stack)) {
+            if (!MarieContext.isSourceItemAllowed(stack)) {
                 continue;
             }
             ResourceLocation itemId = item.builtInRegistryHolder().key().location();

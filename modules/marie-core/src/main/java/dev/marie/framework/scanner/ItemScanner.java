@@ -504,7 +504,7 @@ public final class ItemScanner {
 
     private static boolean passesSourceFilter(ItemStack stack) {
         if (MarieContext.isRegistered()) {
-            return MarieContext.get().sourceItemFilter().test(stack);
+            return MarieContext.isSourceItemAllowed(stack);
         }
         return true;
     }

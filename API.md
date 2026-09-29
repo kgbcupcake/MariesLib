@@ -355,7 +355,14 @@ MarieContext.register(
 );
 ```
 
-`MarieContext.get()` / `MarieContext.isRegistered()` read back the currently registered context. `MarieModRegistry` (`@Experimental`) tracks every registered context by `modId` for a future multi-mod config UI.
+`MarieContext.get()` / `MarieContext.isRegistered()` read back the *last-registered* context — with a single attached mod this is unambiguous, but it is not multi-mod-safe on its own. `MarieModRegistry` (`@Experimental`) tracks every registered context by `modId` and now backs real multi-mod dispatch:
+
+- `MarieContext.forValue(valueKey)` resolves the context of whichever mod registered that value key (tracked automatically at `registerValue` time), falling back to `get()` when the key is unregistered. Use this instead of `get()` for any per-value hook (decay rate, thresholds, post-value modifiers, icons).
+- `MarieContext.forTracker(trackerId)` does the same for tracker ids.
+- `MarieContext.forMod(modId)` resolves a specific mod's context directly.
+- `MarieContext.isSourceItemAllowed(stack)` and `MarieModRegistry.forEach(...)` fan a check/hook out across every attached mod, for gates and whole-player hooks (effect application, tracking sync, respawn handling, tracker-period callbacks) that no single mod should unilaterally own.
+
+When two or more mods attach MarieLib, every internal call site that used to read `MarieContext.get()` for a value/tracker/item-specific hook now resolves through the owning mod instead of whichever mod attached last.
 
 Most `MarieContext` fields are `@Internal` (implementation wiring for the framework itself). The consumer-relevant `@Stable`/`@Experimental` surface is: `respawnValueBehavior`/`respawnValueHandler` (`@Stable`; `deathNutritionBehavior`/`deathNutritionHandler` deprecated forwarders kept for compat), `valueKeys()`, `valueDefinitionFor(key)`, `dataProvider(...)`, and `builder(modId)` itself — all `@Stable`. Most `Builder` setter methods are unannotated (internal wiring); the ones a real integration is most likely to touch carry `@Experimental` (e.g. `sourceItemFilter`, `sourceValueResolver`, `sourceDeltaResolver`, `runtimeResolverStages`, `trackingDeltaSyncer`).
 

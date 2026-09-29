@@ -219,6 +219,18 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
         MarieModRegistry.register(context);
     }
 
+    /**
+     * Returns the most recently {@link #register}ed context.
+     *
+     * <p>When exactly one mod attaches MarieLib this is unambiguous. When more than one mod
+     * attaches, every mod after the first overwrites this reference, so gameplay code that reads
+     * {@code get()} runs the <em>last-attached</em> mod's hooks even for values, trackers, or
+     * players that belong to an earlier-attached mod. Call sites that have a value key, tracker
+     * id, or item/mod context available should resolve through {@link #forValue(String)},
+     * {@link #forMod(String)}, or fan out over {@link MarieModRegistry#getAll()} instead — this
+     * method remains only as a "primary mod" fallback for call sites with no such key (e.g.
+     * process-wide scanner constants) and for the common single-mod case.</p>
+     */
     @ApiStatus.Stable
     public static MarieContext get() {
         MarieContext ctx = instance;
@@ -231,6 +243,69 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
     @ApiStatus.Stable
     public static boolean isRegistered() {
         return instance != null;
+    }
+
+    /**
+     * Resolves the {@link MarieContext} of the mod that registered {@code valueKey} (via
+     * {@link ValueRegistry#ownerModId(String)}), falling back to {@link #get()} when the key is
+     * unknown or was registered before any context was attached. Use this instead of {@link #get()}
+     * for any hook keyed off a specific value (decay rate, thresholds, post-value modifiers, icons,
+     * tooltip/tag resolution) so multi-mod setups dispatch to the mod that actually owns the value.
+     */
+    @ApiStatus.Experimental
+    public static MarieContext forValue(String valueKey) {
+        String ownerModId = valueKey != null ? ValueRegistry.ownerModId(valueKey) : null;
+        if (ownerModId != null) {
+            MarieContext owner = MarieModRegistry.get(ownerModId);
+            if (owner != null) {
+                return owner;
+            }
+        }
+        return get();
+    }
+
+    /**
+     * Resolves the {@link MarieContext} registered for {@code modId}, falling back to {@link #get()}
+     * when that mod hasn't attached (or {@code modId} is null).
+     */
+    @ApiStatus.Experimental
+    public static MarieContext forMod(@Nullable String modId) {
+        MarieContext ctx = modId != null ? MarieModRegistry.get(modId) : null;
+        return ctx != null ? ctx : get();
+    }
+
+    /**
+     * Resolves the {@link MarieContext} of the mod that registered {@code trackerId} (via
+     * {@link dev.marie.framework.tracking.tracker.registry.TrackerRegistry#ownerModId}), falling
+     * back to {@link #get()} when the tracker is unknown.
+     */
+    @ApiStatus.Experimental
+    public static MarieContext forTracker(ResourceLocation trackerId) {
+        String ownerModId = trackerId != null
+                ? dev.marie.framework.tracking.tracker.registry.TrackerRegistry.ownerModId(trackerId)
+                : null;
+        if (ownerModId != null) {
+            MarieContext owner = MarieModRegistry.get(ownerModId);
+            if (owner != null) {
+                return owner;
+            }
+        }
+        return get();
+    }
+
+    /**
+     * True if any attached mod's {@link #sourceItemFilter()} allows this stack as a value source —
+     * an item excluded by one mod's filter may still be a legitimate source for another mod's
+     * values, so a single mod objecting must not veto every other mod.
+     */
+    @ApiStatus.Experimental
+    public static boolean isSourceItemAllowed(ItemStack stack) {
+        for (MarieContext ctx : MarieModRegistry.getAll()) {
+            if (ctx.sourceItemFilter().test(stack)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override

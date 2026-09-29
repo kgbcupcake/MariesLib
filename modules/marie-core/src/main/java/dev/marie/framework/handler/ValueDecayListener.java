@@ -9,6 +9,7 @@ import dev.marie.framework.api.registry.ValueRegistry;
 import dev.marie.framework.config.FeatureFlagCache;
 import dev.marie.framework.core.IMarieConfig;
 import dev.marie.framework.core.MarieContext;
+import dev.marie.framework.core.MarieModRegistry;
 import dev.marie.framework.tracking.TrackingAttachment;
 import dev.marie.framework.tracking.TrackingData;
 import dev.marie.framework.core.KubeIntegration;
@@ -43,12 +44,14 @@ public class ValueDecayListener {
             return;
         }
         data.setMemoryConfig(configOrSkip.config());
-        int interval = Math.max(1, IMarieConfig.get().decayIntervalTicks());
-        if (player.level().getGameTime() % interval != 0) return;
+        long gameTime = player.level().getGameTime();
         boolean changed = false;
         for (ValueDefinition def : ValueRegistry.getAll()) {
             String key = def.getId();
-            float rate = IMarieConfig.get().decayRateFor(key);
+            MarieContext keyCtx = MarieContext.forValue(key);
+            int interval = Math.max(1, keyCtx.decayIntervalTicks());
+            if (gameTime % interval != 0) continue;
+            float rate = keyCtx.decayRateFor(key);
             rate = applySeasonalDecayModifier(key, rate);
             rate *= MarieAttributes.valueDecayMultiplier(player);
             float current = data.values.getOrDefault(key, 0f);
@@ -69,7 +72,7 @@ public class ValueDecayListener {
                             player, key, current, newValue));
 
                     if (MarieContext.isValueBeneficial(key)) {
-                        float criticalThreshold = IMarieConfig.get().criticalThresholdFor(key);
+                        float criticalThreshold = keyCtx.criticalThresholdFor(key);
                         if (newValue <= criticalThreshold && current > criticalThreshold) {
                             NeoForge.EVENT_BUS.post(new MarieEvents.ValueCriticalEvent(player, key));
                         }
@@ -80,9 +83,7 @@ public class ValueDecayListener {
 
         if (changed) {
             TrackingAttachment.setData(player, data);
-            if (MarieContext.isRegistered()) {
-                MarieContext.get().trackingDeltaSyncer().accept(player, data);
-            }
+            MarieModRegistry.forEach(modCtx -> modCtx.trackingDeltaSyncer().accept(player, data));
         }
     }
 

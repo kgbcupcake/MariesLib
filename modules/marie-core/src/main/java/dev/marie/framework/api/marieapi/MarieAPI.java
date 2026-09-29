@@ -11,6 +11,7 @@ import dev.marie.framework.api.marie.MariePlayerData;
 import dev.marie.framework.api.marie.MarieSeasonHook;
 import dev.marie.framework.api.progression.MilestoneDefinition;
 import dev.marie.framework.api.progression.ProfileDefinition;
+import dev.marie.framework.api.progression.TrackerMilestoneDefinition;
 import dev.marie.framework.api.reporting.ApplicationHistoryView;
 import dev.marie.framework.api.reporting.ExportResolver;
 import dev.marie.framework.api.reporting.ReportProvider;
@@ -329,6 +330,28 @@ public final class MarieAPI {
     @ApiStatus.Stable
     public static void addMilestone(MilestoneDefinition definition) {
         registerMilestone(definition);
+    }
+
+    /**
+     * Registers a tracker milestone that fires once when a player's built-in MarieLib
+     * tracker (rather than a consuming mod's own value key) reaches a cumulative goal.
+     *
+     * @param definition the tracker milestone definition
+     * @throws IllegalArgumentException if a milestone with the same id already exists
+     */
+    @ApiStatus.Stable
+    public static void registerTrackerMilestone(TrackerMilestoneDefinition definition) {
+        ProfileMilestoneSeasonDelegate.registerTrackerMilestone(definition);
+    }
+
+    /**
+     * Alias for {@link #registerTrackerMilestone(TrackerMilestoneDefinition)}.
+     *
+     * @param definition the tracker milestone definition
+     */
+    @ApiStatus.Stable
+    public static void addTrackerMilestone(TrackerMilestoneDefinition definition) {
+        registerTrackerMilestone(definition);
     }
 
     // ───────────────────────────────────────────────────────────────

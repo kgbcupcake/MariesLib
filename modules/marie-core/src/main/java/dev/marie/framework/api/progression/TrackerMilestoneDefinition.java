@@ -1,7 +1,7 @@
 package dev.marie.framework.api.progression;
 
 import dev.marie.framework.api.ApiStatus;
-import dev.marie.framework.api.registry.TrackerMilestoneRegistry;
+import dev.marie.framework.api.marieapi.MarieAPI;
 
 import net.minecraft.resources.ResourceLocation;
 
@@ -14,11 +14,13 @@ import javax.annotation.Nullable;
  * is fully decoupled from it — separate storage, separate events, no shared feature flag.
  *
  * <p>Use the {@link Builder} to construct instances and register them via
- * {@link TrackerMilestoneRegistry#register(TrackerMilestoneDefinition)}.</p>
+ * {@link MarieAPI#registerTrackerMilestone(TrackerMilestoneDefinition)}. Consuming mods should
+ * not call {@code dev.marie.framework.api.registry.TrackerMilestoneRegistry} directly — it is
+ * internal storage, not part of the public API surface.</p>
  *
  * <p><b>Java-side registration example:</b></p>
  * <pre>{@code
- * TrackerMilestoneRegistry.register(TrackerMilestoneDefinition.builder("hundred_blocks_mined")
+ * MarieAPI.registerTrackerMilestone(TrackerMilestoneDefinition.builder("hundred_blocks_mined")
  *         .trackerId(ResourceLocation.fromNamespaceAndPath("mymod", "blocks_mined"))
  *         .goal(100f)
  *         .scope(MilestoneScope.LIFETIME)
