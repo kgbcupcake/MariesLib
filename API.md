@@ -52,7 +52,16 @@ A deprecated `bootstrap(IEventBus)` also exists (old owned-config path): use `at
 
 ## Registration window
 
-All `MarieAPI.register*` calls must happen during mod initialization, your `@Mod` constructor or an `FMLCommonSetupEvent` handler. The window closes after init; calling register outside it throws `IllegalStateException`. Datapack reloads open a secondary internal window for datapack-driven content; you don't manage that yourself.
+All `MarieAPI.register*` calls must happen during mod initialization, your `@Mod` constructor or an `FMLCommonSetupEvent` handler. The window closes after init; calling register outside it throws `IllegalStateException`. Datapack reloads open a secondary internal window for datapack-driven content.
+
+### Reload re-registration — what you must redo, what MarieLib does for you
+
+A `/reload` (or a world/server boot) wipes and rebuilds every datapack-backed registry. What that means for your own Java-registered (mod-constructor/common-setup) entries splits sharply by which registry they're in:
+
+- **Trackers** (`MarieTracking.registerTracker`) and **colors** (`MarieColors.registerColor`/`registerColorPair`) are wiped on every reload after the first and are **not** restored automatically — nothing re-invokes your registration code on its own. If you want a tracker or color to survive a reload, re-call `registerTracker`/`registerColor` yourself from `MarieContext.Builder#onReloadBroadcast(...)` (fires after the reload's reset/refreeze pass completes; see [`MarieContext`](#mariecontext)). Re-registering the same id is always safe — it replaces the existing definition instead of throwing.
+- **Profiles** (`registerTrackingProfile`/`addProfile`), **milestones** (`registerMilestone`/`addMilestone`), **tracker milestones** (`registerTrackerMilestone`/`addTrackerMilestone`), and **synergies** (`registerValueSynergy`/`registerSourcePairSynergy`) are the opposite: MarieLib snapshots whatever you registered from Java the first time a datapack pass runs, and re-seeds that snapshot after every later reset. Only the datapack-sourced entries for these four are actually replaced by a reload — **you do not need to re-register them**, and an `onReloadBroadcast` hook that does so anyway is harmless (same upsert-safe replace) but redundant.
+
+If you're only integrating datapack-driven content for any of the above (no Java-side `register*` calls at all), none of this applies to you — the datapack loader repopulates those entries on every pass regardless.
 
 ## Core concepts
 
@@ -115,6 +124,7 @@ void registerValueSynergy(SynergyDefinition definition)         // alias: addVal
 void registerSourcePairSynergy(SourcePairSynergy definition)    // alias: addSourceSynergy
 void registerTrackingProfile(ProfileDefinition definition)      // alias: addProfile
 void registerMilestone(MilestoneDefinition definition)          // alias: addMilestone
+void registerTrackerMilestone(TrackerMilestoneDefinition definition)  // alias: addTrackerMilestone
 ```
 
 ### Registration — hooks — mostly `@Stable`, two `@Experimental`
@@ -373,6 +383,8 @@ MarieContext.register(
 
 When two or more mods attach MarieLib, every internal call site that used to read `MarieContext.get()` for a value/tracker/item-specific hook now resolves through the owning mod instead of whichever mod attached last.
 
+`Builder#onReloadBroadcast(Consumer<MinecraftServer> hook)` (`@Experimental`) is the "reload happened, please re-register" hook: it fires after every `/reload` and after every world/server boot, once the reset/refreeze pass for that reload has completed. This is the one you wire up if you register trackers or colors from Java — see [Reload re-registration](#reload-re-registration--what-you-must-redo-what-marielib-does-for-you).
+
 Most `MarieContext` fields are `@Internal` (implementation wiring for the framework itself). The consumer-relevant `@Stable`/`@Experimental` surface is: `respawnValueBehavior`/`respawnValueHandler` (`@Stable`; `deathNutritionBehavior`/`deathNutritionHandler` deprecated forwarders kept for compat), `valueKeys()`, `valueDefinitionFor(key)`, `dataProvider(...)`, and `builder(modId)` itself — all `@Stable`. Most `Builder` setter methods are unannotated (internal wiring); the ones a real integration is most likely to touch carry `@Experimental` (e.g. `sourceItemFilter`, `sourceValueResolver`, `sourceDeltaResolver`, `runtimeResolverStages`, `trackingDeltaSyncer`).
 
 ---
@@ -405,7 +417,7 @@ MarieComponent content = MarieModuleSettings.standardPanel("My Module", persiste
 ## Versioning
 
 ```java
-MarieAPIVersion.VERSION          // "1.0.0"
+MarieAPIVersion.VERSION          // "1.1.0"
 MarieAPIVersion.MAJOR / MINOR / PATCH
 MarieAPIVersion.isCompatible(1)  // true if MAJOR >= required
 ```

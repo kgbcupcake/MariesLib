@@ -85,7 +85,11 @@ public final class RuntimeResolver {
         ResourceLocation itemId = MarieRegistryUtils.itemKey(item);
         if (itemId == null) return Map.of();
 
-        if (!MarieContext.isSourceItemAllowed(stack)) return Map.of();
+        // The current mod's own filter, not the global isSourceItemAllowed() OR across every
+        // attached MarieLib mod — otherwise another mod's unconfigured (accept-everything) default
+        // filter lets the keyword/recipe/namespace-peer guess cascade below run on items that
+        // haven't actually cleared this mod's own food/eligibility check.
+        if (!MarieContext.get().sourceItemFilter().test(stack)) return Map.of();
 
         ResolutionResult cached = resolvedCache.get(itemId);
         if (cached != null) {
@@ -110,7 +114,7 @@ public final class RuntimeResolver {
         ResourceLocation itemId = MarieRegistryUtils.itemKey(item);
         if (itemId == null) return null;
 
-        if (!MarieContext.isSourceItemAllowed(stack)) return null;
+        if (!MarieContext.get().sourceItemFilter().test(stack)) return null;
 
         ResolutionResult cached = resolvedCache.get(itemId);
         if (cached != null) {
@@ -135,7 +139,7 @@ public final class RuntimeResolver {
         ResourceLocation itemId = MarieRegistryUtils.itemKey(item);
         if (itemId == null) return null;
 
-        boolean isResolvable = MarieContext.isSourceItemAllowed(stack);
+        boolean isResolvable = MarieContext.get().sourceItemFilter().test(stack);
 
         List<ClassificationTraceStep> traceOut = new ArrayList<>();
 

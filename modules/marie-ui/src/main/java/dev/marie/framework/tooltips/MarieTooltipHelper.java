@@ -67,9 +67,6 @@ public final class MarieTooltipHelper {
         for (MarieContext modCtx : MarieModRegistry.getAll()) {
             valueBars.putAll(modCtx.tooltipValueResolver().apply(stack, player));
         }
-        if (!MarieContext.isSourceItemAllowed(stack) && valueBars.isEmpty()) {
-            return lines;
-        }
 
         String itemId = MarieRegistryUtils.itemKey(stack).toString();
         String dominantCategory = valueBars.isEmpty()
@@ -83,6 +80,14 @@ public final class MarieTooltipHelper {
         MarieContext headerCtx = dominantCategory != null
                 ? MarieContext.forValue(dominantCategory)
                 : MarieContext.get();
+        // Gate on the mod that would actually render this tooltip, not a global OR across every
+        // attached mod — MarieContext.isSourceItemAllowed() ORs every attached mod's filter, so any
+        // other mod using MarieBootstrap.attach()'s unconfigured default filter (which accepts every
+        // item) silently makes every mod's tooltip, including this one, show on every item in the
+        // game. Whether headerCtx itself considers this item a source is the only relevant signal.
+        if (!headerCtx.sourceItemFilter().test(stack) && valueBars.isEmpty()) {
+            return lines;
+        }
         String modId = headerCtx.modId();
         String familyKey = null;
         for (MarieContext modCtx : MarieModRegistry.getAll()) {
