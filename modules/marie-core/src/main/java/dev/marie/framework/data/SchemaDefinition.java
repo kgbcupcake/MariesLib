@@ -1,7 +1,10 @@
 package dev.marie.framework.data;
 
+import dev.marie.framework.api.ApiStatus;
+
 import java.util.List;
 
+@ApiStatus.Experimental
 public final class SchemaDefinition {
 
     private static final int VERSION = 1;

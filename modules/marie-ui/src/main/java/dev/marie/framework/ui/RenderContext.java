@@ -1,5 +1,7 @@
 package dev.marie.framework.ui;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.ui.component.MarieComponent;
 import dev.marie.framework.ui.drag.DraggableResizable;
 import dev.marie.framework.ui.geometry.Bounds;
@@ -17,6 +19,7 @@ import net.minecraft.world.item.ItemStack;
  * are unavoidable for a Minecraft-native UI framework and are accepted as parameters where a
  * primitive genuinely requires them.
  */
+@ApiStatus.Experimental
 public interface RenderContext {
 
     int screenWidth();

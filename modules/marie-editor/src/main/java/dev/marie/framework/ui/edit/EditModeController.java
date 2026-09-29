@@ -1,5 +1,7 @@
 package dev.marie.framework.ui.edit;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.ui.component.MarieComponent;
 import net.minecraft.client.Minecraft;
 
@@ -12,6 +14,7 @@ import java.util.List;
  * configuration screen, a future crafting-station panel, etc.) owns its own controller instance,
  * so any number of targets can independently be in edit mode.
  */
+@ApiStatus.Experimental
 public final class EditModeController {
 
     private final MarieComponent target;

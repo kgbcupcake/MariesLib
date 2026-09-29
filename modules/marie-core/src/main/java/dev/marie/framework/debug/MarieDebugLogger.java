@@ -1,5 +1,7 @@
 package dev.marie.framework.debug;
 
+import dev.marie.framework.api.ApiStatus;
+
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -29,6 +31,7 @@ import net.neoforged.fml.loading.FMLPaths;
  * Effective log cap is ~2 MB (1 MB active + 1 MB rotated). Two auxiliary files
  * (classifier_accuracy.json, unclassified_sources.json) are written on each apply event.
  */
+@ApiStatus.Internal
 public final class MarieDebugLogger {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();

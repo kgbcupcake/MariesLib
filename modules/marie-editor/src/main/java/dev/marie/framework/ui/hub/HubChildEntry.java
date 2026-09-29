@@ -1,5 +1,7 @@
 package dev.marie.framework.ui.hub;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.ui.component.MarieComponent;
 import net.minecraft.network.chat.Component;
 
@@ -8,4 +10,5 @@ import net.minecraft.network.chat.Component;
  * opens {@code content} in a small popup window above the hub (see {@link HubChildPopup}), the same
  * "click something, get a small closable popup" interaction the color picker already uses.
  */
+@ApiStatus.Internal
 public record HubChildEntry(String id, Component label, MarieComponent content) {}

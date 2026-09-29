@@ -1,5 +1,8 @@
 package dev.marie.framework.api.marieapi;
 
+import dev.marie.framework.api.ApiStatus;
+
+@ApiStatus.Stable
 final class TagAuditRegistrationDelegate {
 
     private TagAuditRegistrationDelegate() {}

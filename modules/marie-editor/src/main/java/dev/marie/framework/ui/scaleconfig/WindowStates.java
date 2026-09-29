@@ -1,5 +1,7 @@
 package dev.marie.framework.ui.scaleconfig;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.ui.PersistenceProvider;
 import dev.marie.framework.ui.component.ComponentState;
 import dev.marie.framework.ui.geometry.Bounds;
@@ -14,6 +16,7 @@ import java.util.function.Supplier;
  * (otherwise unused for this) {@code collapsed}/{@code x}/{@code y}/{@code width}/{@code height} fields
  * of {@link ComponentState}. An entry with no saved window state renders collapsed.
  */
+@ApiStatus.Internal
 final class WindowStates {
 
     /** Default persisted window state for an entry that has never been opened: collapsed (tab), with a sensible fallback size. */

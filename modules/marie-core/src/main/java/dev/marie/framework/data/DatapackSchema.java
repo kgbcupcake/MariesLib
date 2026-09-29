@@ -1,5 +1,7 @@
 package dev.marie.framework.data;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.core.IMarieConfig;
 
 /**
@@ -7,6 +9,7 @@ import dev.marie.framework.core.IMarieConfig;
  *
  * <p>All JSON files are loaded from {@code data/<namespace>/<modid>/}.</p>
  */
+@ApiStatus.Experimental
 public final class DatapackSchema {
 
     private DatapackSchema() {}

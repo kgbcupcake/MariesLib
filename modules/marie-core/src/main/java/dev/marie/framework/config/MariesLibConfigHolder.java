@@ -1,9 +1,12 @@
 package dev.marie.framework.config;
 
+import dev.marie.framework.api.ApiStatus;
+
 /**
  * Mutable source of truth for all MarieCore-owned scalar configuration.
  * Only scanner and debug settings live here — gameplay config belongs to consuming mods.
  */
+@ApiStatus.Internal
 public final class MariesLibConfigHolder {
 
     private static final MariesLibConfigHolder INSTANCE = new MariesLibConfigHolder();

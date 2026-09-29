@@ -1,5 +1,7 @@
 package dev.marie.framework.ui.scaleconfig;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.ui.PersistenceProvider;
 import dev.marie.framework.ui.RenderContext;
 import dev.marie.framework.ui.component.MarieComponent;
@@ -13,6 +15,7 @@ import dev.marie.framework.ui.toolbox.OptionLayout;
  * entry is hosted — an entry without caller-supplied content gets the default Text Scale / Padding /
  * Move Text and Icons rows, built from the same toolbox widgets a custom panel uses.
  */
+@ApiStatus.Internal
 final class HostedWindow {
 
     private HostedWindow() {}

@@ -1,8 +1,11 @@
 package dev.marie.framework.api.marieapi;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.api.ConfigValidator;
 import net.minecraft.commands.CommandSourceStack;
 
+@ApiStatus.Stable
 final class ConfigValidationDelegate {
 
     private ConfigValidationDelegate() {}

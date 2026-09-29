@@ -1,5 +1,8 @@
 package dev.marie.framework.data;
 
+import dev.marie.framework.api.ApiStatus;
+
+@ApiStatus.Experimental
 public record SchemaField(String name, SchemaType type, boolean required, Object defaultValue) {
 
     public static SchemaField required(String name, SchemaType type) {

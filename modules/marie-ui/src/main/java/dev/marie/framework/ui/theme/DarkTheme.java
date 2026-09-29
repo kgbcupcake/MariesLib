@@ -1,5 +1,7 @@
 package dev.marie.framework.ui.theme;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.ui.Theme;
 import dev.marie.framework.ui.ThemeKey;
 
@@ -7,6 +9,7 @@ import java.util.EnumMap;
 import java.util.Map;
 
 /** Built-in dark palette, carried over from an earlier consumer mod's existing HUD/edit-mode colors. */
+@ApiStatus.Experimental
 public final class DarkTheme implements Theme {
 
     public static final Theme INSTANCE = new DarkTheme();

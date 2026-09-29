@@ -1,5 +1,7 @@
 package dev.marie.framework.ui.scaleconfig;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.ui.geometry.Anchor;
 import dev.marie.framework.ui.geometry.Bounds;
 
@@ -18,6 +20,7 @@ import java.util.Map;
  * its anchor's list when it renders again means a new render pass has started, so the whole list —
  * including any now-invisible panels — is cleared before this pass's claims are recorded.
  */
+@ApiStatus.Internal
 final class AnchorStack {
 
     private static final int PANEL_MARGIN = 8;

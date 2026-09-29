@@ -1,5 +1,7 @@
 package dev.marie.framework.ui.layout;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.ui.Layout;
 import dev.marie.framework.ui.component.Constraint;
 import dev.marie.framework.ui.component.MarieComponent;
@@ -16,6 +18,7 @@ import java.util.Map;
  * anchor plus a pixel offset, nothing else. Generalizes the anchor-switch pattern an earlier,
  * consumer-specific HUD layout implementation hand-rolled.
  */
+@ApiStatus.Experimental
 public final class FreeformLayout implements Layout {
 
     @Override

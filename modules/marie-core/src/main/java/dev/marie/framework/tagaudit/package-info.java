@@ -9,6 +9,7 @@
  * (the orchestrator) and an {@code apply} subpackage for writing approved
  * fixes back to datapack overrides or bundled source.</p>
  */
+@ApiStatus.Stable
 package dev.marie.framework.tagaudit;
 
 import dev.marie.framework.api.ApiStatus;

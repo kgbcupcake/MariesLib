@@ -1,5 +1,7 @@
 package dev.marie.framework.ui.visibility;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.ui.VisibilityRule;
 
 import java.util.function.Supplier;
@@ -12,6 +14,7 @@ import java.util.function.Supplier;
  * visibility-rules implementation hand-rolled, for any
  * {@link Comparable} value type.
  */
+@ApiStatus.Experimental
 public final class ThresholdVisibility<T extends Comparable<T>> implements VisibilityRule {
 
     private final Supplier<T> valueSupplier;

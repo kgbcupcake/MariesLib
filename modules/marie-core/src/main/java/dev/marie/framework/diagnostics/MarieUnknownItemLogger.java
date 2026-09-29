@@ -1,5 +1,7 @@
 package dev.marie.framework.diagnostics;
 
+import dev.marie.framework.api.ApiStatus;
+
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -29,6 +31,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.fml.loading.FMLPaths;
 
+@ApiStatus.Internal
 public final class MarieUnknownItemLogger {
 
     private static final ExecutorService WRITE_EXECUTOR =

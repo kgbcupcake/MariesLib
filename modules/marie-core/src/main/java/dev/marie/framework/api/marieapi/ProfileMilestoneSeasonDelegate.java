@@ -1,5 +1,7 @@
 package dev.marie.framework.api.marieapi;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.api.marie.MarieSeasonHook;
 import dev.marie.framework.api.progression.MilestoneDefinition;
 import dev.marie.framework.api.progression.ProfileDefinition;
@@ -9,6 +11,7 @@ import dev.marie.framework.api.registry.ProfileRegistry;
 import dev.marie.framework.api.registry.SeasonHookRegistry;
 import dev.marie.framework.api.registry.TrackerMilestoneRegistry;
 
+@ApiStatus.Stable
 final class ProfileMilestoneSeasonDelegate {
 
     private ProfileMilestoneSeasonDelegate() {}

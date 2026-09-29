@@ -1,5 +1,7 @@
 package dev.marie.framework.scan;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.cache.RunningAverage;
 import dev.marie.framework.classification.ClassificationTraceStep;
 import net.minecraft.core.Holder;
@@ -19,6 +21,7 @@ import java.util.Set;
  * Context passed through the resolution pipeline to each stage handler.
  * Mutable to allow earlier stages to deposit signals for later stages.
  */
+@ApiStatus.Internal
 public final class StageContext {
     private final Holder<Item> holder;
     private final ResourceLocation itemId;

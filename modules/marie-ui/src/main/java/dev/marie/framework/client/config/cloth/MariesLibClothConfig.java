@@ -1,5 +1,7 @@
 package dev.marie.framework.client.config.cloth;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.color.ColorPreviewOverrides;
 import dev.marie.framework.config.MariesLibConfigIO;
 import me.shedaniel.clothconfig2.api.ConfigBuilder;
@@ -13,6 +15,7 @@ import net.neoforged.neoforge.common.NeoForge;
  * Builds the MarieCore Cloth Config screen with framework-only tabs:
  * Overview, Scanner, Diagnostics, and Tools.
  */
+@ApiStatus.Internal
 public final class MariesLibClothConfig {
 
     private static volatile boolean previewClearListenerRegistered;

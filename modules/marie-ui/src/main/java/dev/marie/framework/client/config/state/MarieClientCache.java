@@ -1,5 +1,7 @@
 package dev.marie.framework.client.config.state;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.core.IMarieConfig;
 import dev.marie.framework.tracking.TrackingData;
 import dev.marie.framework.tracking.DiminishingReturnsConfig;
@@ -9,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+@ApiStatus.Internal
 public class MarieClientCache {
 
     public static final int FLASH_MS = 2000;

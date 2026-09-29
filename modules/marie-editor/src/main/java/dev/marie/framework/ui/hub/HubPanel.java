@@ -1,5 +1,7 @@
 package dev.marie.framework.ui.hub;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.ui.PersistenceProvider;
 import dev.marie.framework.ui.RenderContext;
 import dev.marie.framework.ui.Theme;
@@ -34,6 +36,7 @@ import java.util.List;
  * {@link HubChildPopup} above the hub. Only one level of nesting is supported by design — a group's
  * children are leaves (they open a popup, they don't themselves contain groups).
  */
+@ApiStatus.Internal
 public final class HubPanel {
 
     private static final int SIDEBAR_WIDTH = 120;

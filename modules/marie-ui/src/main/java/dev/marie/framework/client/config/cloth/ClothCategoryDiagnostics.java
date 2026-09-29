@@ -1,10 +1,13 @@
 package dev.marie.framework.client.config.cloth;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.config.MariesLibConfigHolder;
 import dev.marie.framework.config.MariesLibConfigKeys;
 import me.shedaniel.clothconfig2.api.ConfigBuilder;
 import me.shedaniel.clothconfig2.api.ConfigEntryBuilder;
 
+@ApiStatus.Internal
 final class ClothCategoryDiagnostics {
 
     private ClothCategoryDiagnostics() {}

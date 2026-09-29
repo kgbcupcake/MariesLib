@@ -1,9 +1,12 @@
 package dev.marie.framework.scan;
 
+import dev.marie.framework.api.ApiStatus;
+
 /**
  * Identifies which stage of the runtime inference cascade produced a classification.
  * This enum tracks the internal resolution pipeline within the consuming mod's runtime source resolver.
  */
+@ApiStatus.Internal
 public enum RuntimeCascadeStage {
     COMMUNITY_TAG,
     KEYWORD_SUFFIX,

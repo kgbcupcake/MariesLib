@@ -17,4 +17,7 @@
  * bulk scan behaviour (caching, diff reporting, recipe inheritance) does not
  * bleed into the per-item signal logic.</p>
  */
+@ApiStatus.Experimental
 package dev.marie.framework.scanner;
+
+import dev.marie.framework.api.ApiStatus;

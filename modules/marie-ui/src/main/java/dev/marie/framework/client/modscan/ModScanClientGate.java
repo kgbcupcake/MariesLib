@@ -1,5 +1,7 @@
 package dev.marie.framework.client.modscan;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.core.MarieCore;
 import dev.marie.framework.modscan.ModScan;
 import net.minecraft.client.Minecraft;
@@ -12,6 +14,7 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
  * first tick with no loading overlay. Until then the scan stays armed but does not start.
  */
 @EventBusSubscriber(modid = MarieCore.MOD_ID, value = Dist.CLIENT)
+@ApiStatus.Experimental
 public final class ModScanClientGate {
 
     private static boolean signalled;

@@ -1,5 +1,7 @@
 package dev.marie.framework.ui.edit;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.ui.RenderContext;
 import dev.marie.framework.ui.Theme;
 import dev.marie.framework.ui.ThemeKey;
@@ -23,6 +25,7 @@ import java.util.List;
  * mouseX/mouseY internally (same as today's single-target behavior), so targets not hit by a given
  * event are expected to no-op rather than this screen picking one via its own bounds check.
  */
+@ApiStatus.Experimental
 public final class EditOverlayScreen extends Screen {
 
     private final List<MarieComponent> targets;

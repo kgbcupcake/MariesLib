@@ -1,5 +1,7 @@
 package dev.marie.framework.client.config.importexport;
 
+import dev.marie.framework.api.ApiStatus;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.toasts.Toast;
@@ -9,6 +11,7 @@ import net.minecraft.network.chat.Component;
 /**
  * Short single-line toast for config import/export feedback.
  */
+@ApiStatus.Internal
 public final class ImportExportToast implements Toast {
 
     private static final long DISPLAY_MS = 4500L;

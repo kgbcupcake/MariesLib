@@ -1,5 +1,7 @@
 package dev.marie.framework.classification;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.core.MarieContext;
 import net.minecraft.world.item.ItemStack;
 
@@ -12,6 +14,7 @@ import java.util.Map;
  * Formats a {@link ClassificationTrace} into the full SOURCE INSPECTOR output.
  * Pure static, no state.
  */
+@ApiStatus.Internal
 public final class ClassificationTraceFormatter {
 
     private static final String SEP_FULL = "==================================================";

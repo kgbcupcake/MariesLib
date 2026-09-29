@@ -1,5 +1,7 @@
 package dev.marie.framework.ui.layout;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.ui.Layout;
 import dev.marie.framework.ui.component.Constraint;
 import dev.marie.framework.ui.component.MarieComponent;
@@ -10,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 /** Arranges children into a fixed-column grid; each row's height is the tallest cell in that row. */
+@ApiStatus.Experimental
 public final class GridLayout implements Layout {
 
     private final int columns;

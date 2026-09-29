@@ -1,5 +1,7 @@
 package dev.marie.framework.ui.hub;
 
+import dev.marie.framework.api.ApiStatus;
+
 import net.minecraft.network.chat.Component;
 
 import java.util.List;
@@ -11,4 +13,5 @@ import java.util.function.Supplier;
  * re-rendered — not fixed at construction time — so a host whose child count can change at runtime
  * (e.g. driven by a registry that can grow) stays accurate without the hub needing to know why.
  */
+@ApiStatus.Internal
 public record HubGroupEntry(String id, Component label, Supplier<List<HubChildEntry>> children) implements HubSidebarEntry {}

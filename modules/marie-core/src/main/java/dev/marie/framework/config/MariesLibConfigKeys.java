@@ -1,9 +1,12 @@
 package dev.marie.framework.config;
 
+import dev.marie.framework.api.ApiStatus;
+
 /**
  * Stable Cloth Config / {@link LockRegistry} keys for MarieCore-owned settings.
  * Only scanner and debug keys remain — gameplay keys belong to consuming mods.
  */
+@ApiStatus.Internal
 public final class MariesLibConfigKeys {
 
     // Debug

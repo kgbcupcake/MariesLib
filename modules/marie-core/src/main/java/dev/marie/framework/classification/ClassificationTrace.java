@@ -1,5 +1,7 @@
 package dev.marie.framework.classification;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.scan.ResolutionStage;
 import dev.marie.framework.scan.RuntimeCascadeStage;
 import net.minecraft.world.item.ItemStack;
@@ -14,6 +16,7 @@ import java.util.Map;
  * Immutable trace of classification decisions for a single source item.
  * Records the ordered decision steps and final outcome.
  */
+@ApiStatus.Internal
 public final class ClassificationTrace {
 
     private final String itemId;

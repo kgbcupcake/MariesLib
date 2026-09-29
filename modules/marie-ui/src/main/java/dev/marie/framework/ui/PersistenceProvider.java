@@ -1,5 +1,7 @@
 package dev.marie.framework.ui;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.ui.component.ComponentState;
 
 import java.util.Optional;
@@ -9,6 +11,7 @@ import java.util.Optional;
  * the data is serialized or where it lives underneath — swap the implementation (e.g. a future
  * server-sync or per-world provider) without touching any MarieUI caller.
  */
+@ApiStatus.Experimental
 public interface PersistenceProvider {
 
     Optional<ComponentState> load(String componentId);

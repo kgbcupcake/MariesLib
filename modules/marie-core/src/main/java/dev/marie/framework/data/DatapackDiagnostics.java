@@ -1,8 +1,11 @@
 package dev.marie.framework.data;
 
+import dev.marie.framework.api.ApiStatus;
+
 import java.util.ArrayList;
 import java.util.List;
 
+@ApiStatus.Experimental
 public final class DatapackDiagnostics {
 
     private static final DatapackDiagnostics INSTANCE = new DatapackDiagnostics();

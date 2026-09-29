@@ -1,5 +1,7 @@
 package dev.marie.framework.api.marieapi;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.api.impl.EmptyApplicationHistoryView;
 import dev.marie.framework.api.marie.MariePlayerData;
 import dev.marie.framework.api.reporting.ApplicationHistoryView;
@@ -18,6 +20,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+@ApiStatus.Stable
 final class PlayerStateDelegate {
 
     private PlayerStateDelegate() {}

@@ -1,5 +1,7 @@
 package dev.marie.framework.ui.hub;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.ui.RenderContext;
 import dev.marie.framework.ui.ThemeKey;
 import dev.marie.framework.ui.component.Constraint;
@@ -19,6 +21,7 @@ import dev.marie.framework.ui.geometry.Size;
  * lazily from {@link #beginFrame} when its owner group is no longer the hub's selected entry, or when
  * no frame has been drawn for {@link #STALE_MS} (the host stopped rendering the hub).
  */
+@ApiStatus.Internal
 final class HubChildPopup {
 
     static final long STALE_MS = 500;

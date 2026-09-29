@@ -1,5 +1,7 @@
 package dev.marie.framework.ui.hub;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.ui.component.MarieComponent;
 import net.minecraft.network.chat.Component;
 
@@ -9,4 +11,5 @@ import net.minecraft.network.chat.Component;
  * the same "content embedded in a window body" contract {@code ScaleConfigPanel}'s hosted windows
  * already use.
  */
+@ApiStatus.Internal
 public record HubEntry(String id, Component label, MarieComponent content) implements HubSidebarEntry {}

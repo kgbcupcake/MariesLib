@@ -1,5 +1,7 @@
 package dev.marie.framework.ui.visibility;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.ui.VisibilityRule;
 
 import java.util.List;
@@ -12,6 +14,7 @@ import java.util.List;
  * conventionally false, and that's also the least-surprising default for a component that ended
  * up with no rules to show it.
  */
+@ApiStatus.Experimental
 public final class AnyOf implements VisibilityRule {
 
     private final List<VisibilityRule> rules;

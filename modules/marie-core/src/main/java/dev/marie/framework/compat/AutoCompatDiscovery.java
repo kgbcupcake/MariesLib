@@ -1,5 +1,7 @@
 package dev.marie.framework.compat;
 
+import dev.marie.framework.api.ApiStatus;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -28,6 +30,7 @@ import java.util.Set;
 /**
  * Auto-detects loaded source mods that have not been registered in the compat registry.
  */
+@ApiStatus.Internal
 public final class AutoCompatDiscovery {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();

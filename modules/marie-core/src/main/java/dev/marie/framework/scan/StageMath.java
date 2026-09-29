@@ -1,5 +1,7 @@
 package dev.marie.framework.scan;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.core.IMarieConfig;
 
 import java.util.LinkedHashMap;
@@ -10,6 +12,7 @@ import java.util.Set;
  * Shared numeric helpers used by multiple resolution stages.
  * Package-private — not part of the public API surface.
  */
+@ApiStatus.Internal
 public final class StageMath {
 
     private StageMath() {}

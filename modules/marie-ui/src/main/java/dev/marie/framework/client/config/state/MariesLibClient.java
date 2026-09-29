@@ -1,5 +1,7 @@
 package dev.marie.framework.client.config.state;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.client.config.cloth.MariesLibClothConfig;
 import dev.marie.framework.client.config.importexport.MariesLibExportScreen;
 import dev.marie.framework.client.config.importexport.MariesLibImportScreen;
@@ -14,6 +16,7 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 
 @Mod(value = MarieCore.MOD_ID, dist = Dist.CLIENT)
+@ApiStatus.Internal
 public final class MariesLibClient {
 
     public MariesLibClient(ModContainer container) {

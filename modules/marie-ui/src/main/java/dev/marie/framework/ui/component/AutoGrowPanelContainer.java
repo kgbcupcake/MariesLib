@@ -1,11 +1,14 @@
 package dev.marie.framework.ui.component;
 
+import dev.marie.framework.api.ApiStatus;
+
 import java.util.List;
 
 import dev.marie.framework.ui.drag.DraggableResizable;
 import dev.marie.framework.ui.geometry.Bounds;
 
 
+@ApiStatus.Experimental
 public final class AutoGrowPanelContainer {
 
     private AutoGrowPanelContainer() {}

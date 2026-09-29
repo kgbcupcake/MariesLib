@@ -1,6 +1,9 @@
 package dev.marie.framework.notification;
 
+import dev.marie.framework.api.ApiStatus;
+
 /** Mutable defaults for the notification stack's position, scale, and duration. */
+@ApiStatus.Experimental
 public final class NotificationConfig {
 
     private static final NotificationConfig INSTANCE = new NotificationConfig();

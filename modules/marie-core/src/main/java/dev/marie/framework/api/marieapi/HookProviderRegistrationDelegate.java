@@ -1,5 +1,7 @@
 package dev.marie.framework.api.marieapi;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.api.effects.AbsorptionModifier;
 import dev.marie.framework.api.effects.SleepBonusEvaluator;
 import dev.marie.framework.api.hover.BlockHoverProvider;
@@ -10,6 +12,7 @@ import dev.marie.framework.api.registry.SourcePropertySignalRegistry;
 import dev.marie.framework.api.reporting.ExportResolver;
 import dev.marie.framework.api.source.SourcePropertySignal;
 
+@ApiStatus.Stable
 final class HookProviderRegistrationDelegate {
 
     private HookProviderRegistrationDelegate() {}

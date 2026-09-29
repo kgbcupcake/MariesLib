@@ -1,5 +1,7 @@
 package dev.marie.framework.ui.render;
 
+import dev.marie.framework.api.ApiStatus;
+
 import com.mojang.blaze3d.vertex.PoseStack;
 import dev.marie.framework.ui.RenderContext;
 import dev.marie.framework.ui.Theme;
@@ -17,6 +19,7 @@ import java.util.ArrayDeque;
  * The one concrete {@link RenderContext} MarieUI ships: draws through NeoForge's
  * {@link GuiGraphics}. Callers construct a fresh instance per frame.
  */
+@ApiStatus.Internal
 public final class GuiGraphicsRenderContext implements RenderContext {
 
     private final GuiGraphics graphics;

@@ -1,5 +1,7 @@
 package dev.marie.framework.ui.component;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.ui.geometry.Bounds;
 
 /**
@@ -9,6 +11,7 @@ import dev.marie.framework.ui.geometry.Bounds;
  * <p>The header always remains visible while body content is hidden when the resolved {@link Bounds}
  * cannot fit it. Fit calculations use the component's current content scale.
  */
+@ApiStatus.Experimental
 public interface HeaderCollapsibleComponent {
 
     /** Fixed header height in local (pre-scale) units. The header is never collapsed. */

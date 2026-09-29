@@ -1,5 +1,7 @@
 package dev.marie.framework.api.marieapi;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.api.registry.ValueRegistry;
 import dev.marie.framework.api.value.ValueDefinition;
 import dev.marie.framework.core.MarieContext;
@@ -7,6 +9,7 @@ import dev.marie.framework.core.MarieRegistrationDelegate;
 import dev.marie.framework.util.MarieRegistryUtils;
 import net.minecraft.resources.ResourceLocation;
 
+@ApiStatus.Stable
 final class ValueSourceRegistrationDelegate {
 
     private ValueSourceRegistrationDelegate() {}

@@ -1,5 +1,7 @@
 package dev.marie.framework.client.config.importexport;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.client.config.ClientScreenFactories;
 import dev.marie.framework.core.MarieCore;
 import me.shedaniel.clothconfig2.gui.ClothConfigScreen;
@@ -16,6 +18,7 @@ import java.util.Optional;
 /**
  * Presets category footer: open import/export flows.
  */
+@ApiStatus.Internal
 public final class ImportExportButtonsWidget extends TooltipListEntry<Object> {
 
     private static final int BTN_H = 20;

@@ -23,6 +23,7 @@
 
 ### Added
 
+- API stability (`@ApiStatus.Stable`/`Experimental`/`Internal`) is now applied consistently across the framework: every package under `dev.marie.framework` in `marie-core`, `marie-resources`, `marie-commands`, `marie-ui`, and `marie-editor` now carries a `package-info.java` with an explicit status (added where missing, annotated where present but bare), and the public entry-point types within those packages (registration delegates, event/definition classes, registries, facades) now carry a matching class-level annotation. Value tracking, events/definitions, compat registration, generic tracking, tag-audit, and resource sync remain the Stable addon contract; UI, datapack, scanner, command, and configuration systems are marked Experimental as real but evolving extension points; implementation-only packages (mixins, runtime wiring, registry internals) are marked Internal. No behavior changed — annotations and doc comments only.
 - `MarieAPI.registerTrackerMilestone(TrackerMilestoneDefinition)` (alias `addTrackerMilestone`) is the new public, stable entry point for registering tracker milestones — consuming mods should no longer call `dev.marie.framework.api.registry.TrackerMilestoneRegistry` directly, which is internal storage and was never meant to be depended on. Delegates to the same underlying registry, so existing behavior (including the mod-init/datapack-reload registration window enforced by `MarieAPIState`) is unchanged.
 
 ### Fixed

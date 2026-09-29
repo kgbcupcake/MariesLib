@@ -1,5 +1,7 @@
 package dev.marie.framework.scan;
 
+import dev.marie.framework.api.ApiStatus;
+
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -7,6 +9,7 @@ import java.util.Map;
 /**
  * Immutable result of a single runtime source resolution attempt.
  */
+@ApiStatus.Internal
 public record ResolutionResult(
         Map<String, Float> values,
         Map<String, Float> rawScores,
