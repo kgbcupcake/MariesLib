@@ -254,8 +254,8 @@ MilestoneDefinition.builder("emc_master")
 
 ```java
 CompatDefinition.builder("farmersdelight")
-    .category(CompatDefinition.CompatCategory.CONTENT_MOD)  // SOURCE_MOD, FARMING_MOD, SURVIVAL_OVERHAUL
-    .addSourceMapping(someItemId, "emc")
+    .category(CompatDefinition.CompatCategory.SOURCE_MOD)  // SOURCE_MOD, FARMING_MOD, SURVIVAL_OVERHAUL
+    .addSourceMapping(someItemId, "emc", 5.0f)  // valueKey, amount contributed per use
     .build()
 ```
 

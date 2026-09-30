@@ -180,6 +180,28 @@ public class SourceRegistry {
         return EXTERNAL_CLASSIFICATIONS.containsKey(sourceId);
     }
 
+    /** Deep copy of every external classification, for syncing the server's state to remote clients. */
+    public static Map<ResourceLocation, Map<String, Float>> snapshotExternalClassifications() {
+        Map<ResourceLocation, Map<String, Float>> copy = new java.util.HashMap<>();
+        for (Map.Entry<ResourceLocation, Map<String, Float>> entry : EXTERNAL_CLASSIFICATIONS.entrySet()) {
+            copy.put(entry.getKey(), new java.util.HashMap<>(entry.getValue()));
+        }
+        return copy;
+    }
+
+    /**
+     * Remote-client only: replaces the external classifications with the server's snapshot. Datapack
+     * source_classifications never load on a client connected to a dedicated server, so without this
+     * its tooltips would only see tag-derived values. Never call on a server or integrated host.
+     */
+    public static void replaceFromServerSync(Map<ResourceLocation, Map<String, Float>> snapshot) {
+        EXTERNAL_CLASSIFICATIONS.clear();
+        for (Map.Entry<ResourceLocation, Map<String, Float>> entry : snapshot.entrySet()) {
+            EXTERNAL_CLASSIFICATIONS.put(entry.getKey(), new ConcurrentHashMap<>(entry.getValue()));
+        }
+        RuntimeResolver.getInstance().invalidateCache();
+    }
+
     static Map<ResourceLocation, Map<String, Float>> getAllExternalView() {
         return Collections.unmodifiableMap(EXTERNAL_CLASSIFICATIONS);
     }

@@ -109,6 +109,19 @@ public final class MarieDataLoader extends SimpleJsonResourceReloadListener {
     private volatile Set<ResourceLocation> loadedProfiles = Set.of();
     private volatile Set<ResourceLocation> loadedCompatEntries = Set.of();
 
+    /**
+     * {@code "tag"} source classifications from the last apply, waiting for tags to bind. Item tags
+     * are only bound to the registry after every reload listener's apply() has run, so expanding
+     * them inside apply() sees an empty (first load) or stale (/reload) tag. Resolved by
+     * {@link #resolvePendingTagClassifications()} from the server-side TagsUpdatedEvent.
+     */
+    private volatile List<PendingTagClassification> pendingTagClassifications = List.of();
+
+    private record PendingTagClassification(ResourceLocation fileId, String rawTag, String valueKey, float amount) {}
+
+    /** Collects {@link #pendingTagClassifications} during one apply() pass; null outside it. */
+    private List<PendingTagClassification> nextPendingTagClassifications;
+
     public MarieDataLoader() {
         super(GSON, DatapackSchema.root());
     }
@@ -125,6 +138,7 @@ public final class MarieDataLoader extends SimpleJsonResourceReloadListener {
 
             MarieApiRegistries.onDatapackApplyBegin();
             callbacks.onApplyBegin();
+            nextPendingTagClassifications = new ArrayList<>();
 
             Set<ResourceLocation> nextValues = new LinkedHashSet<>();
             Set<ResourceLocation> nextSourceClassifications = new LinkedHashSet<>();
@@ -349,6 +363,41 @@ public final class MarieDataLoader extends SimpleJsonResourceReloadListener {
             loadedTrackerMilestones = Collections.unmodifiableSet(nextTrackerMilestones);
             loadedProfiles = Collections.unmodifiableSet(nextProfiles);
             loadedCompatEntries = Collections.unmodifiableSet(nextCompatEntries);
+            pendingTagClassifications = List.copyOf(nextPendingTagClassifications);
+            nextPendingTagClassifications = null;
+        }
+    }
+
+    /**
+     * Expands the {@code "tag"} source classifications queued by the last apply now that item tags
+     * are bound. Called from the server-side TagsUpdatedEvent; runs inside a datapack-reload scope so
+     * the entries are cleared by the next reload like every other datapack classification.
+     */
+    public void resolvePendingTagClassifications() {
+        List<PendingTagClassification> pending = pendingTagClassifications;
+        if (pending.isEmpty()) {
+            return;
+        }
+        try (MarieAPIState.DatapackReloadScope scope = MarieAPIState.openForDatapackReload()) {
+            for (PendingTagClassification entry : pending) {
+                try {
+                    String normalized = entry.rawTag().startsWith("#") ? entry.rawTag().substring(1) : entry.rawTag();
+                    TagKey<net.minecraft.world.item.Item> key = ItemTags.create(ResourceLocation.parse(normalized));
+                    int matched = 0;
+                    for (Holder<net.minecraft.world.item.Item> holder : BuiltInRegistries.ITEM.getTagOrEmpty(key)) {
+                        ResourceLocation itemId = MarieRegistryUtils.itemKey(holder.value());
+                        if (itemId != null) {
+                            callbacks.registerSourceClassification(itemId, entry.valueKey(), entry.amount());
+                            matched++;
+                        }
+                    }
+                    if (matched == 0) {
+                        throw new IllegalArgumentException("Tag has no registered items: " + entry.rawTag());
+                    }
+                } catch (Exception ex) {
+                    warnMalformed(entry.fileId(), ex);
+                }
+            }
         }
     }
 
@@ -463,20 +512,8 @@ public final class MarieDataLoader extends SimpleJsonResourceReloadListener {
         if (json.has(DatapackSchema.KEY_TAG)) {
             String rawTag = getRequiredString(json, DatapackSchema.KEY_TAG);
             String normalized = rawTag.startsWith("#") ? rawTag.substring(1) : rawTag;
-            ResourceLocation tagId = ResourceLocation.parse(normalized);
-            TagKey<net.minecraft.world.item.Item> key = ItemTags.create(tagId);
-            Iterable<Holder<net.minecraft.world.item.Item>> tagged = BuiltInRegistries.ITEM.getTagOrEmpty(key);
-            int matched = 0;
-            for (Holder<net.minecraft.world.item.Item> holder : tagged) {
-                ResourceLocation itemId = MarieRegistryUtils.itemKey(holder.value());
-                if (itemId != null) {
-                    callbacks.registerSourceClassification(itemId, valueKey, amount);
-                    matched++;
-                }
-            }
-            if (matched == 0) {
-                throw new IllegalArgumentException("Tag has no registered items: " + rawTag);
-            }
+            ResourceLocation.parse(normalized); // fail fast on a malformed id; expansion waits for tag binding
+            nextPendingTagClassifications.add(new PendingTagClassification(fileId, rawTag, valueKey, amount));
             return;
         }
 
@@ -582,24 +619,49 @@ public final class MarieDataLoader extends SimpleJsonResourceReloadListener {
     }
 
     private static ProfileDefinition parseTrackingProfile(ResourceLocation fileId, JsonObject json) {
-        throw new UnsupportedOperationException(
-                "parseTrackingProfile not yet implemented — datapack entry at " + fileId + " will be skipped");
+        ProfileDefinition.Builder builder = ProfileDefinition.builder(fileId.getPath());
+        builder.displayName(getRequiredString(json, DatapackSchema.KEY_DISPLAY_NAME));
+        if (json.has(DatapackSchema.KEY_DESCRIPTION)) {
+            builder.description(json.get(DatapackSchema.KEY_DESCRIPTION).getAsString());
+        }
+        if (json.has(DatapackSchema.KEY_CUSTOM_THRESHOLDS) && json.get(DatapackSchema.KEY_CUSTOM_THRESHOLDS).isJsonObject()) {
+            for (Map.Entry<String, JsonElement> e : json.getAsJsonObject(DatapackSchema.KEY_CUSTOM_THRESHOLDS).entrySet()) {
+                builder.customThreshold(e.getKey(), e.getValue().getAsFloat());
+            }
+        }
+        if (json.has(DatapackSchema.KEY_CUSTOM_DECAY_RATES) && json.get(DatapackSchema.KEY_CUSTOM_DECAY_RATES).isJsonObject()) {
+            for (Map.Entry<String, JsonElement> e : json.getAsJsonObject(DatapackSchema.KEY_CUSTOM_DECAY_RATES).entrySet()) {
+                builder.customDecayRate(e.getKey(), e.getValue().getAsFloat());
+            }
+        }
+        if (json.has(DatapackSchema.KEY_BONUS_EFFECTS) && json.get(DatapackSchema.KEY_BONUS_EFFECTS).isJsonArray()) {
+            for (JsonElement element : json.getAsJsonArray(DatapackSchema.KEY_BONUS_EFFECTS)) {
+                builder.addBonusEffect(ResourceLocation.parse(element.getAsString()));
+            }
+        }
+        return builder.build();
     }
 
     private static CompatDefinition parseCompat(ResourceLocation fileId, JsonObject json) throws Exception {
         String modId = json.has(DatapackSchema.KEY_MOD_ID) ? json.get(DatapackSchema.KEY_MOD_ID).getAsString() : fileId.getPath();
         String categoryRaw = json.has(DatapackSchema.KEY_CATEGORY) ? json.get(DatapackSchema.KEY_CATEGORY).getAsString() : "SOURCE_MOD";
         CompatDefinition.CompatCategory category = CompatDefinition.CompatCategory.valueOf(categoryRaw.toUpperCase(Locale.ROOT));
-        Map<ResourceLocation, String> mappings = new LinkedHashMap<>();
+        CompatDefinition.Builder builder = CompatDefinition.builder(modId).category(category);
         if (json.has(DatapackSchema.KEY_MAPPINGS) && json.get(DatapackSchema.KEY_MAPPINGS).isJsonObject()) {
             for (Map.Entry<String, JsonElement> e : json.getAsJsonObject(DatapackSchema.KEY_MAPPINGS).entrySet()) {
-                mappings.put(ResourceLocation.parse(e.getKey()), e.getValue().getAsString());
+                ResourceLocation itemId = ResourceLocation.parse(e.getKey());
+                JsonElement mappingValue = e.getValue();
+                if (mappingValue.isJsonObject()) {
+                    JsonObject mappingObj = mappingValue.getAsJsonObject();
+                    String valueKey = getRequiredString(mappingObj, "value");
+                    float amount = getOptionalFloat(mappingObj, "amount", 1.0f);
+                    builder.addSourceMapping(itemId, valueKey, amount);
+                } else {
+                    builder.addSourceMapping(itemId, mappingValue.getAsString(), 1.0f);
+                }
             }
         }
-        return CompatDefinition.builder(modId)
-                .category(category)
-                .addAllSourceMappings(mappings)
-                .build();
+        return builder.build();
     }
 
     private void applySourceFamilies(JsonObject json) {

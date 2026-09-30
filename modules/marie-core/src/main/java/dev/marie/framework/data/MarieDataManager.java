@@ -34,6 +34,11 @@ public final class MarieDataManager {
         event.addListener(loader());
     }
 
+    /** Expands queued {@code "tag"} source classifications; call once item tags are bound. */
+    public static void resolvePendingTagClassifications() {
+        loader().resolvePendingTagClassifications();
+    }
+
     public static void setCallbacks(MarieDataLoader.Callbacks callbacks) {
         loader().setCallbacks(callbacks);
     }

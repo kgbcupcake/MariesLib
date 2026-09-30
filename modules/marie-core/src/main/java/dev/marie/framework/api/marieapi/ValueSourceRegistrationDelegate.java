@@ -42,6 +42,13 @@ final class ValueSourceRegistrationDelegate {
             throw new IllegalArgumentException("MarieAPI.registerSourceClassification.amount: value must be finite, got " + amount);
         }
         if (!net.minecraft.core.registries.BuiltInRegistries.ITEM.containsKey(sourceId)) {
+            // Packs routinely ship mappings for optional mods; an entry for a mod that isn't installed
+            // can never resolve, so drop it quietly instead of warning (and syncing it to clients).
+            // A missing item from an installed mod is still a likely typo and keeps the warning.
+            if (!net.neoforged.fml.ModList.get().isLoaded(sourceId.getNamespace())) {
+                org.slf4j.LoggerFactory.getLogger(MarieAPI.class).debug("[MarieAPI] registerSourceClassification: skipping '{}' — mod '{}' not loaded", sourceId, sourceId.getNamespace());
+                return;
+            }
             org.slf4j.LoggerFactory.getLogger(MarieAPI.class).warn("[MarieAPI] registerSourceClassification: item '{}' not found in BuiltInRegistries.ITEM", sourceId);
         }
         MarieRegistryUtils.requireValueKey(valueKey, "MarieAPI.registerSourceClassification");

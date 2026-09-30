@@ -10,7 +10,6 @@ import dev.marie.framework.api.registry.ModScanRegistry;
 import dev.marie.framework.color.ColorRegistry;
 import dev.marie.framework.compat.AutoCompatDiscovery;
 import dev.marie.framework.compat.ModCompat;
-import dev.marie.framework.config.ModCompatRegistry;
 import dev.marie.framework.config.FeatureFlagCache;
 import dev.marie.framework.config.MarieModFeatureFlags;
 import dev.marie.framework.config.PresetRegistry;
@@ -131,7 +130,6 @@ public final class MarieBootstrap {
     }
 
     private static void onLoadComplete(FMLLoadCompleteEvent event) {
-        ModCompatRegistry.load();
         ModCompat.initialize();
         AutoCompatDiscovery.discover();
     }
@@ -172,7 +170,6 @@ public final class MarieBootstrap {
         registerRegistries();
         registerHandlers(modEventBus);
         RegistryLifecycleManager.loadAll();
-        ModCompatRegistry.load();
         FeatureFlagCache.sync(MarieModFeatureFlags.disabled());
         MarieCore.LOGGER.info("[MarieCore] Bootstrap complete with owned config");
     }

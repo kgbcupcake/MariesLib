@@ -68,7 +68,6 @@ public final class AutoCompatDiscovery {
 
                 CompatDefinition definition = CompatDefinition.builder(modId)
                         .category(CompatDefinition.CompatCategory.SOURCE_MOD)
-                        .addAllSourceMappings(Map.of())
                         .build();
                 ModCompat.registerExternal(definition);
                 registeredModIds.add(modId);
