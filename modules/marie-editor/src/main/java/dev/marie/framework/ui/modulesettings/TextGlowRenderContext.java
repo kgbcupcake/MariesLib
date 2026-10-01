@@ -1,5 +1,6 @@
 package dev.marie.framework.ui.modulesettings;
 
+import dev.marie.framework.ui.api.MariePulse;
 import dev.marie.framework.api.ApiStatus;
 import dev.marie.framework.ui.PersistenceProvider;
 import dev.marie.framework.ui.RenderContext;
@@ -25,15 +26,18 @@ public final class TextGlowRenderContext implements RenderContext {
     private final double textGlowStrength;
     private final int textGlowColor;
     private final double barGlowStrength;
+    /** The module's Pulse for its Bar glow (see {@link MariePulse}). */
+    private final MariePulse barGlowPulse;
     private final int barGlowColor;
 
     private TextGlowRenderContext(RenderContext delegate, double textShadowStrength, double textGlowStrength,
-                                   int textGlowColor, double barGlowStrength, int barGlowColor) {
+                                   int textGlowColor, double barGlowStrength, int barGlowColor, MariePulse barGlowPulse) {
         this.delegate = delegate;
         this.textShadowStrength = textShadowStrength;
         this.textGlowStrength = textGlowStrength;
         this.textGlowColor = textGlowColor;
         this.barGlowStrength = barGlowStrength;
+        this.barGlowPulse = barGlowPulse;
         this.barGlowColor = barGlowColor;
     }
 
@@ -41,12 +45,14 @@ public final class TextGlowRenderContext implements RenderContext {
         double textShadowStrength = ModuleGlow.textShadowStrength(store, panelId);
         double textGlowStrength = ModuleGlow.textGlowStrength(store, panelId);
         double barGlowStrength = ModuleGlow.barGlowStrength(store, panelId);
+        // A pulse only animates an existing glow, so it never needs a wrapper on its own.
         if (textShadowStrength <= 0 && textGlowStrength <= 0 && barGlowStrength <= 0) {
             return delegate;
         }
         int textGlowColor = ModuleGlow.textGlowColor(store, panelId);
         int barGlowColor = ModuleGlow.barGlowColor(store, panelId);
-        return new TextGlowRenderContext(delegate, textShadowStrength, textGlowStrength, textGlowColor, barGlowStrength, barGlowColor);
+        return new TextGlowRenderContext(delegate, textShadowStrength, textGlowStrength, textGlowColor, barGlowStrength, barGlowColor,
+                ModuleGlow.barGlowPulse(store, panelId));
     }
 
     /**
@@ -63,7 +69,8 @@ public final class TextGlowRenderContext implements RenderContext {
             return delegate;
         }
         int barGlowColor = ModuleGlow.barGlowColor(store, panelId);
-        return new TextGlowRenderContext(delegate, textShadowStrength, barGlowStrength, barGlowColor, barGlowStrength, barGlowColor);
+        return new TextGlowRenderContext(delegate, textShadowStrength, barGlowStrength, barGlowColor, barGlowStrength, barGlowColor,
+                ModuleGlow.barGlowPulse(store, panelId));
     }
 
     @Override
@@ -146,11 +153,8 @@ public final class TextGlowRenderContext implements RenderContext {
     }
 
     private void drawBarGlow(int x, int y, int width, int height) {
-        if (barGlowStrength <= 0) {
-            return;
-        }
-        int alpha = Math.min(255, (int) Math.round(barGlowStrength * 255));
-        delegate.drawGlow(x, y, width, height, (alpha << 24) | (barGlowColor & 0xFFFFFF));
+        // The module's Pulse animates this Bar glow itself (no ring of its own) — see MariePulse.
+        barGlowPulse.drawGlow(delegate, x, y, width, height, barGlowColor, barGlowStrength);
     }
 
     @Override

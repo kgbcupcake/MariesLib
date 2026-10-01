@@ -37,6 +37,13 @@ public final class DraggableResizable {
     /** Default snap distance in screen pixels — an edge within this of a snap line locks to it. */
     public static final int DEFAULT_SNAP_THRESHOLD_PX = 5;
 
+    /**
+     * Default max gap in screen pixels between this box and a registered sibling for the sibling's
+     * edges to be snap candidates at all (see {@link SnapRegistry#computeSnapLines(String, Bounds, int)}),
+     * so boxes only pull toward each other when they're actually close.
+     */
+    public static final int DEFAULT_SNAP_PROXIMITY_PX = 24;
+
     /** {@code CORNER} is bottom-right, {@code CORNER_BOTTOM_LEFT} is bottom-left; the four edge modes move only their own axis, anchored at the opposite fixed edge. */
     private enum ResizeMode {
         CORNER, CORNER_BOTTOM_LEFT, LEFT, RIGHT, TOP, BOTTOM
@@ -46,8 +53,11 @@ public final class DraggableResizable {
     private Constraint constraint;
     private final BiConsumer<MarieComponent, Bounds> onCommit;
     private int snapThresholdPx = DEFAULT_SNAP_THRESHOLD_PX;
+    private int snapProximityPx = DEFAULT_SNAP_PROXIMITY_PX;
     private List<Integer> snapXLines = List.of();
     private List<Integer> snapYLines = List.of();
+    private List<Integer> snapWidths = List.of();
+    private List<Integer> snapHeights = List.of();
     private Bounds parentBounds;
     private String snapRegistryId;
 
@@ -120,15 +130,32 @@ public final class DraggableResizable {
         this.snapYLines = yLines;
     }
 
+    /**
+     * Candidate sizes (typically sibling boxes' widths/heights, same screen-pixel space) a resize
+     * locks to when within {@link #snapThresholdPx}, so boxes can be matched in size the same way
+     * {@link #setSnapTargets} lets them be lined up by edge. When both apply, whichever snap is
+     * closer wins. Empty lists (the default) disable size snapping.
+     */
+    public void setSizeSnapTargets(List<Integer> widths, List<Integer> heights) {
+        this.snapWidths = widths;
+        this.snapHeights = heights;
+    }
+
     /** Overrides {@link #DEFAULT_SNAP_THRESHOLD_PX} for this tracker. */
     public void setSnapThresholdPx(int snapThresholdPx) {
         this.snapThresholdPx = snapThresholdPx;
     }
 
+    /** Overrides {@link #DEFAULT_SNAP_PROXIMITY_PX} for this tracker's registry-driven snapping. */
+    public void setSnapProximityPx(int snapProximityPx) {
+        this.snapProximityPx = snapProximityPx;
+    }
+
     /**
      * Registers this tracker's own id with {@link SnapRegistry}: every subsequent {@link
      * #mouseDragged} call recomputes candidate snap lines from every other registered component
-     * (via {@link SnapRegistry#computeSnapLines}, excluding this id) and feeds them into {@link
+     * within {@link #snapProximityPx} of this one (via {@link SnapRegistry#computeSnapLines(String,
+     * Bounds, int)}, excluding this id) and feeds them into {@link
      * #setSnapTargets} before processing the drag, so this tracker's siblings don't need their own
      * per-frame wiring. {@code null} (the default) disables registry-driven snapping; {@link
      * #setSnapTargets} can still be called manually in that case.
@@ -320,62 +347,60 @@ public final class DraggableResizable {
      * preview {@link Bounds} for the active gesture, or {@code null} if no gesture is active.
      */
     public Bounds mouseDragged(int mx, int my) {
-        if (snapRegistryId != null) {
-            SnapRegistry.SnapLines lines = SnapRegistry.computeSnapLines(snapRegistryId);
-            setSnapTargets(lines.xLines(), lines.yLines());
-        }
         if (dragging) {
             int rawX = mx - grabOffsetX;
             int rawY = my - grabOffsetY;
+            refreshRegistrySnapTargets(new Bounds(rawX, rawY, previewBounds.width(), previewBounds.height()));
             int snappedX = snapPosition(rawX, previewBounds.width(), snapXLines);
             int snappedY = snapPosition(rawY, previewBounds.height(), snapYLines);
             previewBounds = clampToParent(new Bounds(snappedX, snappedY, previewBounds.width(), previewBounds.height()));
             return previewBounds;
         }
         if (resizing) {
+            refreshRegistrySnapTargets(previewBounds);
             previewBounds = clampToParent(switch (resizeMode) {
                 case CORNER -> {
                     // Width/height each track the cursor directly, like RIGHT+BOTTOM combined — not a
                     // locked-aspect diagonal scale. Matches how every desktop window manager resizes
                     // from a corner grip: the corner follows the mouse 1:1 on both axes.
-                    int newWidth = clampWidth(mx - resizeOriginX);
-                    newWidth = clampWidth(snapToNearest(resizeOriginX + newWidth, snapXLines) - resizeOriginX);
-                    int newHeight = clampHeight(my - resizeOriginY);
-                    newHeight = clampHeight(snapToNearest(resizeOriginY + newHeight, snapYLines) - resizeOriginY);
+                    int newWidth = snapWidth(mx - resizeOriginX, resizeOriginX, true);
+                    int newHeight = snapHeight(my - resizeOriginY, resizeOriginY, true);
                     yield new Bounds(resizeOriginX, resizeOriginY, newWidth, newHeight);
                 }
                 case CORNER_BOTTOM_LEFT -> {
                     // LEFT + BOTTOM combined: fixed at the top-right corner, tracking the cursor on both axes.
-                    int newWidth = clampWidth(resizeFixedRight - mx);
-                    newWidth = clampWidth(resizeFixedRight - snapToNearest(resizeFixedRight - newWidth, snapXLines));
-                    int newHeight = clampHeight(my - resizeOriginY);
-                    newHeight = clampHeight(snapToNearest(resizeOriginY + newHeight, snapYLines) - resizeOriginY);
+                    int newWidth = snapWidth(resizeFixedRight - mx, resizeFixedRight, false);
+                    int newHeight = snapHeight(my - resizeOriginY, resizeOriginY, true);
                     yield new Bounds(resizeFixedRight - newWidth, resizeOriginY, newWidth, newHeight);
                 }
                 case RIGHT -> {
-                    int newWidth = clampWidth(mx - resizeOriginX);
-                    newWidth = clampWidth(snapToNearest(resizeOriginX + newWidth, snapXLines) - resizeOriginX);
+                    int newWidth = snapWidth(mx - resizeOriginX, resizeOriginX, true);
                     yield new Bounds(resizeOriginX, resizeOriginY, newWidth, resizeStartHeight);
                 }
                 case LEFT -> {
-                    int newWidth = clampWidth(resizeFixedRight - mx);
-                    newWidth = clampWidth(resizeFixedRight - snapToNearest(resizeFixedRight - newWidth, snapXLines));
+                    int newWidth = snapWidth(resizeFixedRight - mx, resizeFixedRight, false);
                     yield new Bounds(resizeFixedRight - newWidth, resizeOriginY, newWidth, resizeStartHeight);
                 }
                 case BOTTOM -> {
-                    int newHeight = clampHeight(my - resizeOriginY);
-                    newHeight = clampHeight(snapToNearest(resizeOriginY + newHeight, snapYLines) - resizeOriginY);
+                    int newHeight = snapHeight(my - resizeOriginY, resizeOriginY, true);
                     yield new Bounds(resizeOriginX, resizeOriginY, resizeStartWidth, newHeight);
                 }
                 case TOP -> {
-                    int newHeight = clampHeight(resizeFixedBottom - my);
-                    newHeight = clampHeight(resizeFixedBottom - snapToNearest(resizeFixedBottom - newHeight, snapYLines));
+                    int newHeight = snapHeight(resizeFixedBottom - my, resizeFixedBottom, false);
                     yield new Bounds(resizeOriginX, resizeFixedBottom - newHeight, resizeStartWidth, newHeight);
                 }
             });
             return previewBounds;
         }
         return null;
+    }
+
+    /** Pulls fresh snap lines from {@link SnapRegistry}, limited to siblings near {@code near}; no-op without a registry id. */
+    private void refreshRegistrySnapTargets(Bounds near) {
+        if (snapRegistryId != null) {
+            SnapRegistry.SnapLines lines = SnapRegistry.computeSnapLines(snapRegistryId, near, snapProximityPx);
+            setSnapTargets(lines.xLines(), lines.yLines());
+        }
     }
 
     /**
@@ -394,13 +419,32 @@ public final class DraggableResizable {
         return startDist <= endDist ? nearStart : nearEnd - size;
     }
 
-    /** Snaps a single edge value to the nearest candidate line within {@link #snapThresholdPx}, else returns it unchanged. */
-    private int snapToNearest(int value, List<Integer> lines) {
-        int nearest = nearestLine(value, lines);
-        if (nearest == Integer.MIN_VALUE || Math.abs(value - nearest) > snapThresholdPx) {
-            return value;
+    private int snapWidth(int rawWidth, int anchor, boolean growsPositive) {
+        return clampWidth(snapSize(clampWidth(rawWidth), anchor, growsPositive, snapXLines, snapWidths));
+    }
+
+    private int snapHeight(int rawHeight, int anchor, boolean growsPositive) {
+        return clampHeight(snapSize(clampHeight(rawHeight), anchor, growsPositive, snapYLines, snapHeights));
+    }
+
+    /**
+     * Snaps a resized extent measured from the fixed {@code anchor} edge: either its moving edge to
+     * the nearest edge line, or the size itself to the nearest candidate size — whichever is closer,
+     * within {@link #snapThresholdPx}. A tie goes to the size match. Unchanged if neither is close.
+     */
+    private int snapSize(int rawSize, int anchor, boolean growsPositive, List<Integer> edgeLines, List<Integer> sizes) {
+        int movingEdge = growsPositive ? anchor + rawSize : anchor - rawSize;
+        int nearEdge = nearestLine(movingEdge, edgeLines);
+        int edgeDist = nearEdge == Integer.MIN_VALUE ? Integer.MAX_VALUE : Math.abs(movingEdge - nearEdge);
+        int nearSize = nearestLine(rawSize, sizes);
+        int sizeDist = nearSize == Integer.MIN_VALUE ? Integer.MAX_VALUE : Math.abs(rawSize - nearSize);
+        if (sizeDist <= snapThresholdPx && sizeDist <= edgeDist) {
+            return nearSize;
         }
-        return nearest;
+        if (edgeDist <= snapThresholdPx) {
+            return Math.abs(nearEdge - anchor);
+        }
+        return rawSize;
     }
 
     /** The candidate line closest to {@code value}, or {@code Integer.MIN_VALUE} if {@code lines} is empty. */

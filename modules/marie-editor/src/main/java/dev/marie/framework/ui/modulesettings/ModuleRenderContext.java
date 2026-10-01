@@ -1,5 +1,6 @@
 package dev.marie.framework.ui.modulesettings;
 
+import dev.marie.framework.ui.api.MariePulse;
 import com.mojang.blaze3d.systems.RenderSystem;
 import dev.marie.framework.api.ApiStatus;
 import dev.marie.framework.ui.PersistenceProvider;
@@ -46,6 +47,8 @@ public final class ModuleRenderContext implements RenderContext {
     private final double textGlowStrength;
     private final int textGlowColor;
     private final double barGlowStrength;
+    /** The module's Pulse for its Bar glow (see {@link MariePulse}). */
+    private final MariePulse barGlowPulse;
     private final int barGlowColor;
 
     private ModuleRenderContext(RenderContext delegate, int textDx, int textDy, int iconDx, int iconDy,
@@ -53,7 +56,7 @@ public final class ModuleRenderContext implements RenderContext {
                                 int barDx, int barDy, float barScale, boolean hideIcons, boolean hideBars, boolean hideText,
                                 boolean hideWindow, PersistenceProvider store, String panelId,
                                 double textShadowStrength, double textGlowStrength, int textGlowColor,
-                                double barGlowStrength, int barGlowColor) {
+                                double barGlowStrength, int barGlowColor, MariePulse barGlowPulse) {
         this.delegate = delegate;
         this.textDx = textDx;
         this.textDy = textDy;
@@ -75,6 +78,7 @@ public final class ModuleRenderContext implements RenderContext {
         this.textGlowStrength = textGlowStrength;
         this.textGlowColor = textGlowColor;
         this.barGlowStrength = barGlowStrength;
+        this.barGlowPulse = barGlowPulse;
         this.barGlowColor = barGlowColor;
     }
 
@@ -118,11 +122,12 @@ public final class ModuleRenderContext implements RenderContext {
         int textGlowColor = ModuleGlow.textGlowColor(store, panelId);
         double barGlowStrength = ModuleGlow.barGlowStrength(store, panelId);
         int barGlowColor = ModuleGlow.barGlowColor(store, panelId);
+        MariePulse barGlowPulse = ModuleGlow.barGlowPulse(store, panelId);
         // Always wrapped, even at all-default settings: the wrapper is what records where the module draws (see ModuleExtents).
         ModuleExtents.begin(store, panelId);
         return new ModuleRenderContext(delegate, textDx, textDy, iconDx, iconDy, ratio,
                 textBrightness, iconBrightness, barDx, barDy, barScale, hideIcons, hideBars, hideText, hideWindow, store, panelId,
-                textShadowStrength, textGlowStrength, textGlowColor, barGlowStrength, barGlowColor);
+                textShadowStrength, textGlowStrength, textGlowColor, barGlowStrength, barGlowColor, barGlowPulse);
     }
 
     @Override
@@ -272,11 +277,8 @@ public final class ModuleRenderContext implements RenderContext {
     }
 
     private void drawBarGlow(int x, int y, int width, int height) {
-        if (barGlowStrength <= 0) {
-            return;
-        }
-        int alpha = Math.min(255, (int) Math.round(barGlowStrength * 255));
-        delegate.drawGlow(x, y, width, height, (alpha << 24) | (barGlowColor & 0xFFFFFF));
+        // The module's Pulse animates this Bar glow itself (no ring of its own) — see MariePulse.
+        barGlowPulse.drawGlow(delegate, x, y, width, height, barGlowColor, barGlowStrength);
     }
 
     /** A bar dimension scaled by the module's bar size (never below 1 for a non-empty bar). */

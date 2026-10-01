@@ -293,10 +293,10 @@ public final class StandardPanelBuilder {
     }
 
     /**
-     * Adds a "Shadow" group to the Style tab: Text shadow and Border shadow strength sliders (0-100%,
-     * self-contained — no config field needed). Border shadow needs the module's own box-drawing code
-     * to call {@link MarieModuleSettings#drawBoxGlow} before it draws its box; Text shadow applies
-     * automatically to any text the module draws through {@link MarieModuleSettings#withDisplaySettings}.
+     * Adds a "Shadow" group to the Style tab: a Border shadow strength slider (0-100%, self-contained —
+     * no config field needed). It needs the module's own box-drawing code to call {@link
+     * MarieModuleSettings#drawBoxGlow} before it draws its box. (Text shadow used to sit here too; it was
+     * retired — see {@code ModuleGlow#textShadowStrength}.)
      */
     public StandardPanelBuilder withShadow() {
         this.shadow = true;
@@ -304,11 +304,14 @@ public final class StandardPanelBuilder {
     }
 
     /**
-     * Adds a "Glow" tab: Text glow and Border glow (color + strength), plus Bar glow when the module
-     * has bars ({@link #withoutBars} not called) — all self-contained, no config field needed. Text
-     * and Bar glow apply automatically to anything the module draws through {@link
-     * MarieModuleSettings#withDisplaySettings}; Border glow needs the module's own box-drawing code
-     * to call {@link MarieModuleSettings#drawBoxGlow} before it draws its box.
+     * Adds a "Glow" tab: Border glow (color + strength), plus Bar glow when the module has bars
+     * ({@link #withoutBars} not called), plus a "Pulse" tab (strength, speed, style, and which of
+     * the border line/Border glow/Bar glow it animates — see {@link MariePulse}) — all self-contained,
+     * no config field needed. Bar glow
+     * applies automatically to anything the module draws through {@link
+     * MarieModuleSettings#withDisplaySettings}/{@link MarieModuleSettings#withTextEffects}; Border glow
+     * needs the module's own box-drawing code to call {@link MarieModuleSettings#drawBoxGlow} before it
+     * draws its box, and the border line pulses through {@link MarieModuleSettings#styledBorder}.
      */
     public StandardPanelBuilder withGlow() {
         this.glow = true;
@@ -332,10 +335,10 @@ public final class StandardPanelBuilder {
      * needed — for a module with no background/border color of its own to bind {@link #opacity}/
      * {@link #backgroundShade}/{@link #borderOpacity}/{@link #borderShade} to. Read the values back
      * with {@link MarieModuleSettings#styledBackground}/{@link MarieModuleSettings#styledBorder},
-     * which the module's own box-drawing code applies to its base fill/border color. Has no effect on
-     * a section whose caller-bound variant ({@link #opacity}, {@link #backgroundShade}, {@link
-     * #borderOpacity} or {@link #borderShade}) was already called — a module never gets two competing
-     * sliders for the same concept.
+     * which the module's own box-drawing code applies to its base fill/border color. Each slider is
+     * skipped individually if its caller-bound variant ({@link #opacity}, {@link #backgroundShade},
+     * {@link #borderOpacity} or {@link #borderShade}) was called — a module never gets two competing
+     * sliders for the same concept, but e.g. a config-backed opacity still gets a self-contained shade.
      */
     public StandardPanelBuilder withOwnStyle() {
         this.ownStyle = true;
@@ -450,11 +453,14 @@ public final class StandardPanelBuilder {
             panel.slider(text("config.marieslib.moduleoptions.iconBrightness"), iconBrightness, setIconBrightness,
                     MIN_BRIGHTNESS, MAX_BRIGHTNESS, 0.01d, onCommit).defaultValue(1.0d);
         }
-        // Self-contained fallback only when the caller never bound its own background/border values —
-        // a module never gets two competing sliders for the same concept.
-        boolean selfBackground = ownStyle && opacity == null && backgroundShade == null;
-        boolean selfBorder = ownStyle && borderOpacity == null && borderShade == null;
-        if (opacity != null || backgroundShade != null || selfBackground) {
+        // Self-contained fallback per slider, only where the caller didn't bind its own value — a module
+        // never gets two competing sliders for the same concept, but binding one (e.g. a config-backed
+        // opacity) no longer drops the self-contained other (shade) from the same section.
+        boolean selfOpacity = ownStyle && opacity == null;
+        boolean selfBackgroundShade = ownStyle && backgroundShade == null;
+        boolean selfBorderOpacity = ownStyle && borderOpacity == null;
+        boolean selfBorderShade = ownStyle && borderShade == null;
+        if (opacity != null || backgroundShade != null || selfOpacity || selfBackgroundShade) {
             panel.section(text("config.marieslib.moduleoptions.section.background"));
         }
         if (opacity != null) {
@@ -462,7 +468,7 @@ public final class StandardPanelBuilder {
             if (hasOpacityDefault) {
                 panel.defaultValue(opacityDefault);
             }
-        } else if (selfBackground) {
+        } else if (selfOpacity) {
             panel.slider(text("config.marieslib.moduleoptions.backgroundOpacity"),
                     () -> ModuleStyle.backgroundOpacity(store, panelId), v -> ModuleStyle.setBackgroundOpacity(store, panelId, v),
                     0.0d, 1.0d, 0.01d, onCommit).defaultValue(1.0d);
@@ -470,18 +476,18 @@ public final class StandardPanelBuilder {
         if (backgroundShade != null) {
             panel.slider(text("config.marieslib.moduleoptions.backgroundShade"), backgroundShade, setBackgroundShade,
                     -1.0d, 1.0d, 0.01d, onCommit).defaultValue(0.0d);
-        } else if (selfBackground) {
+        } else if (selfBackgroundShade) {
             panel.slider(text("config.marieslib.moduleoptions.backgroundShade"),
                     () -> ModuleStyle.backgroundShade(store, panelId), v -> ModuleStyle.setBackgroundShade(store, panelId, v),
                     -1.0d, 1.0d, 0.01d, onCommit).defaultValue(0.0d);
         }
-        if (borderOpacity != null || borderShade != null || selfBorder) {
+        if (borderOpacity != null || borderShade != null || selfBorderOpacity || selfBorderShade) {
             panel.section(text("config.marieslib.moduleoptions.section.border"));
         }
         if (borderOpacity != null) {
             panel.slider(text("config.marieslib.moduleoptions.borderOpacity"), borderOpacity, setBorderOpacity,
                     0.0d, 1.0d, 0.01d, onCommit).defaultValue(1.0d);
-        } else if (selfBorder) {
+        } else if (selfBorderOpacity) {
             panel.slider(text("config.marieslib.moduleoptions.borderOpacity"),
                     () -> ModuleStyle.borderOpacity(store, panelId), v -> ModuleStyle.setBorderOpacity(store, panelId, v),
                     0.0d, 1.0d, 0.01d, onCommit).defaultValue(1.0d);
@@ -489,16 +495,13 @@ public final class StandardPanelBuilder {
         if (borderShade != null) {
             panel.slider(text("config.marieslib.moduleoptions.borderShade"), borderShade, setBorderShade,
                     -1.0d, 1.0d, 0.01d, onCommit).defaultValue(0.0d);
-        } else if (selfBorder) {
+        } else if (selfBorderShade) {
             panel.slider(text("config.marieslib.moduleoptions.borderShade"),
                     () -> ModuleStyle.borderShade(store, panelId), v -> ModuleStyle.setBorderShade(store, panelId, v),
                     -1.0d, 1.0d, 0.01d, onCommit).defaultValue(0.0d);
         }
         if (shadow) {
             panel.section(text("config.marieslib.moduleoptions.section.shadow"));
-            panel.slider(text("config.marieslib.moduleoptions.textShadow"),
-                    () -> ModuleGlow.textShadowStrength(store, panelId), v -> ModuleGlow.setTextShadowStrength(store, panelId, v),
-                    0.0d, 1.0d, 0.01d, onCommit).defaultValue(0.0d);
             panel.slider(text("config.marieslib.moduleoptions.borderShadow"),
                     () -> ModuleGlow.borderShadowStrength(store, panelId), v -> ModuleGlow.setBorderShadowStrength(store, panelId, v),
                     0.0d, 1.0d, 0.01d, onCommit).defaultValue(0.0d);
@@ -533,6 +536,38 @@ public final class StandardPanelBuilder {
             if (glowRows != null) {
                 glowRows.accept(panel);
             }
+            // Pulse tab: makes the module's own border line, Border glow and Bar glow breathe in their own
+            // colors (see MariePulse) — no color of its own, nothing extra drawn — on one shared clock so
+            // every module stays in sync.
+            // Strength 0 (the default) is off.
+            panel.tab(text("config.marieslib.moduleoptions.tab.pulse"));
+            panel.slider(text("config.marieslib.moduleoptions.pulseStrength"),
+                    () -> ModuleGlow.pulseStrength(store, panelId), v -> ModuleGlow.setPulseStrength(store, panelId, v),
+                    0.0d, 1.0d, 0.01d, onCommit).defaultValue(0.0d);
+            panel.cycle(text("config.marieslib.moduleoptions.pulseSpeed"),
+                    new String[]{text("config.marieslib.moduleoptions.pulseSpeed.slow"), text("config.marieslib.moduleoptions.pulseSpeed.normal"),
+                            text("config.marieslib.moduleoptions.pulseSpeed.fast")},
+                    () -> ModuleGlow.pulseSpeed(store, panelId), i -> ModuleGlow.setPulseSpeed(store, panelId, i), onCommit)
+                    .defaultValue(MariePulse.Speed.NORMAL.ordinal());
+            panel.cycle(text("config.marieslib.moduleoptions.pulseStyle"),
+                    new String[]{text("config.marieslib.moduleoptions.pulseStyle.smooth"), text("config.marieslib.moduleoptions.pulseStyle.heartbeat"),
+                            text("config.marieslib.moduleoptions.pulseStyle.flash")},
+                    () -> ModuleGlow.pulseStyle(store, panelId), i -> ModuleGlow.setPulseStyle(store, panelId, i), onCommit)
+                    .defaultValue(MariePulse.Style.SMOOTH.ordinal());
+            panel.section(text("config.marieslib.moduleoptions.section.pulseTargets"));
+            panel.toggle(text("config.marieslib.moduleoptions.pulseBorder"),
+                    () -> ModuleGlow.pulseBorder(store, panelId), v -> ModuleGlow.setPulseBorder(store, panelId, v), onCommit)
+                    .defaultValue(true);
+            panel.toggle(text("config.marieslib.moduleoptions.pulseBorderGlow"),
+                    () -> ModuleGlow.pulseBorderGlow(store, panelId), v -> ModuleGlow.setPulseBorderGlow(store, panelId, v), onCommit)
+                    .defaultValue(true);
+            if (bars) {
+                panel.toggle(text("config.marieslib.moduleoptions.pulseBarGlow"),
+                        () -> ModuleGlow.pulseBarGlow(store, panelId), v -> ModuleGlow.setPulseBarGlow(store, panelId, v), onCommit)
+                        .defaultValue(true);
+            }
+            panel.endSection();
+            panel.resetTab();
         }
         if (extraTabs != null) {
             extraTabs.accept(panel);

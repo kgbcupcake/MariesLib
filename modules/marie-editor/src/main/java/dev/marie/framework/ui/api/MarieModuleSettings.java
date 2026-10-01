@@ -334,6 +334,15 @@ public final class MarieModuleSettings {
         return HideFlags.headerHidden(store, panelId);
     }
 
+    /**
+     * Sets the "Hide Header" flag {@link #isHeaderHidden} reads (saved immediately), for a host that
+     * offers its own Hide Header toggle outside the standard panel's Hide group — e.g. a screen built
+     * with {@link StandardPanelBuilder#withoutMoveAndHide} that still has a title worth hiding.
+     */
+    public static void setHeaderHidden(PersistenceProvider store, String panelId, boolean hidden) {
+        HideFlags.setHeaderHidden(store, panelId, hidden);
+    }
+
     /** Whether the "Move Icons" toggle is on. */
     public static boolean isMoveIconsEnabled(PersistenceProvider store, String panelId) {
         return MoveFlags.isOn(store, ModuleOffsets.moveIconsFlagId(panelId));
@@ -438,7 +447,16 @@ public final class MarieModuleSettings {
         double opacity = ModuleStyle.borderOpacity(store, panelId);
         double shade = ModuleStyle.borderShade(store, panelId);
         int shaded = shade != 0.0d ? MarieColors.shade(baseArgb, shade) : baseArgb;
-        return withOpacity(shaded, opacity);
+        return pulsedBorder(withOpacity(shaded, opacity), store, panelId);
+    }
+
+    /**
+     * {@code borderArgb} (a module's border line color) breathing with its Pulse, in its own color — see
+     * {@link MariePulse#apply}; unchanged while Pulse strength is 0 or its "Border line" toggle is off. {@link #styledBorder} already applies
+     * this; call it directly only for a border that doesn't go through {@code styledBorder}.
+     */
+    public static int pulsedBorder(int borderArgb, PersistenceProvider store, String panelId) {
+        return ModuleGlow.borderPulse(store, panelId).apply(borderArgb);
     }
 
     private static int withOpacity(int argb, double opacity) {
@@ -451,7 +469,8 @@ public final class MarieModuleSettings {
 
     /**
      * Draws the module's own Border shadow and Border glow (see {@link StandardPanelBuilder#withShadow}/
-     * {@link StandardPanelBuilder#withGlow}), if either is configured — a no-op at the neutral
+     * {@link StandardPanelBuilder#withGlow}) — the glow breathing with the module's Pulse (see {@link
+     * MariePulse}) — if either is configured — a no-op at the neutral
      * defaults (both 0%). Call this once, immediately before a module draws its own background/border
      * box at {@code (x, y, width, height)}, so the box paints over the innermost ring and only the
      * outward rings remain visible (the same technique {@code drawGlow} already uses for the
@@ -466,12 +485,33 @@ public final class MarieModuleSettings {
             int alpha = Math.min(255, (int) Math.round(shadowStrength * 255));
             context.drawGlow(x, y, width, height, alpha << 24);
         }
-        double glowStrength = ModuleGlow.borderGlowStrength(store, panelId);
-        if (glowStrength > 0) {
-            int alpha = Math.min(255, (int) Math.round(glowStrength * 255));
-            int color = ModuleGlow.borderGlowColor(store, panelId);
-            context.drawGlow(x, y, width, height, (alpha << 24) | (color & 0xFFFFFF));
-        }
+        // The Pulse animates this Border glow itself rather than adding a ring of its own (see MariePulse).
+        ModuleGlow.borderGlowPulse(store, panelId).drawGlow(context, x, y, width, height,
+                ModuleGlow.borderGlowColor(store, panelId), ModuleGlow.borderGlowStrength(store, panelId));
+    }
+
+    /**
+     * Draws the module's Bar glow around one bar at {@code (x, y, width, height)}, breathing with its
+     * Pulse (see {@link MariePulse}) — for a host that draws a bar itself (plain {@code fillRect}s)
+     * rather than through {@link #withDisplaySettings}/{@link #withTextEffects}, which already glow and
+     * pulse every {@code drawBar} for you. Call it immediately before drawing the bar.
+     */
+    public static void drawBarGlow(RenderContext context, PersistenceProvider store, String panelId, int x, int y, int width, int height) {
+        ModuleGlow.barGlowPulse(store, panelId).drawGlow(context, x, y, width, height,
+                ModuleGlow.barGlowColor(store, panelId), ModuleGlow.barGlowStrength(store, panelId));
+    }
+
+    /**
+     * The module's Pulse tab settings as a {@link MariePulse} ({@link MariePulse#OFF} at strength 0),
+     * ignoring the per-target toggles — for a host animating something of its own with it.
+     */
+    public static MariePulse pulse(PersistenceProvider store, String panelId) {
+        return ModuleGlow.pulse(store, panelId);
+    }
+
+    /** Same, but {@link MariePulse#OFF} if the module's "Pulse bar glow" toggle is off — for a bar glow a host draws itself. */
+    public static MariePulse barGlowPulse(PersistenceProvider store, String panelId) {
+        return ModuleGlow.barGlowPulse(store, panelId);
     }
 
     /**

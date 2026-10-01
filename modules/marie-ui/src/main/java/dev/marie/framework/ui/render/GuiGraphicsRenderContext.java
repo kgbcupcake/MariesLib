@@ -109,8 +109,10 @@ public final class GuiGraphicsRenderContext implements RenderContext {
             int ry = y - ring;
             int rw = width + ring * 2;
             int rh = height + ring * 2;
-            graphics.fill(rx, ry, rx + rw, ry + 1, ringColor);
-            graphics.fill(rx, ry + rh - 1, rx + rw, ry + rh, ringColor);
+            // Each ring leaves out its four corner pixels, so the glow follows a box's notched
+            // (rounded) corners instead of squaring them off.
+            graphics.fill(rx + 1, ry, rx + rw - 1, ry + 1, ringColor);
+            graphics.fill(rx + 1, ry + rh - 1, rx + rw - 1, ry + rh, ringColor);
             graphics.fill(rx, ry + 1, rx + 1, ry + rh - 1, ringColor);
             graphics.fill(rx + rw - 1, ry + 1, rx + rw, ry + rh - 1, ringColor);
         }

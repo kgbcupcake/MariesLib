@@ -83,6 +83,45 @@ public final class SnapRegistry {
         return new SnapLines(xLines, yLines);
     }
 
+    /**
+     * As {@link #computeSnapLines(String)}, but only keeps edges of registrants that are actually
+     * near {@code near} (the dragging component's in-progress bounds): an entry's left/right edges
+     * count as X candidates only while its vertical span is within {@code proximityPx} of
+     * {@code near}'s (overlapping or a small gap apart), and its top/bottom edges count as Y
+     * candidates only while its horizontal span is. Without this, a box lines up with every other
+     * box's edge anywhere on screen, so dragging feels sticky even with nothing nearby.
+     *
+     * @param excludeId id to omit from the result, or {@code null} to include every registrant
+     * @param near the dragging component's current (unsnapped) bounds
+     * @param proximityPx maximum gap, in the same screen-pixel space, between spans for an entry's
+     *     edges to count
+     * @return the computed X and Y candidate lines
+     */
+    public static SnapLines computeSnapLines(String excludeId, Bounds near, int proximityPx) {
+        List<Integer> xLines = new ArrayList<>();
+        List<Integer> yLines = new ArrayList<>();
+        for (Map.Entry<String, Supplier<Bounds>> entry : ENTRIES.entrySet()) {
+            if (entry.getKey().equals(excludeId)) {
+                continue;
+            }
+            Bounds bounds = entry.getValue().get();
+            if (spanGap(near.y(), near.height(), bounds.y(), bounds.height()) <= proximityPx) {
+                xLines.add(bounds.x());
+                xLines.add(bounds.x() + bounds.width());
+            }
+            if (spanGap(near.x(), near.width(), bounds.x(), bounds.width()) <= proximityPx) {
+                yLines.add(bounds.y());
+                yLines.add(bounds.y() + bounds.height());
+            }
+        }
+        return new SnapLines(xLines, yLines);
+    }
+
+    /** Gap between two 1D spans; 0 when they overlap or touch. */
+    private static int spanGap(int startA, int sizeA, int startB, int sizeB) {
+        return Math.max(0, Math.max(startA - (startB + sizeB), startB - (startA + sizeA)));
+    }
+
     /** X and Y candidate snap lines, in the shape {@link DraggableResizable#setSnapTargets} takes. */
     public record SnapLines(List<Integer> xLines, List<Integer> yLines) {}
 }
