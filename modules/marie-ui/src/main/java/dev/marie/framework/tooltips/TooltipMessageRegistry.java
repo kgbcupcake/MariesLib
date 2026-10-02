@@ -76,9 +76,10 @@ public final class TooltipMessageRegistry {
 
     @ApiStatus.Experimental
     public static Optional<String> getForItem(String modId, String itemId, String key) {
-        Optional<String> fromExternalItem = lookupNonBlank(EXTERNALLY_REGISTERED.get(modId), itemId);
-        if (fromExternalItem.isPresent()) {
-            return fromExternalItem;
+        // The runtime tier is keyed by message key only (no byItem), so it's checked by key here.
+        Optional<String> fromExternal = lookupNonBlank(EXTERNALLY_REGISTERED.get(modId), key);
+        if (fromExternal.isPresent()) {
+            return fromExternal;
         }
         Optional<String> fromDatapackItem = lookupItemNonBlank(DATAPACK_CACHE.get(modId), itemId);
         if (fromDatapackItem.isPresent()) {

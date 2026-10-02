@@ -159,6 +159,8 @@ public final class TrackerManager {
         }
         if (isBoundaryDue(definition, state, now)) {
             closePeriodAndOpenNext(player, tracking, definition, id, state, now);
+        } else if (state.dayClock() && now > state.lastSeen()) {
+            tracking.trackerPeriodStates.put(id, state.withLastSeen(now));
         }
     }
 
@@ -180,6 +182,19 @@ public final class TrackerManager {
         return dayTime >= state.periodEnd() || dayTime < state.periodStart();
     }
 
+    /**
+     * End stamped on a closing day period's history entry: its scheduled end, unless the clock moved
+     * back before its start ({@code /time set}) — then the period stopped short, just after the last
+     * time it was observed open.
+     */
+    static long dayPeriodClosedAt(TrackingPeriodState state, long dayTime) {
+        if (dayTime >= state.periodStart()) {
+            return state.periodEnd();
+        }
+        long stopped = Math.max(state.lastSeen(), state.periodStart()) + 1;
+        return Math.min(state.periodEnd(), stopped);
+    }
+
     /** First tick of the world day {@code dayTime} falls in. */
     static long dayStart(long dayTime) {
         return Math.floorDiv(dayTime, 24000L) * 24000L;
@@ -190,7 +205,8 @@ public final class TrackerManager {
         float value = tracking.trackingAccumulators.getOrDefault(id, 0f);
         long periodEnd = switch (definition.getPeriod()) {
             case SESSION, CUSTOM -> now;
-            case DAILY, WEEKLY, MONTHLY, REAL_TIME -> state.periodEnd();
+            case DAILY, WEEKLY, MONTHLY -> dayPeriodClosedAt(state, now);
+            case REAL_TIME -> state.periodEnd();
         };
         TrackerHistoryEntry entry = new TrackerHistoryEntry(
                 id, definition.getPeriod().configId(), state.periodStart(), periodEnd, value);

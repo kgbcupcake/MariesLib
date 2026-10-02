@@ -6,8 +6,8 @@ import dev.marie.framework.ui.PersistenceProvider;
 import dev.marie.framework.ui.component.ComponentState;
 import dev.marie.framework.ui.geometry.Bounds;
 
-import java.util.LinkedHashSet;
-import java.util.Set;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.function.Supplier;
 
 /**
@@ -28,8 +28,10 @@ final class WindowStates {
      * JVM — accumulated, never pruned. A consumer mod commonly constructs one panel per HUD widget
      * rather than one panel with many entries; "only one window open at a time" has to hold across all
      * of those sibling instances, so {@link #open} force-collapses over this set, not one panel's entries.
+     * Each id maps to the store of the panel that registered it, since sibling panels may persist to
+     * different providers and a window's state is only visible through its own.
      */
-    private static final Set<String> KNOWN_IDS = new LinkedHashSet<>();
+    private static final Map<String, PersistenceProvider> KNOWN_IDS = new LinkedHashMap<>();
 
     private final PersistenceProvider persistence;
 
@@ -38,15 +40,15 @@ final class WindowStates {
     }
 
     void register(String componentId) {
-        KNOWN_IDS.add(componentId);
+        KNOWN_IDS.put(componentId, persistence);
     }
 
     ComponentState load(String componentId) {
-        return persistence.load(key(componentId)).orElse(DEFAULT);
+        return load(persistence, componentId);
     }
 
     void collapse(String componentId) {
-        save(componentId, withCollapsed(load(componentId), true));
+        collapse(persistence, componentId);
     }
 
     /** Persists {@code bounds} as the (open) window bounds, keeping the rest of the entry's saved fields. */
@@ -62,9 +64,10 @@ final class WindowStates {
      * most one window is ever open — across every panel instance.
      */
     void open(String componentId, Supplier<Bounds> defaultBounds) {
-        for (String otherId : KNOWN_IDS) {
-            if (!otherId.equals(componentId) && !load(otherId).collapsed()) {
-                collapse(otherId);
+        for (Map.Entry<String, PersistenceProvider> other : KNOWN_IDS.entrySet()) {
+            String otherId = other.getKey();
+            if (!otherId.equals(componentId) && !load(other.getValue(), otherId).collapsed()) {
+                collapse(other.getValue(), otherId);
             }
         }
         ComponentState existing = persistence.load(key(componentId)).orElse(null);
@@ -88,6 +91,14 @@ final class WindowStates {
 
     private void save(String componentId, ComponentState state) {
         persistence.save(key(componentId), state);
+    }
+
+    private static ComponentState load(PersistenceProvider store, String componentId) {
+        return store.load(key(componentId)).orElse(DEFAULT);
+    }
+
+    private static void collapse(PersistenceProvider store, String componentId) {
+        store.save(key(componentId), withCollapsed(load(store, componentId), true));
     }
 
     private static int between(int value, int min, int max) {

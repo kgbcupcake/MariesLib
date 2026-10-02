@@ -65,13 +65,25 @@ public final class TrackingResetSupport {
      * that mod's values; otherwise that mod's {@link MarieContext#respawnValueBehavior()} applies
      * only to the value keys it owns (see {@link ValueRegistry#ownerModId(String)}), so one mod's
      * reset policy can't stomp another mod's values.
+     *
+     * <p>Application memory and the total aren't partitioned by mod, so they're only cleared when
+     * no attached mod's policy is {@link RespawnValueBehavior#PRESERVE} — a resetting mod must not
+     * wipe history a preserving mod relies on.</p>
      */
     public static void applyRespawnValueBehavior(ServerPlayer player, TrackingData tracking) {
         if (!MarieContext.isRegistered()) {
             return;
         }
+        boolean anyPreserves = false;
+        for (MarieContext ctx : MarieModRegistry.getAll()) {
+            if (ctx.respawnValueHandler() == null
+                    && ctx.respawnValueBehavior().get() == RespawnValueBehavior.PRESERVE) {
+                anyPreserves = true;
+                break;
+            }
+        }
         boolean changed = false;
-        boolean memoryCleared = false;
+        boolean memoryHandled = anyPreserves;
         for (MarieContext ctx : MarieModRegistry.getAll()) {
             var custom = ctx.respawnValueHandler();
             if (custom != null) {
@@ -84,9 +96,9 @@ public final class TrackingResetSupport {
             if (behavior == RespawnValueBehavior.PRESERVE) {
                 continue;
             }
-            if (!memoryCleared) {
+            if (!memoryHandled) {
                 clearApplicationMemory(tracking);
-                memoryCleared = true;
+                memoryHandled = true;
             }
             float fill = behavior == RespawnValueBehavior.VANILLA_HALF ? 0.5f : resolveStartingFill();
             float clamped = Mth.clamp(fill, 0f, 1f);

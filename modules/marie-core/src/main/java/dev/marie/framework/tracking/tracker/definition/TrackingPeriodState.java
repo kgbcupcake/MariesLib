@@ -20,12 +20,23 @@ import dev.marie.framework.api.ApiStatus;
  * @param dayClock    true when the boundaries are day time ticks; false for states saved before
  *                    day-time periods existed (their DAILY/WEEKLY/MONTHLY boundaries are game
  *                    time ticks and get re-based once on load)
+ * @param lastSeen    latest clock value observed while this period was open (defaults to
+ *                    {@code periodStart}); lets a period cut short by the clock moving backwards
+ *                    record when it actually stopped rather than its scheduled end
  */
 @ApiStatus.Internal
-public record TrackingPeriodState(long periodStart, long periodEnd, boolean dayClock) {
+public record TrackingPeriodState(long periodStart, long periodEnd, boolean dayClock, long lastSeen) {
+
+    public TrackingPeriodState(long periodStart, long periodEnd, boolean dayClock) {
+        this(periodStart, periodEnd, dayClock, periodStart);
+    }
 
     public TrackingPeriodState(long periodStart, long periodEnd) {
         this(periodStart, periodEnd, false);
+    }
+
+    public TrackingPeriodState withLastSeen(long time) {
+        return new TrackingPeriodState(periodStart, periodEnd, dayClock, time);
     }
 
     public static final Codec<TrackingPeriodState> CODEC = Codec.of(
@@ -38,6 +49,7 @@ public record TrackingPeriodState(long periodStart, long periodEnd, boolean dayC
         builder.add("period_start", Codec.LONG.encodeStart(ops, state.periodStart));
         builder.add("period_end", Codec.LONG.encodeStart(ops, state.periodEnd));
         builder.add("day_clock", Codec.BOOL.encodeStart(ops, state.dayClock));
+        builder.add("last_seen", Codec.LONG.encodeStart(ops, state.lastSeen));
         return builder.build(prefix);
     }
 
@@ -47,7 +59,8 @@ public record TrackingPeriodState(long periodStart, long periodEnd, boolean dayC
             long periodEnd = decode(ops, map, "period_end", 0L);
             T dayClockVal = map.get("day_clock");
             boolean dayClock = dayClockVal != null && Codec.BOOL.parse(ops, dayClockVal).result().orElse(false);
-            return DataResult.success(Pair.of(new TrackingPeriodState(periodStart, periodEnd, dayClock), input));
+            long lastSeen = decode(ops, map, "last_seen", periodStart);
+            return DataResult.success(Pair.of(new TrackingPeriodState(periodStart, periodEnd, dayClock, lastSeen), input));
         });
     }
 

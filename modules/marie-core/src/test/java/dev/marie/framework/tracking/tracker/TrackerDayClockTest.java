@@ -60,4 +60,29 @@ class TrackerDayClockTest {
 
         assertEquals(DAY_ONE, TrackingPeriodState.CODEC.parse(JsonOps.INSTANCE, json).result().orElseThrow());
     }
+
+    @Test
+    void lastSeenRoundTripsAndDefaultsToPeriodStart() {
+        TrackingPeriodState seen = DAY_ONE.withLastSeen(30000L);
+        var json = TrackingPeriodState.CODEC.encodeStart(JsonOps.INSTANCE, seen).result().orElseThrow();
+        assertEquals(seen, TrackingPeriodState.CODEC.parse(JsonOps.INSTANCE, json).result().orElseThrow());
+
+        JsonObject older = new JsonObject();
+        older.addProperty("period_start", 24000L);
+        older.addProperty("period_end", 48000L);
+        older.addProperty("day_clock", true);
+        assertEquals(24000L, TrackingPeriodState.CODEC.parse(JsonOps.INSTANCE, older).result().orElseThrow().lastSeen());
+    }
+
+    @Test
+    void reachingThePeriodEndClosesAtTheScheduledEnd() {
+        assertEquals(48000L, TrackerManager.dayPeriodClosedAt(DAY_ONE.withLastSeen(47999L), 48000L));
+        assertEquals(48000L, TrackerManager.dayPeriodClosedAt(DAY_ONE.withLastSeen(47999L), 24000L * 10));
+    }
+
+    @Test
+    void timeSetBackClosesJustAfterTheLastObservedTick() {
+        assertEquals(30001L, TrackerManager.dayPeriodClosedAt(DAY_ONE.withLastSeen(30000L), 1000L));
+        assertEquals(24001L, TrackerManager.dayPeriodClosedAt(DAY_ONE, 1000L));
+    }
 }

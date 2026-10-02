@@ -320,6 +320,10 @@ public final class ModScan {
                 fileByMod.putIfAbsent(modId, f);
             }
         }
+        // cancel() may land during flush/saveInventory; the cache stays valid, but don't publish.
+        if (cancelled) {
+            return;
+        }
         snapshot = new Snapshot(inventory, diff, results, fileByMod);
 
         Duration took = Duration.ofNanos(System.nanoTime() - startNanos);

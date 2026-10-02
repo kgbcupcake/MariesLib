@@ -75,7 +75,8 @@ public class ReloadGuardListener {
             TrackerRegistry.unfreezeInternal();
             ColorDefinitionRegistry.unfreezeInternal();
             try (MarieAPIState.DatapackReloadScope scope = MarieAPIState.openForDatapackReload()) {
-                MarieModRegistry.forEach(modCtx -> modCtx.reloadBroadcastHook().accept(server));
+                MarieModRegistry.forEach(modCtx ->
+                        MarieContext.runAs(modCtx, () -> modCtx.reloadBroadcastHook().accept(server)));
             } finally {
                 TrackerRegistry.freezeInternal();
                 ColorDefinitionRegistry.freezeInternal();

@@ -201,8 +201,17 @@ public final class ModScanCache {
         return root.resolve(safe(namespace)).resolve("extractor-" + safe(extractorId) + ".json");
     }
 
+    /**
+     * Filesystem-safe form of {@code s}. When sanitizing changes anything (or leaves a bare
+     * {@code .}/{@code ..}), a hash of the original is appended so distinct ids such as
+     * {@code foo/bar} and {@code foo_bar} don't share a cache file.
+     */
     private static String safe(String s) {
-        return s.replaceAll("[^A-Za-z0-9_.-]", "_");
+        String cleaned = s.replaceAll("[^A-Za-z0-9_.-]", "_");
+        if (cleaned.equals(s) && !s.equals(".") && !s.equals("..")) {
+            return s;
+        }
+        return cleaned + "-" + Integer.toHexString(s.hashCode());
     }
 
     private static JsonObject read(Path file) throws IOException {

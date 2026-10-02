@@ -74,6 +74,9 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
 
     private static volatile MarieContext instance;
 
+    /** Per-thread override of {@link #get()} while one mod's hook runs; see {@link #runAs}. */
+    private static final ThreadLocal<MarieContext> SCOPED = new ThreadLocal<>();
+
     private final String modId;
     private final Supplier<Float> scannerConfidenceSpreadThreshold;
     private final Supplier<Float> compositeRatioThreshold;
@@ -233,11 +236,35 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
      */
     @ApiStatus.Stable
     public static MarieContext get() {
+        MarieContext scoped = SCOPED.get();
+        if (scoped != null) {
+            return scoped;
+        }
         MarieContext ctx = instance;
         if (ctx == null) {
             throw new IllegalStateException("MarieContext not registered");
         }
         return ctx;
+    }
+
+    /**
+     * Runs {@code action} with {@link #get()} returning {@code ctx} on this thread, so a fan-out over
+     * {@link MarieModRegistry#getAll()} that invokes each mod's hook (e.g. re-registering trackers on
+     * reload) has registries record that mod as the owner rather than the last-attached one.
+     */
+    @ApiStatus.Internal
+    public static void runAs(MarieContext ctx, Runnable action) {
+        MarieContext previous = SCOPED.get();
+        SCOPED.set(ctx);
+        try {
+            action.run();
+        } finally {
+            if (previous != null) {
+                SCOPED.set(previous);
+            } else {
+                SCOPED.remove();
+            }
+        }
     }
 
     @ApiStatus.Stable
@@ -754,7 +781,12 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
         return new DiminishingReturnsConfig(60L, 1.2, 3.0, 0.2, 0.5);
     }
 
-    private static Map<String, Float> defaultSourceValueResolver(ItemStack stack, Level level) {
+    /**
+     * Scoped to the value keys {@code modId} owns (unowned keys fall to the primary context, as in
+     * {@link #forValue(String)}): {@code SourceApplicationPipeline} sums every attached mod's
+     * resolver, so two mods both on this default must not each contribute every registered value.
+     */
+    private static Map<String, Float> defaultSourceValueResolver(String modId, ItemStack stack, Level level) {
         if (stack == null || stack.isEmpty()) {
             return Map.of();
         }
@@ -764,6 +796,9 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
         }
         Map<String, Float> result = new HashMap<>();
         for (ValueDefinition def : ValueRegistry.getAll()) {
+            if (!modId.equals(forValue(def.getId()).modId())) {
+                continue;
+            }
             float score = SourceClassificationRegistry.getScore(itemId.toString(), def.getId());
             if (score != 0f) {
                 result.put(def.getId(), score);
@@ -858,8 +893,7 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
         private DoubleSupplier multiValueInheritanceThreshold = () -> 0.20;
         private ResolutionStageHandler[] runtimeResolverStages = new ResolutionStageHandler[0];
         private Supplier<DiminishingReturnsConfig> trackingMemoryConfigProvider = MarieContext::defaultDiminishingReturnsConfig;
-        private BiFunction<ItemStack, Level, Map<String, Float>> sourceValueResolver =
-                MarieContext::defaultSourceValueResolver;
+        private BiFunction<ItemStack, Level, Map<String, Float>> sourceValueResolver;
         private SourceDeltaResolver sourceDeltaResolver = MarieContext::defaultSourceDeltaResolver;
         private BiConsumer<ServerPlayer, TrackingData> effectApplier = (p, d) -> {};
         private Consumer<ServerPlayer> effectClearer = p -> {};
@@ -892,6 +926,7 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
 
         private Builder(String modId) {
             this.modId = modId;
+            this.sourceValueResolver = (stack, level) -> defaultSourceValueResolver(modId, stack, level);
         }
 
         public Builder scannerConfidenceSpreadThreshold(Supplier<Float> s) { this.scannerConfidenceSpreadThreshold = s; return this; }
