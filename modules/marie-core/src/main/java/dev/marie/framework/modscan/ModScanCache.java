@@ -194,7 +194,7 @@ public final class ModScanCache {
     // ── io ──────────────────────────────────────────────────────
 
     private static String key(ModFileInfo file, String extractorId, int version) {
-        return file.fingerprint() + '|' + extractorId + '|' + version;
+        return file.fingerprint() + '|' + file.mods() + '|' + extractorId + '|' + version;
     }
 
     private Path extractorFile(String namespace, String extractorId) {
