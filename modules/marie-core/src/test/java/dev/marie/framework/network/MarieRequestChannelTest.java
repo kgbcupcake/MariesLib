@@ -15,8 +15,20 @@ class MarieRequestChannelTest {
 
     @Test
     void overBudgetEndsWithMarkerCountingDroppedLines() {
-        List<String> out = MarieRequestChannel.clampLines(List.of("aaaa", "bbbb", "cccc", "dddd"), 20);
-        assertEquals(List.of("aaaa", "bbbb", "... truncated, 2 more line(s)"), out);
+        List<String> lines = java.util.stream.Stream.of("a", "b", "c", "d", "e", "f", "g", "h", "i", "j")
+                .map(c -> c.repeat(4)).toList();
+        List<String> out = MarieRequestChannel.clampLines(lines, 49);
+        assertEquals(List.of("aaaa", "bbbb", "... truncated, 8 more line(s)"), out);
+    }
+
+    @Test
+    void markerCountsAgainstTheBudget() {
+        int budget = 45;
+        List<String> out = MarieRequestChannel.clampLines(
+                List.of("aaaa", "bbbb", "cccc", "dddd", "eeee", "ffff"), budget);
+        assertEquals(List.of("aaaa", "... truncated, 5 more line(s)"), out);
+        int used = out.stream().mapToInt(l -> l.getBytes(java.nio.charset.StandardCharsets.UTF_8).length + 4).sum();
+        assertTrue(used <= budget, "clamped response must fit the budget, was " + used);
     }
 
     @Test

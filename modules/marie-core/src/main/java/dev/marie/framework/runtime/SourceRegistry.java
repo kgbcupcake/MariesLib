@@ -59,6 +59,9 @@ public class SourceRegistry {
     // sourceIds exclusively owned by an enabled SourceClassificationRegistry override; non-override registerClassification calls for these are ignored.
     private static final Set<ResourceLocation> OVERRIDE_LOCKED_SOURCES = ConcurrentHashMap.newKeySet();
 
+    /** Set while {@link #EXTERNAL_CLASSIFICATIONS} holds a remote server's snapshot rather than local state. */
+    private static volatile boolean serverSyncApplied;
+
     private SourceRegistry() {}
 
     public static void registerClassification(ResourceLocation sourceId, String valueKey, float amount) {
@@ -199,6 +202,21 @@ public class SourceRegistry {
         for (Map.Entry<ResourceLocation, Map<String, Float>> entry : snapshot.entrySet()) {
             EXTERNAL_CLASSIFICATIONS.put(entry.getKey(), new ConcurrentHashMap<>(entry.getValue()));
         }
+        serverSyncApplied = true;
+        RuntimeResolver.getInstance().invalidateCache();
+    }
+
+    /**
+     * Remote-client only: drops a snapshot applied by {@link #replaceFromServerSync} and restores the
+     * client's own API registrations, so the next world doesn't inherit the previous server's
+     * classifications. No-op unless a server sync was applied, so an integrated host's state is untouched.
+     */
+    public static void discardServerSync() {
+        if (!serverSyncApplied) {
+            return;
+        }
+        serverSyncApplied = false;
+        clearExternalClassifications();
         RuntimeResolver.getInstance().invalidateCache();
     }
 

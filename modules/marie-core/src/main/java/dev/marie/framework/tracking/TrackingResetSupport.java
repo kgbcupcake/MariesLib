@@ -40,7 +40,12 @@ public final class TrackingResetSupport {
     }
 
     public static float resolveStartingFill() {
-        DiminishingReturnsConfig cfg = IMarieConfig.get().trackingMemoryConfig();
+        return resolveStartingFill(IMarieConfig.get());
+    }
+
+    /** Starting fill from {@code config}'s tracking-memory settings, so each mod uses its own value. */
+    public static float resolveStartingFill(IMarieConfig config) {
+        DiminishingReturnsConfig cfg = config.trackingMemoryConfig();
         if (cfg != null) {
             return Mth.clamp((float) cfg.startingValueFill(), 0f, 1f);
         }
@@ -100,7 +105,7 @@ public final class TrackingResetSupport {
                 clearApplicationMemory(tracking);
                 memoryHandled = true;
             }
-            float fill = behavior == RespawnValueBehavior.VANILLA_HALF ? 0.5f : resolveStartingFill();
+            float fill = behavior == RespawnValueBehavior.VANILLA_HALF ? 0.5f : resolveStartingFill(ctx);
             float clamped = Mth.clamp(fill, 0f, 1f);
             String modId = ctx.modId();
             for (String key : MarieContext.get().valueKeys()) {

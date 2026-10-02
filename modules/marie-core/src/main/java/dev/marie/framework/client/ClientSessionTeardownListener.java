@@ -2,6 +2,7 @@ package dev.marie.framework.client;
 
 import dev.marie.framework.api.ApiStatus;
 import dev.marie.framework.core.MarieCore;
+import dev.marie.framework.runtime.SourceRegistry;
 import dev.marie.framework.tracking.tracker.ClientTrackerCache;
 
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
@@ -62,6 +63,7 @@ public final class ClientSessionTeardownListener {
 
     private static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
         ClientTrackerCache.clear();
+        SourceRegistry.discardServerSync();
         for (Runnable teardown : ADDITIONAL_TEARDOWN) {
             try {
                 teardown.run();

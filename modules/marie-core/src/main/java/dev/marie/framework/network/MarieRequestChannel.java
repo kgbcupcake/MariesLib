@@ -170,22 +170,40 @@ public final class MarieRequestChannel {
 
     /**
      * Cuts each line to {@link #MAX_LINE_CHARS} and stops once the total UTF-8 size would exceed
-     * {@code byteBudget}, ending with a marker line saying how many lines were dropped.
+     * {@code byteBudget}, ending with a marker line saying how many lines were dropped. The marker
+     * counts against the budget too.
      */
     static List<String> clampLines(List<String> lines, int byteBudget) {
         List<String> out = new ArrayList<>();
+        List<Integer> sizes = new ArrayList<>();
         int used = 0;
         for (int i = 0; i < lines.size(); i++) {
             String line = truncate(lines.get(i), MAX_LINE_CHARS);
-            int size = line.getBytes(StandardCharsets.UTF_8).length + 4;
+            int size = wireSize(line);
             if (used + size > byteBudget || out.size() >= MAX_LINES_ON_WIRE - 1) {
-                out.add("... truncated, " + (lines.size() - i) + " more line(s)");
+                int dropped = lines.size() - i;
+                String marker = truncationMarker(dropped);
+                while (!out.isEmpty() && used + wireSize(marker) > byteBudget) {
+                    out.remove(out.size() - 1);
+                    used -= sizes.remove(sizes.size() - 1);
+                    marker = truncationMarker(++dropped);
+                }
+                out.add(marker);
                 return out;
             }
             out.add(line);
+            sizes.add(size);
             used += size;
         }
         return out;
+    }
+
+    private static String truncationMarker(int dropped) {
+        return "... truncated, " + dropped + " more line(s)";
+    }
+
+    private static int wireSize(String line) {
+        return line.getBytes(StandardCharsets.UTF_8).length + 4;
     }
 
     private static String truncate(String s, int max) {
