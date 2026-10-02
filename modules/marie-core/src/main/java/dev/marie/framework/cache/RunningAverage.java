@@ -1,5 +1,7 @@
 package dev.marie.framework.cache;
 
+import dev.marie.framework.api.ApiStatus;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -7,6 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Thread-safe mutable holder that accumulates per-value sums and produces an average map on demand.
  */
+@ApiStatus.Stable
 public final class RunningAverage {
 
     private volatile int count;

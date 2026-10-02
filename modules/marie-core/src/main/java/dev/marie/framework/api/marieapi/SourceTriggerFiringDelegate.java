@@ -1,5 +1,7 @@
 package dev.marie.framework.api.marieapi;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.handler.SourceApplicationPipeline;
 import dev.marie.framework.tracking.TrackingAttachment;
 import dev.marie.framework.tracking.TrackingData;
@@ -9,6 +11,7 @@ import net.minecraft.world.item.ItemStack;
 
 import javax.annotation.Nullable;
 
+@ApiStatus.Stable
 final class SourceTriggerFiringDelegate {
 
     private SourceTriggerFiringDelegate() {}

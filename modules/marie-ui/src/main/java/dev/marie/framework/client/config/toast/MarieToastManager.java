@@ -1,5 +1,7 @@
 package dev.marie.framework.client.config.toast;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.config.FeatureFlagCache;
 import dev.marie.framework.core.MarieContext;
 import dev.marie.framework.tracking.TrackingData;
@@ -15,6 +17,7 @@ import java.util.Map;
 /**
  * Tracks last client value snapshot and queues toasts when a value crosses into the critical band.
  */
+@ApiStatus.Internal
 public final class MarieToastManager {
 
     private static final Map<String, Float> lastValues = new HashMap<>();

@@ -4,6 +4,7 @@ import dev.marie.framework.api.ApiStatus;
 import dev.marie.framework.config.FeatureFlagCache;
 import dev.marie.framework.core.IMarieConfig;
 import dev.marie.framework.core.MarieContext;
+import dev.marie.framework.core.MarieModRegistry;
 import dev.marie.framework.core.KubeIntegration;
 import dev.marie.framework.network.MarieNetworking;
 import dev.marie.framework.tracking.DiminishingReturnsConfig;
@@ -30,15 +31,18 @@ public class PlayerTrackingLifecycle {
         TrackerManager.openSessionTrackers(player, tracking);
         TrackerNetworking.sendFullSnapshot(player, tracking);
         if (MarieContext.isRegistered()) {
-            MarieContext.get().syncOnJoin().accept(player);
+            boolean effectsEnabled = FeatureFlagCache.enableEffects();
+            MarieModRegistry.forEach(modCtx -> {
+                modCtx.syncOnJoin().accept(player);
+                if (effectsEnabled) {
+                    modCtx.effectApplier().accept(player, tracking);
+                }
+                if (modCtx.showJoinMessage()) {
+                    player.sendSystemMessage(modCtx.joinMessageLine1());
+                    player.sendSystemMessage(modCtx.joinMessageLine2());
+                }
+            });
             KubeIntegration.firePlayerSynced(player);
-            if (FeatureFlagCache.enableEffects()) {
-                MarieContext.get().effectApplier().accept(player, tracking);
-            }
-            if (MarieContext.get().showJoinMessage()) {
-                player.sendSystemMessage(MarieContext.get().joinMessageLine1());
-                player.sendSystemMessage(MarieContext.get().joinMessageLine2());
-            }
         }
     }
 
@@ -52,11 +56,14 @@ public class PlayerTrackingLifecycle {
         tracking.setMemoryConfig(DiminishingReturnsSupport.resolveMemoryConfig());
         TrackingResetSupport.applyRespawnValueBehavior(player, tracking);
         if (MarieContext.isRegistered()) {
-            MarieContext.get().syncOnJoin().accept(player);
+            boolean effectsEnabled = FeatureFlagCache.enableEffects();
+            MarieModRegistry.forEach(modCtx -> {
+                modCtx.syncOnJoin().accept(player);
+                if (effectsEnabled) {
+                    modCtx.effectApplier().accept(player, tracking);
+                }
+            });
             KubeIntegration.firePlayerSynced(player);
-            if (FeatureFlagCache.enableEffects()) {
-                MarieContext.get().effectApplier().accept(player, tracking);
-            }
         }
     }
 
@@ -78,11 +85,14 @@ public class PlayerTrackingLifecycle {
         if (!TrackingAttachment.isRegistered()) return;
         TrackingData tracking = TrackingAttachment.getData(player);
         if (MarieContext.isRegistered()) {
-            MarieContext.get().trackingDeltaSyncer().accept(player, tracking);
+            boolean effectsEnabled = FeatureFlagCache.enableEffects();
+            MarieModRegistry.forEach(modCtx -> {
+                modCtx.trackingDeltaSyncer().accept(player, tracking);
+                if (effectsEnabled) {
+                    modCtx.effectApplier().accept(player, tracking);
+                }
+            });
             KubeIntegration.firePlayerSynced(player);
-            if (FeatureFlagCache.enableEffects()) {
-                MarieContext.get().effectApplier().accept(player, tracking);
-            }
         }
     }
 }

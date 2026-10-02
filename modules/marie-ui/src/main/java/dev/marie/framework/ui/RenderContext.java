@@ -1,8 +1,12 @@
 package dev.marie.framework.ui;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.ui.component.MarieComponent;
-import dev.marie.framework.ui.edit.DraggableResizable;
+import dev.marie.framework.ui.drag.DraggableResizable;
 import dev.marie.framework.ui.geometry.Bounds;
+import net.minecraft.core.Holder;
+import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.item.ItemStack;
 
 /**
@@ -15,6 +19,7 @@ import net.minecraft.world.item.ItemStack;
  * are unavoidable for a Minecraft-native UI framework and are accepted as parameters where a
  * primitive genuinely requires them.
  */
+@ApiStatus.Experimental
 public interface RenderContext {
 
     int screenWidth();
@@ -32,11 +37,61 @@ public interface RenderContext {
     void drawDashedBorder(int x, int y, int width, int height, int argbColor);
 
     /**
+     * Draws a soft highlight ring around a rectangle — distinct from {@link #drawBorder}'s flat
+     * single-pixel border, this marks a component as draggable/movable without implying a resize
+     * handle.
+     */
+    void drawGlow(int x, int y, int width, int height, int argbColor);
+
+    /**
+     * Draws a solid colored outline behind {@code text}'s glyphs — the caller still draws the real
+     * text itself afterward at {@code (x, y)}; this only draws what sits behind it. Unlike {@link
+     * #drawGlow}, which outlines a plain rectangle, this follows the actual letter shapes.
+     *
+     * <p>This is deliberately a crisp outline, not a soft blurred halo: this interface has no
+     * offscreen-buffer or shader capability to blur with (only immediate-mode fills and text draws),
+     * and approximating a soft glow by stacking <em>translucent</em> offset copies of the same glyphs
+     * reads as a muddy smear rather than a glow once more than one copy overlaps the same pixel — a
+     * real blur needs an actual render-to-texture pass, which is a much larger, riskier piece of
+     * platform-specific rendering to get right blind. Drawing the offsets at (near) full opacity
+     * instead sidesteps that entirely: overlapping opaque copies just paint the same solid color
+     * again, so the result is a clean, reliable stroke around the letters at any strength. {@code
+     * strength} still fades the outline in from transparent, it just reaches solid well before 100%.
+     *
+     * <p>A decorator wrapping another {@code RenderContext} (e.g. one applying an offset/brightness/
+     * hide rule before delegating) must override this too and forward to its own delegate, or calls
+     * through it silently fall back to this default and never reach the real implementation further
+     * down the chain.
+     */
+    default void drawTextGlow(String text, int x, int y, float scale, int glowColor, double strength) {
+        if (strength <= 0) {
+            return;
+        }
+        int alpha = Math.min(255, (int) Math.round(strength * 255));
+        int argb = (alpha << 24) | (glowColor & 0xFFFFFF);
+        int[][] ring = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {1, -1}, {-1, 1}, {-1, -1}};
+        for (int[] offset : ring) {
+            drawText(text, x + offset[0], y + offset[1], argb, scale);
+        }
+    }
+
+    /**
+     * Rounded rectangle with a real corner {@code radius} (in pixels): each corner is a stepped quarter
+     * circle (for example radius 4 cuts 2, 1, 1, 0 pixels from the first four rows), unlike the
+     * fixed one-pixel notch of the overload without a radius. {@code thickness} is the border band
+     * width; border and fill do not overlap, so translucent colors blend correctly. Both values are
+     * clamped to half the shorter side.
+     */
+    default void drawRoundedRect(int x, int y, int width, int height, int thickness, int radius, int fillColor, int borderColor) {
+        dev.marie.framework.ui.render.RoundedRects.draw(this, x, y, width, height, thickness, radius, fillColor, borderColor);
+    }
+
+    /**
      * Fills and borders a rectangle with 1px diagonal-notched corners — the classic pixel-art
      * "rounded rect" fake used throughout Minecraft GUIs: the outermost corner pixel is left
      * untouched (transparent) and the pixel diagonally inset from it is drawn in
      * {@code borderColor}, producing an octagonal cut instead of a hard square corner. Ported
-     * from Nourished's pre-MarieUI {@code DietScreen#drawRoundedPanel}, collapsed to a single
+     * from an earlier consumer mod's pre-MarieUI panel-drawing routine, collapsed to a single
      * border color — that legacy version used separate light-top/dark-bottom bevel shades, which
      * none of marie-ui's current callers need. Geometry is exact for {@code thickness == 1} (the
      * only value any caller uses today); other thicknesses scale the corner inset by
@@ -66,6 +121,42 @@ public interface RenderContext {
         fillRect(x2 - thickness - 1, y2 - thickness - 1, 1, 1, borderColor);
     }
 
+    /**
+     * Draws a 1px line from (x0, y0) to (x1, y1) inclusive, built from {@link #fillRect} cells
+     * (Bresenham), so it needs no new rendering primitive and works with any implementation.
+     * Horizontal and vertical runs collapse into a single fill.
+     */
+    default void drawLine(int x0, int y0, int x1, int y1, int argbColor) {
+        if (y0 == y1) {
+            fillRect(Math.min(x0, x1), y0, Math.abs(x1 - x0) + 1, 1, argbColor);
+            return;
+        }
+        if (x0 == x1) {
+            fillRect(x0, Math.min(y0, y1), 1, Math.abs(y1 - y0) + 1, argbColor);
+            return;
+        }
+        int dx = Math.abs(x1 - x0);
+        int dy = -Math.abs(y1 - y0);
+        int sx = x0 < x1 ? 1 : -1;
+        int sy = y0 < y1 ? 1 : -1;
+        int err = dx + dy;
+        while (true) {
+            fillRect(x0, y0, 1, 1, argbColor);
+            if (x0 == x1 && y0 == y1) {
+                return;
+            }
+            int e2 = 2 * err;
+            if (e2 >= dy) {
+                err += dy;
+                x0 += sx;
+            }
+            if (e2 <= dx) {
+                err += dx;
+                y0 += sy;
+            }
+        }
+    }
+
     void drawText(String text, int x, int y, int argbColor, float scale);
 
     /** Rendered pixel width of {@code text} at {@code scale}, for centering — no font access otherwise leaks into this contract. */
@@ -77,10 +168,22 @@ public interface RenderContext {
 
     /**
      * Draws an already-resolved {@link ItemStack} as a scaled icon at (x, y). Callers are
-     * responsible for resolving whatever domain key (e.g. a Nourished nutrient key) to an
+     * responsible for resolving whatever domain key (e.g. a consumer's own value key) to an
      * {@code ItemStack} themselves — this primitive only knows how to draw one.
      */
     void drawItem(ItemStack stack, int x, int y, float scale);
+
+    /**
+     * Draws {@code effect}'s status-effect icon (the one the inventory's effect list shows) at (x, y),
+     * sized like {@link #drawItem} — 16x16 at scale 1 — so the two line up when a module mixes them.
+     * The default draws nothing: the icon is an atlas sprite this contract has no generic way to reach.
+     *
+     * <p>A decorator wrapping another {@code RenderContext} must override this too and forward to its
+     * own delegate (applying whatever icon offset/brightness/hide rule it applies to {@link #drawItem}),
+     * or calls through it silently fall back to this no-op default — same caveat as {@link #drawTextGlow}.
+     */
+    default void drawEffectIcon(Holder<MobEffect> effect, int x, int y, float scale) {
+    }
 
     /**
      * Pushes a rectangular scissor/clip region — nothing drawn between this call and the matching
@@ -104,7 +207,7 @@ public interface RenderContext {
      * Draws a resize-handle square at (x, y) — the handle's own top-left corner, e.g. from
      * {@link DraggableResizable#handleBounds(Bounds)} — with a corner glyph, colored via
      * {@link ThemeKey#HANDLE_ACTIVE}/{@link ThemeKey#HANDLE_HOVER}/{@link ThemeKey#HANDLE_BACKGROUND}.
-     * Ported from Nourished's {@code HudDrawHelpers#drawResizeHandle} geometry, minus the "Drag to
+     * Ported from an earlier consumer mod's resize-handle-drawing geometry, minus the "Drag to
      * resize" tooltip — that's presentation text a caller can add from its own render() if wanted.
      */
     default void drawResizeHandle(int x, int y, boolean hovered, boolean active) {
@@ -150,16 +253,16 @@ public interface RenderContext {
         }
     }
 
-    /** Title baseline y, local to the box top — ported from Nourished's {@code DietPanelContainer} title row. */
+    /** Title baseline y, local to the box top — ported from an earlier consumer mod's window-chrome title row. */
     int WINDOW_CHROME_TITLE_TEXT_Y = 9;
 
-    /** Divider y, local to the box top, i.e. the title row's height — ported from {@code DietPanelContainer}'s {@code dividerTop} local y. */
+    /** Divider y, local to the box top, i.e. the title row's height — ported from that same window chrome's divider local y. */
     int WINDOW_CHROME_TITLE_ROW_HEIGHT = 26;
 
-    /** Divider line color — ported from {@code DietPanelContainer.COL_DIVIDER}. */
+    /** Divider line color — ported from that same window chrome's divider color. */
     int WINDOW_CHROME_DIVIDER_COLOR = 0xFF2E2E2E;
 
-    /** Draws a {@code DietPanelContainer}-style window frame — filled/bordered rounded rect, centered title, divider beneath it — and returns the content {@link Bounds} below the divider. */
+    /** Draws a window-chrome-style frame — filled/bordered rounded rect, centered title, divider beneath it — and returns the content {@link Bounds} below the divider. */
     default Bounds drawWindowChrome(int x, int y, int width, int height, String title, int titleColor) {
         drawRoundedRect(x, y, width, height, 1, theme().color(ThemeKey.PANEL_BACKGROUND), theme().color(ThemeKey.BORDER));
         int titleX = x + (width - textWidth(title, 1f)) / 2;

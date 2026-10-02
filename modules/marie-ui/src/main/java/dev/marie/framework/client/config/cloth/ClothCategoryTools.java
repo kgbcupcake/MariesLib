@@ -1,5 +1,7 @@
 package dev.marie.framework.client.config.cloth;
 
+import dev.marie.framework.api.ApiStatus;
+
 import me.shedaniel.clothconfig2.api.ConfigBuilder;
 import me.shedaniel.clothconfig2.api.ConfigCategory;
 import me.shedaniel.clothconfig2.api.ConfigEntryBuilder;
@@ -7,6 +9,7 @@ import me.shedaniel.clothconfig2.api.ConfigEntryBuilder;
 /**
  * Tools tab: library-only command hints and future compiler placeholder.
  */
+@ApiStatus.Internal
 final class ClothCategoryTools {
 
     private ClothCategoryTools() {}

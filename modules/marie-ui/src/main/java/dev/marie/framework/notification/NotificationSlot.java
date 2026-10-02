@@ -1,9 +1,12 @@
 package dev.marie.framework.notification;
 
+import dev.marie.framework.api.ApiStatus;
+
 import java.util.List;
 import java.util.function.BiFunction;
 
 /** Mutable runtime state for one active slot in the notification stack. */
+@ApiStatus.Internal
 final class NotificationSlot {
 
     List<List<TextSegment>> content;

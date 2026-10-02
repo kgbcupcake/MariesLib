@@ -1,5 +1,7 @@
 package dev.marie.framework.config;
 
+import dev.marie.framework.api.ApiStatus;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
@@ -25,6 +27,7 @@ import java.util.stream.Stream;
  * Loads and writes gameplay presets under {@code config/<modid>/presets/}.
  * Marie mods may seed locked presets via {@link MarieContext#ensureBuiltInPresetsOnDisk()}.
  */
+@ApiStatus.Internal
 public final class PresetRegistry {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();

@@ -1,5 +1,7 @@
 package dev.marie.framework.config;
 
+import dev.marie.framework.api.ApiStatus;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -18,6 +20,7 @@ import java.util.Set;
 /**
  * Loads and saves {@code config/marieslib.cfg} (JSON).
  */
+@ApiStatus.Internal
 public final class MariesLibConfigIO {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -86,6 +89,11 @@ public final class MariesLibConfigIO {
             h.enableDebugLogging = bool(debug, leafKey(MariesLibConfigKeys.ENABLE_DEBUG_LOGGING), h.enableDebugLogging);
         }
 
+        JsonObject modScan = obj(root, sectionKey(MariesLibConfigKeys.ENABLE_MOD_SCAN));
+        if (modScan != null) {
+            h.enableModScan = bool(modScan, leafKey(MariesLibConfigKeys.ENABLE_MOD_SCAN), h.enableModScan);
+        }
+
         JsonObject scanner = obj(root, sectionKey(MariesLibConfigKeys.SCANNER_CONFIDENCE_SPREAD_THRESHOLD));
         if (scanner != null) {
             h.scannerConfidenceSpreadThreshold = flt(scanner, leafKey(MariesLibConfigKeys.SCANNER_CONFIDENCE_SPREAD_THRESHOLD), h.scannerConfidenceSpreadThreshold);
@@ -113,6 +121,10 @@ public final class MariesLibConfigIO {
         JsonObject debug = new JsonObject();
         debug.addProperty("enableDebugLogging", h.enableDebugLogging);
         root.add("debug", debug);
+
+        JsonObject modScan = new JsonObject();
+        modScan.addProperty("enableModScan", h.enableModScan);
+        root.add("modScan", modScan);
 
         JsonObject scanner = new JsonObject();
         scanner.addProperty("confidenceSpreadThreshold", h.scannerConfidenceSpreadThreshold);

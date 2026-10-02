@@ -1,5 +1,7 @@
 package dev.marie.framework.config;
 
+import dev.marie.framework.api.ApiStatus;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -37,6 +39,7 @@ import java.util.Set;
  *   <li>{@code server_only}: Keys visible but non-editable on multiplayer servers</li>
  * </ul>
  */
+@ApiStatus.Internal
 public class LockRegistry {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();

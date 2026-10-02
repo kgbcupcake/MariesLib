@@ -1,5 +1,7 @@
 package dev.marie.framework.tracking;
 
+import dev.marie.framework.api.ApiStatus;
+
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -8,6 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * Tracks temporary value modifiers granted by source pair synergies, keyed by
  * player and value key.
  */
+@ApiStatus.Internal
 public final class SynergyBuffTracker {
 
     private record ExpiryEntry(float modifier, long expiryTick) {}

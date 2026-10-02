@@ -1,5 +1,7 @@
 package dev.marie.framework.datapack;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.data.SchemaDefinition;
 import dev.marie.framework.data.SchemaField;
 
@@ -8,6 +10,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
+@ApiStatus.Experimental
 public final class SchemaTemplateGenerator {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();

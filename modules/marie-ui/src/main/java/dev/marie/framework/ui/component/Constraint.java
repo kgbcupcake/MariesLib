@@ -1,5 +1,7 @@
 package dev.marie.framework.ui.component;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.ui.geometry.Anchor;
 import dev.marie.framework.ui.geometry.Insets;
 import dev.marie.framework.ui.geometry.Size;
@@ -9,6 +11,7 @@ import dev.marie.framework.ui.geometry.Size;
  * define their own sizing rules, so this record is the single source of truth for how big a
  * component wants to be and how it behaves when there is more or less space than that.
  */
+@ApiStatus.Experimental
 public record Constraint(
         Size preferredSize,
         Size minSize,

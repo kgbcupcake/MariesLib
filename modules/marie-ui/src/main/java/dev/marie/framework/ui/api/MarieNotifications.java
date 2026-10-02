@@ -14,7 +14,7 @@ import net.neoforged.neoforge.common.NeoForge;
  * the stack itself (up to 4 visible slots, newest closest to the XP bar, oldest evicted on
  * overflow) and its timing (fade-in, hold, fade-out). A request's optional {@code mergeKey}/
  * {@code mergeWindowTicks}/{@code mergeFunction} let repeated triggers for the same logical event
- * (e.g. "player ate food") update one slot's content in place, within a time window, instead of
+ * (e.g. "player triggered a value source") update one slot's content in place, within a time window, instead of
  * stacking a new slot on every trigger — MarieLib never interprets what merging means, only
  * invokes the caller-supplied function.
  *

@@ -22,7 +22,7 @@ public final class MarieReiPlugin implements REIClientPlugin {
             if (itemStack.isEmpty()) {
                 return tooltip;
             }
-            if (!MarieContext.isRegistered() || !MarieContext.get().sourceItemFilter().test(itemStack)) {
+            if (!MarieContext.isRegistered() || !MarieContext.isSourceItemAllowed(itemStack)) {
                 return tooltip;
             }
             tooltip.addAllTexts(MarieTooltipHelper.getTooltipLines(itemStack));

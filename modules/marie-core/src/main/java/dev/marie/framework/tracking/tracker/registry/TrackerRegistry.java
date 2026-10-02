@@ -2,12 +2,15 @@ package dev.marie.framework.tracking.tracker.registry;
 
 import dev.marie.framework.api.ApiStatus;
 import dev.marie.framework.core.IMarieConfig;
+import dev.marie.framework.core.MarieContext;
 import dev.marie.framework.registry.AbstractRegistry;
 import dev.marie.framework.tracking.tracker.definition.TrackerDefinition;
 import net.minecraft.resources.ResourceLocation;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Internal storage for tracker definitions registered via the public API.
@@ -23,6 +26,9 @@ public final class TrackerRegistry {
 
     private static final Core INSTANCE = new Core();
 
+    /** Tracks which mod registered each tracker id; see {@link dev.marie.framework.api.registry.ValueRegistry#ownerModId(String)}. */
+    private static final Map<ResourceLocation, String> OWNERS = new ConcurrentHashMap<>();
+
     private TrackerRegistry() {}
 
     @ApiStatus.Internal
@@ -33,6 +39,7 @@ public final class TrackerRegistry {
     @ApiStatus.Internal
     public static void resetInternal() {
         INSTANCE.reset();
+        OWNERS.clear();
     }
 
     /**
@@ -73,6 +80,9 @@ public final class TrackerRegistry {
                     " exceeds trackerMaxRetention " + maxRetention);
         }
         INSTANCE.upsert(definition.getId(), definition);
+        if (MarieContext.isRegistered()) {
+            OWNERS.put(definition.getId(), MarieContext.get().modId());
+        }
     }
 
     @Nullable
@@ -82,5 +92,15 @@ public final class TrackerRegistry {
 
     public static List<TrackerDefinition> getAll() {
         return INSTANCE.values();
+    }
+
+    /**
+     * Returns the modId that registered {@code trackerId}, or {@code null} if unknown or
+     * registered before any {@link MarieContext} was attached.
+     */
+    @Nullable
+    @ApiStatus.Internal
+    public static String ownerModId(ResourceLocation trackerId) {
+        return OWNERS.get(trackerId);
     }
 }

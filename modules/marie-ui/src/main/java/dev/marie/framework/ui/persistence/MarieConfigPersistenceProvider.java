@@ -1,5 +1,7 @@
 package dev.marie.framework.ui.persistence;
 
+import dev.marie.framework.api.ApiStatus;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -25,6 +27,7 @@ import java.util.Optional;
  * server-sync or per-world provider is a drop-in replacement — callers depend only on the
  * {@link PersistenceProvider} interface.
  */
+@ApiStatus.Internal
 public final class MarieConfigPersistenceProvider implements PersistenceProvider {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();

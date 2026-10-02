@@ -1,5 +1,7 @@
 package dev.marie.framework.client.config.cloth;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.client.config.importexport.ImportExportButtonsWidget;
 import dev.marie.framework.config.MariesLibConfigHolder;
 import dev.marie.framework.config.MariesLibConfigKeys;
@@ -10,6 +12,7 @@ import me.shedaniel.clothconfig2.api.ConfigEntryBuilder;
 import me.shedaniel.clothconfig2.impl.builders.SubCategoryBuilder;
 import net.minecraft.client.gui.screens.Screen;
 
+@ApiStatus.Internal
 final class ClothCategoryScanner {
 
     private ClothCategoryScanner() {}

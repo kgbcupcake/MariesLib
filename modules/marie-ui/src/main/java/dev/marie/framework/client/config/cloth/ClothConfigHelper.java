@@ -1,5 +1,7 @@
 package dev.marie.framework.client.config.cloth;
 
+import dev.marie.framework.api.ApiStatus;
+
 import java.util.Optional;
 
 import dev.marie.framework.config.LockRegistry;
@@ -15,6 +17,7 @@ import net.minecraft.network.chat.Component;
 /**
  * Shared Cloth Config helpers: lock filtering, translation keys, entry builders.
  */
+@ApiStatus.Internal
 final class ClothConfigHelper {
 
     private ClothConfigHelper() {}

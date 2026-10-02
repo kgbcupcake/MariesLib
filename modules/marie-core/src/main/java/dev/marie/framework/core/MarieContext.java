@@ -74,6 +74,9 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
 
     private static volatile MarieContext instance;
 
+    /** Per-thread override of {@link #get()} while one mod's hook runs; see {@link #runAs}. */
+    private static final ThreadLocal<MarieContext> SCOPED = new ThreadLocal<>();
+
     private final String modId;
     private final Supplier<Float> scannerConfidenceSpreadThreshold;
     private final Supplier<Float> compositeRatioThreshold;
@@ -219,8 +222,24 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
         MarieModRegistry.register(context);
     }
 
+    /**
+     * Returns the most recently {@link #register}ed context.
+     *
+     * <p>When exactly one mod attaches MarieLib this is unambiguous. When more than one mod
+     * attaches, every mod after the first overwrites this reference, so gameplay code that reads
+     * {@code get()} runs the <em>last-attached</em> mod's hooks even for values, trackers, or
+     * players that belong to an earlier-attached mod. Call sites that have a value key, tracker
+     * id, or item/mod context available should resolve through {@link #forValue(String)},
+     * {@link #forMod(String)}, or fan out over {@link MarieModRegistry#getAll()} instead — this
+     * method remains only as a "primary mod" fallback for call sites with no such key (e.g.
+     * process-wide scanner constants) and for the common single-mod case.</p>
+     */
     @ApiStatus.Stable
     public static MarieContext get() {
+        MarieContext scoped = SCOPED.get();
+        if (scoped != null) {
+            return scoped;
+        }
         MarieContext ctx = instance;
         if (ctx == null) {
             throw new IllegalStateException("MarieContext not registered");
@@ -228,9 +247,92 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
         return ctx;
     }
 
+    /**
+     * Runs {@code action} with {@link #get()} returning {@code ctx} on this thread, so a fan-out over
+     * {@link MarieModRegistry#getAll()} that invokes each mod's hook (e.g. re-registering trackers on
+     * reload) has registries record that mod as the owner rather than the last-attached one.
+     */
+    @ApiStatus.Internal
+    public static void runAs(MarieContext ctx, Runnable action) {
+        MarieContext previous = SCOPED.get();
+        SCOPED.set(ctx);
+        try {
+            action.run();
+        } finally {
+            if (previous != null) {
+                SCOPED.set(previous);
+            } else {
+                SCOPED.remove();
+            }
+        }
+    }
+
     @ApiStatus.Stable
     public static boolean isRegistered() {
         return instance != null;
+    }
+
+    /**
+     * Resolves the {@link MarieContext} of the mod that registered {@code valueKey} (via
+     * {@link ValueRegistry#ownerModId(String)}), falling back to {@link #get()} when the key is
+     * unknown or was registered before any context was attached. Use this instead of {@link #get()}
+     * for any hook keyed off a specific value (decay rate, thresholds, post-value modifiers, icons,
+     * tooltip/tag resolution) so multi-mod setups dispatch to the mod that actually owns the value.
+     */
+    @ApiStatus.Experimental
+    public static MarieContext forValue(String valueKey) {
+        String ownerModId = valueKey != null ? ValueRegistry.ownerModId(valueKey) : null;
+        if (ownerModId != null) {
+            MarieContext owner = MarieModRegistry.get(ownerModId);
+            if (owner != null) {
+                return owner;
+            }
+        }
+        return get();
+    }
+
+    /**
+     * Resolves the {@link MarieContext} registered for {@code modId}, falling back to {@link #get()}
+     * when that mod hasn't attached (or {@code modId} is null).
+     */
+    @ApiStatus.Experimental
+    public static MarieContext forMod(@Nullable String modId) {
+        MarieContext ctx = modId != null ? MarieModRegistry.get(modId) : null;
+        return ctx != null ? ctx : get();
+    }
+
+    /**
+     * Resolves the {@link MarieContext} of the mod that registered {@code trackerId} (via
+     * {@link dev.marie.framework.tracking.tracker.registry.TrackerRegistry#ownerModId}), falling
+     * back to {@link #get()} when the tracker is unknown.
+     */
+    @ApiStatus.Experimental
+    public static MarieContext forTracker(ResourceLocation trackerId) {
+        String ownerModId = trackerId != null
+                ? dev.marie.framework.tracking.tracker.registry.TrackerRegistry.ownerModId(trackerId)
+                : null;
+        if (ownerModId != null) {
+            MarieContext owner = MarieModRegistry.get(ownerModId);
+            if (owner != null) {
+                return owner;
+            }
+        }
+        return get();
+    }
+
+    /**
+     * True if any attached mod's {@link #sourceItemFilter()} allows this stack as a value source —
+     * an item excluded by one mod's filter may still be a legitimate source for another mod's
+     * values, so a single mod objecting must not veto every other mod.
+     */
+    @ApiStatus.Experimental
+    public static boolean isSourceItemAllowed(ItemStack stack) {
+        for (MarieContext ctx : MarieModRegistry.getAll()) {
+            if (ctx.sourceItemFilter().test(stack)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
@@ -679,7 +781,12 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
         return new DiminishingReturnsConfig(60L, 1.2, 3.0, 0.2, 0.5);
     }
 
-    private static Map<String, Float> defaultSourceValueResolver(ItemStack stack, Level level) {
+    /**
+     * Scoped to the value keys {@code modId} owns (unowned keys fall to the primary context, as in
+     * {@link #forValue(String)}): {@code SourceApplicationPipeline} sums every attached mod's
+     * resolver, so two mods both on this default must not each contribute every registered value.
+     */
+    private static Map<String, Float> defaultSourceValueResolver(String modId, ItemStack stack, Level level) {
         if (stack == null || stack.isEmpty()) {
             return Map.of();
         }
@@ -689,6 +796,9 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
         }
         Map<String, Float> result = new HashMap<>();
         for (ValueDefinition def : ValueRegistry.getAll()) {
+            if (!modId.equals(forValue(def.getId()).modId())) {
+                continue;
+            }
             float score = SourceClassificationRegistry.getScore(itemId.toString(), def.getId());
             if (score != 0f) {
                 result.put(def.getId(), score);
@@ -783,8 +893,7 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
         private DoubleSupplier multiValueInheritanceThreshold = () -> 0.20;
         private ResolutionStageHandler[] runtimeResolverStages = new ResolutionStageHandler[0];
         private Supplier<DiminishingReturnsConfig> trackingMemoryConfigProvider = MarieContext::defaultDiminishingReturnsConfig;
-        private BiFunction<ItemStack, Level, Map<String, Float>> sourceValueResolver =
-                MarieContext::defaultSourceValueResolver;
+        private BiFunction<ItemStack, Level, Map<String, Float>> sourceValueResolver;
         private SourceDeltaResolver sourceDeltaResolver = MarieContext::defaultSourceDeltaResolver;
         private BiConsumer<ServerPlayer, TrackingData> effectApplier = (p, d) -> {};
         private Consumer<ServerPlayer> effectClearer = p -> {};
@@ -817,6 +926,7 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
 
         private Builder(String modId) {
             this.modId = modId;
+            this.sourceValueResolver = (stack, level) -> defaultSourceValueResolver(modId, stack, level);
         }
 
         public Builder scannerConfidenceSpreadThreshold(Supplier<Float> s) { this.scannerConfidenceSpreadThreshold = s; return this; }

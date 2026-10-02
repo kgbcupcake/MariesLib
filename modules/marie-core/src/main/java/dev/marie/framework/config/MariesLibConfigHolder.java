@@ -1,15 +1,21 @@
 package dev.marie.framework.config;
 
+import dev.marie.framework.api.ApiStatus;
+
 /**
  * Mutable source of truth for all MarieCore-owned scalar configuration.
  * Only scanner and debug settings live here — gameplay config belongs to consuming mods.
  */
+@ApiStatus.Internal
 public final class MariesLibConfigHolder {
 
     private static final MariesLibConfigHolder INSTANCE = new MariesLibConfigHolder();
 
     // Debug
     public boolean enableDebugLogging = false;
+
+    // Mod-file scan: true only allows scanning, it still needs a consumer to register an extractor
+    public boolean enableModScan = true;
 
     // Scanner context
     // 0.15f: consumed post-merge as a spread/max ratio in [0,1] (see StageMath.confidenceRatio /

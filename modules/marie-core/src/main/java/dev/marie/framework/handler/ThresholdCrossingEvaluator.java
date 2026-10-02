@@ -2,7 +2,7 @@ package dev.marie.framework.handler;
 
 import dev.marie.framework.api.ApiStatus;
 import dev.marie.framework.api.marie.MarieEvents;
-import dev.marie.framework.core.IMarieConfig;
+import dev.marie.framework.api.value.ValueDefinition;
 import dev.marie.framework.core.MarieContext;
 import dev.marie.framework.tracking.TrackingData;
 
@@ -20,12 +20,14 @@ final class ThresholdCrossingEvaluator {
     private ThresholdCrossingEvaluator() {}
 
     static void checkThresholdCrossings(ServerPlayer player, TrackingData tracking) {
-        float excessThreshold = IMarieConfig.get().excessThreshold();
         for (String key : MarieContext.get().valueKeys()) {
             float current = tracking.values.getOrDefault(key, 0f);
             float previous = tracking.lastValues.getOrDefault(key, 0f);
             boolean beneficial = MarieContext.isValueBeneficial(key);
-            float criticalThreshold = IMarieConfig.get().criticalThresholdFor(key);
+            MarieContext keyCtx = MarieContext.forValue(key);
+            ValueDefinition def = keyCtx.valueDefinitionFor(key);
+            float criticalThreshold = keyCtx.criticalThresholdFor(key);
+            float excessThreshold = def != null ? def.getExcessThreshold() : keyCtx.excessThreshold();
 
             if (beneficial) {
                 if (current <= criticalThreshold && previous > criticalThreshold) {

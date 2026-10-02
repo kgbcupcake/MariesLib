@@ -1,5 +1,7 @@
 package dev.marie.framework.command;
 
+import dev.marie.framework.api.ApiStatus;
+
 
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import dev.marie.framework.api.value.ValueDefinition;
@@ -27,6 +29,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+@ApiStatus.Internal
 final class MarieCommandSupport {
 
     static final Component NO_CONSUMER_MESSAGE =

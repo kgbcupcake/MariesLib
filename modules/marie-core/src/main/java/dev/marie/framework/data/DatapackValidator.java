@@ -1,5 +1,7 @@
 package dev.marie.framework.data;
 
+import dev.marie.framework.api.ApiStatus;
+
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
@@ -9,6 +11,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@ApiStatus.Experimental
 public final class DatapackValidator {
 
     private DatapackValidator() {}

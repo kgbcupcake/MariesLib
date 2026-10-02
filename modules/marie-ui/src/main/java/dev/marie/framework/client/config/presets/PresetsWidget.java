@@ -1,5 +1,7 @@
 package dev.marie.framework.client.config.presets;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.client.config.ClientScreenFactories;
 import dev.marie.framework.config.PresetRegistry;
 import dev.marie.framework.config.PresetRegistry.ParsedPreset;
@@ -24,6 +26,7 @@ import java.util.Optional;
 /**
  * Cloth Config entry: preset cards with load/delete, save-current dialog, and lock rules.
  */
+@ApiStatus.Internal
 public final class PresetsWidget extends TooltipListEntry<Object> {
 
     private static final int BTN_H = 20;

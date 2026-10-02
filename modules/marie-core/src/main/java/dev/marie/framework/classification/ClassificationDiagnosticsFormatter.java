@@ -1,5 +1,7 @@
 package dev.marie.framework.classification;
 
+import dev.marie.framework.api.ApiStatus;
+
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
@@ -13,6 +15,7 @@ import java.util.UUID;
  * each other (aggregation feeding into why-won, etc.).
  * Pure static, no state.
  */
+@ApiStatus.Internal
 final class ClassificationDiagnosticsFormatter {
 
     private ClassificationDiagnosticsFormatter() {}

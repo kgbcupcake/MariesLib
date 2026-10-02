@@ -1,5 +1,7 @@
 package dev.marie.framework.data;
 
+import dev.marie.framework.api.ApiStatus;
+
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.event.AddReloadListenerEvent;
 
@@ -8,6 +10,7 @@ import java.util.Set;
 /**
  * Registers and exposes the MarieLib datapack reload state.
  */
+@ApiStatus.Internal
 public final class MarieDataManager {
 
     private static volatile MarieDataLoader loader;
@@ -29,6 +32,11 @@ public final class MarieDataManager {
 
     public static void registerReloadListener(AddReloadListenerEvent event) {
         event.addListener(loader());
+    }
+
+    /** Expands queued {@code "tag"} source classifications; call once item tags are bound. */
+    public static void resolvePendingTagClassifications() {
+        loader().resolvePendingTagClassifications();
     }
 
     public static void setCallbacks(MarieDataLoader.Callbacks callbacks) {

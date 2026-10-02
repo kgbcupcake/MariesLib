@@ -1,0 +1,529 @@
+package dev.marie.framework.ui.api;
+
+import dev.marie.framework.api.ApiStatus;
+import dev.marie.framework.color.MarieColors;
+import dev.marie.framework.ui.PersistenceProvider;
+import dev.marie.framework.ui.RenderContext;
+import dev.marie.framework.ui.component.MarieComponent;
+import dev.marie.framework.ui.modulesettings.BrightnessRenderContext;
+import dev.marie.framework.ui.modulesettings.HideFlags;
+import dev.marie.framework.ui.geometry.Bounds;
+import dev.marie.framework.ui.modulesettings.ModuleExtents;
+import dev.marie.framework.ui.modulesettings.ModuleGlow;
+import dev.marie.framework.ui.modulesettings.ModuleOffsets;
+import dev.marie.framework.ui.modulesettings.ModuleRenderContext;
+import dev.marie.framework.ui.modulesettings.ModuleScales;
+import dev.marie.framework.ui.modulesettings.ModuleStyle;
+import dev.marie.framework.ui.modulesettings.MoveFlags;
+import dev.marie.framework.ui.modulesettings.TextGlowRenderContext;
+import net.minecraft.network.chat.Component;
+
+import java.util.function.Consumer;
+import java.util.function.DoubleConsumer;
+import java.util.function.DoubleSupplier;
+
+/**
+ * Public facade for the display settings a HUD-style module box exposes — independent text and icon
+ * size, padding, separately movable bars, and independent text/icon brightness — covering both halves:
+ * the read side a module's render code calls each frame, and a ready-made options panel for the edit UI.
+ *
+ * <p>UI-state settings (sizes, padding, move modes, bar offset) live in the {@link PersistenceProvider}
+ * the caller passes, under its own {@code panelId}; nothing here owns storage. Brightness and
+ * background opacity are the caller's own values (typically config fields), bound through getters and
+ * setters, so they stay in the caller's config file. Brightness is expected to accept
+ * {@link #MIN_BRIGHTNESS}..{@link #MAX_BRIGHTNESS}, opacity 0..1.
+ *
+ * <pre>{@code
+ * // render side
+ * float textScale = (float) MarieModuleSettings.textScale(store, PANEL_ID);
+ * float iconScale = (float) MarieModuleSettings.iconScale(store, PANEL_ID);
+ * int barDx = MarieModuleSettings.barOffsetX(store, PANEL_ID);
+ * drawPanel(MarieModuleSettings.withBrightness(context, cfg.textBrightness(), cfg.iconBrightness()));
+ *
+ * // edit UI
+ * MarieComponent box = MarieModuleSettings.standardPanel("My HUD", store, PANEL_ID)
+ *         .opacity(cfg::opacity, cfg::setOpacity)
+ *         .textBrightness(cfg::textBrightness, cfg::setTextBrightness)
+ *         .iconBrightness(cfg::iconBrightness, cfg::setIconBrightness)
+ *         .onCommit(cfg::save)
+ *         .build();
+ * }</pre>
+ */
+@ApiStatus.Experimental
+public final class MarieModuleSettings {
+
+    /** Lowest and highest brightness the options panel offers (1.0 = unchanged). */
+    public static final double MIN_BRIGHTNESS = 0.2d;
+    public static final double MAX_BRIGHTNESS = 2.0d;
+
+    private MarieModuleSettings() {}
+
+    /** Text size multiplier for {@code panelId} (the module's persisted {@code contentScale}). */
+    public static double textScale(PersistenceProvider store, String panelId) {
+        return ModuleScales.textScale(store, panelId);
+    }
+
+    /** Icon size multiplier; equal to {@link #textScale} until an icon size has been set, so modules that predate the split look unchanged. */
+    public static double iconScale(PersistenceProvider store, String panelId) {
+        return ModuleScales.iconScale(store, panelId);
+    }
+
+    /**
+     * Same, but {@code followText} false never falls back to {@link #textScale} — unset resolves to
+     * the plain 100% default instead. Use this for a module whose panel was built with {@link
+     * StandardPanelBuilder#independentIconSize}, so its render code's icon-scale read matches what the
+     * options panel's icon-scale write actually means.
+     */
+    public static double iconScale(PersistenceProvider store, String panelId, boolean followText) {
+        return ModuleScales.iconScale(store, panelId, followText);
+    }
+
+    /**
+     * The icon-in-box size multiplier: how large the icon graphic draws relative to its own icon box
+     * (e.g. {@code BarRowComponent}'s icon box), independent of {@link #iconScale}, which sizes the
+     * box itself — mirrors {@link #iconInnerOffsetX} being independent of the box-moving icon offset.
+     * 1.0 (unchanged) until set. Requires {@link StandardPanelBuilder#withIconInnerSize} for the
+     * options panel to expose a slider for it.
+     */
+    public static double iconInnerScale(PersistenceProvider store, String panelId) {
+        return ModuleScales.iconInnerScale(store, panelId);
+    }
+
+    /** Bar size multiplier for {@code panelId}: bar length and thickness, and the value text at the bar's end. 1.0 until set. */
+    public static double barScale(PersistenceProvider store, String panelId) {
+        return ModuleScales.barScale(store, panelId);
+    }
+
+    /** Header size multiplier for {@code panelId} (a module's title/header text, independent of its body text size). 1.0 until set. */
+    public static double headerScale(PersistenceProvider store, String panelId) {
+        return ModuleScales.headerScale(store, panelId);
+    }
+
+    /** Text brightness a module keeps in its own store (1.0 until set) — see {@link MarieToolbox.PanelBuilder#storedBrightness}. */
+    public static double textBrightness(PersistenceProvider store, String panelId) {
+        return ModuleScales.textBrightness(store, panelId);
+    }
+
+    public static double iconBrightness(PersistenceProvider store, String panelId) {
+        return ModuleScales.iconBrightness(store, panelId);
+    }
+
+    /** Where the module's text sits relative to its default place, for a module that keeps that offset here instead of in its own storage. */
+    public static int textOffsetX(PersistenceProvider store, String panelId) {
+        return ModuleOffsets.textX(store, panelId);
+    }
+
+    public static int textOffsetY(PersistenceProvider store, String panelId) {
+        return ModuleOffsets.textY(store, panelId);
+    }
+
+    /** Live drag preview of the text offset; call {@link #commitTextOffset} when the drag ends. */
+    public static void setTextOffset(PersistenceProvider store, String panelId, int x, int y) {
+        ModuleOffsets.setText(store, panelId, x, y);
+    }
+
+    public static void commitTextOffset(PersistenceProvider store, String panelId) {
+        ModuleOffsets.commitText(store, panelId);
+    }
+
+    /**
+     * {@code context} with everything {@code panelId} keeps in {@code store} applied to what a module draws
+     * through it: its text and icon offsets, its icon size relative to its text size, and its stored text
+     * and icon brightness. For a module whose renderer scales text and icons together by its text size and
+     * draws them through a {@link RenderContext}; {@code context} itself when every setting is default.
+     */
+    public static RenderContext withDisplaySettings(RenderContext context, PersistenceProvider store, String panelId) {
+        return ModuleRenderContext.wrap(context, store, panelId);
+    }
+
+    /**
+     * Same, but {@code iconFollowsText} false is for a module built with {@link
+     * StandardPanelBuilder#independentIconSize} whose renderer resolves its own final icon draw scale
+     * via {@link #iconScale(PersistenceProvider, String, boolean)} with {@code followText = false} and
+     * passes that value straight to {@code drawItem} — see {@link
+     * dev.marie.framework.ui.modulesettings.ModuleRenderContext#wrap(RenderContext, PersistenceProvider, String, boolean)}
+     * for why the plain 3-arg overload would silently double-scale that value.
+     */
+    public static RenderContext withDisplaySettings(RenderContext context, PersistenceProvider store, String panelId, boolean iconFollowsText) {
+        return ModuleRenderContext.wrap(context, store, panelId, iconFollowsText);
+    }
+
+    /**
+     * {@code context} with {@code panelId}'s Glow-tab text glow/shadow and bar glow applied — no
+     * position, scale or brightness change, unlike {@link #withDisplaySettings}. For a module whose
+     * renderer resolves its own text/icon/bar offsets and scale by hand (its own "Move"/"Size"
+     * sliders, read directly rather than through the wrapper) and therefore can't use {@link
+     * #withDisplaySettings} without those offsets being applied twice, but still wants Glow to work.
+     * {@code context} itself when every Glow setting is at its default (off).
+     */
+    public static RenderContext withTextEffects(RenderContext context, PersistenceProvider store, String panelId) {
+        return TextGlowRenderContext.wrap(context, store, panelId);
+    }
+
+    /**
+     * Same, but for content that's conceptually a module's "bar" (moves/sizes with Move Bars/Bar
+     * size) yet is drawn as plain text rather than through {@link RenderContext#drawBar} — glows with
+     * Bar glow instead of Text glow, so it tracks the slider a player would expect to control it.
+     */
+    public static RenderContext withBarTextEffects(RenderContext context, PersistenceProvider store, String panelId) {
+        return TextGlowRenderContext.wrapBarText(context, store, panelId);
+    }
+
+    /**
+     * Raw Bar glow color/strength for {@code panelId} (see {@link ModuleGlow}), for a consumer that
+     * needs its own dedicated glow control outside a {@link StandardPanelBuilder} panel — e.g. one
+     * bar-glow slot per item in a multi-row module (a sibling grid of items each with their own glow,
+     * rather than one shared per-module setting a {@code withGlow()} panel would give).
+     */
+    public static int barGlowColor(PersistenceProvider store, String panelId) {
+        return ModuleGlow.barGlowColor(store, panelId);
+    }
+
+    public static void setBarGlowColor(PersistenceProvider store, String panelId, int rgb) {
+        ModuleGlow.setBarGlowColor(store, panelId, rgb);
+    }
+
+    public static double barGlowStrength(PersistenceProvider store, String panelId) {
+        return ModuleGlow.barGlowStrength(store, panelId);
+    }
+
+    public static void setBarGlowStrength(PersistenceProvider store, String panelId, double value) {
+        ModuleGlow.setBarGlowStrength(store, panelId, value);
+    }
+
+    /** Same as {@link #barGlowColor}/{@link #setBarGlowColor} etc., for Text glow instead. */
+    public static int textGlowColor(PersistenceProvider store, String panelId) {
+        return ModuleGlow.textGlowColor(store, panelId);
+    }
+
+    public static void setTextGlowColor(PersistenceProvider store, String panelId, int rgb) {
+        ModuleGlow.setTextGlowColor(store, panelId, rgb);
+    }
+
+    public static double textGlowStrength(PersistenceProvider store, String panelId) {
+        return ModuleGlow.textGlowStrength(store, panelId);
+    }
+
+    public static void setTextGlowStrength(PersistenceProvider store, String panelId, double value) {
+        ModuleGlow.setTextGlowStrength(store, panelId, value);
+    }
+
+    /** Where the module's icons sit relative to their default place. In memory; cheap to call every frame. */
+    public static int iconOffsetX(PersistenceProvider store, String panelId) {
+        return ModuleOffsets.iconX(store, panelId);
+    }
+
+    public static int iconOffsetY(PersistenceProvider store, String panelId) {
+        return ModuleOffsets.iconY(store, panelId);
+    }
+
+    /** Live drag preview of the icon offset; call {@link #commitIconOffset} when the drag ends. */
+    public static void setIconOffset(PersistenceProvider store, String panelId, int x, int y) {
+        ModuleOffsets.setIcon(store, panelId, x, y);
+    }
+
+    public static void commitIconOffset(PersistenceProvider store, String panelId) {
+        ModuleOffsets.commitIcon(store, panelId);
+    }
+
+    /**
+     * Where the icon itself sits relative to its icon box, independent of {@link #iconOffsetX}/{@link
+     * #iconOffsetY} (the box's own offset) — for a module whose icon draws inside a small box of its
+     * own (e.g. {@code BarRowComponent}) and wants "move the icon" and "move its box" as separate
+     * controls. In memory; cheap to call every frame.
+     */
+    public static int iconInnerOffsetX(PersistenceProvider store, String panelId) {
+        return ModuleOffsets.iconInnerX(store, panelId);
+    }
+
+    public static int iconInnerOffsetY(PersistenceProvider store, String panelId) {
+        return ModuleOffsets.iconInnerY(store, panelId);
+    }
+
+    /** Live drag preview of the icon-inner offset; call {@link #commitIconInnerOffset} when the drag ends. */
+    public static void setIconInnerOffset(PersistenceProvider store, String panelId, int x, int y) {
+        ModuleOffsets.setIconInner(store, panelId, x, y);
+    }
+
+    public static void commitIconInnerOffset(PersistenceProvider store, String panelId) {
+        ModuleOffsets.commitIconInner(store, panelId);
+    }
+
+    /** Whether the "Move Icon" (inside its box) toggle is on. */
+    public static boolean isMoveIconInnerEnabled(PersistenceProvider store, String panelId) {
+        return MoveFlags.isOn(store, ModuleOffsets.moveIconInnerFlagId(panelId));
+    }
+
+    /**
+     * Where the module last drew the part {@code mode} moves (text, header, icons, bars — or all four for {@link
+     * MoveDrag.Mode#ALL}), in screen coordinates and after its offsets, for an edit screen to outline just that
+     * part; {@code null} if the module drew none of it in its latest render (fall back to the whole box). Text,
+     * icons and bars are recorded automatically for a module that draws through {@link #withDisplaySettings};
+     * a header drawn with its own offset (a module with {@link StandardPanelBuilder#withHeader}) is a separate
+     * draw call the module must report itself with {@link #recordHeaderExtent}, the same way {@link
+     * #recordBarExtent} covers bars a module draws some other way.
+     */
+    public static Bounds moveOutline(PersistenceProvider store, String panelId, MoveDrag.Mode mode) {
+        return switch (mode) {
+            case TEXT -> ModuleExtents.of(store, panelId, ModuleExtents.Kind.TEXT);
+            case HEADER -> ModuleExtents.of(store, panelId, ModuleExtents.Kind.HEADER);
+            case ICONS, ICON_INNER -> ModuleExtents.of(store, panelId, ModuleExtents.Kind.ICON);
+            case BARS -> ModuleExtents.of(store, panelId, ModuleExtents.Kind.BAR);
+            case ALL -> ModuleExtents.all(store, panelId);
+        };
+    }
+
+    /**
+     * Records that the module drew part of its bars at this screen rectangle (after its offsets), for a module whose "bars"
+     * are not drawn through {@link RenderContext#drawBar} (e.g. list rows), so {@link #moveOutline} can outline them.
+     * Call after {@link #withDisplaySettings} in the same render.
+     */
+    public static void recordBarExtent(PersistenceProvider store, String panelId, int x, int y, int width, int height) {
+        ModuleExtents.add(store, panelId, ModuleExtents.Kind.BAR, x, y, width, height);
+    }
+
+    /**
+     * Records that the module drew part of its icon group at this screen rectangle (after {@link #iconOffsetX}/{@link
+     * #iconOffsetY}), for something that moves with the icons but isn't drawn through {@link RenderContext#drawItem}/
+     * {@link RenderContext#drawEffectIcon} (e.g. a marker glyph beside each icon), so {@link #moveOutline}'s
+     * {@link MoveDrag.Mode#ICONS}/{@link MoveDrag.Mode#ALL} outline covers it. Call after {@link #withDisplaySettings}
+     * in the same render.
+     */
+    public static void recordIconExtent(PersistenceProvider store, String panelId, int x, int y, int width, int height) {
+        ModuleExtents.add(store, panelId, ModuleExtents.Kind.ICON, x, y, width, height);
+    }
+
+    /**
+     * Records that the module drew its header at this screen rectangle (after {@link #headerOffsetX}/{@link
+     * #headerOffsetY}), for a module with {@link StandardPanelBuilder#withHeader} whose header is a separate draw
+     * call from the rest of its text (so it isn't already covered by {@link #withDisplaySettings}'s own text
+     * recording), so {@link #moveOutline}'s {@link MoveDrag.Mode#HEADER}/{@link MoveDrag.Mode#ALL} can outline it.
+     * Call after {@link #withDisplaySettings} in the same render.
+     */
+    public static void recordHeaderExtent(PersistenceProvider store, String panelId, int x, int y, int width, int height) {
+        ModuleExtents.add(store, panelId, ModuleExtents.Kind.HEADER, x, y, width, height);
+    }
+
+    /** Whether the "Move All" toggle is on (one drag moves text, icons and bars together). */
+    public static boolean isMoveAllEnabled(PersistenceProvider store, String panelId) {
+        return MoveFlags.isOn(store, ModuleOffsets.moveAllFlagId(panelId));
+    }
+
+    /** Whether the module's "Hide Icons" toggle is on. {@link #withDisplaySettings} already skips icon draws; this is for a host that lays out or draws icons some other way. */
+    public static boolean isIconsHidden(PersistenceProvider store, String panelId) {
+        return HideFlags.iconsHidden(store, panelId);
+    }
+
+    /** Whether the module's "Hide Bars" toggle is on. {@link #withDisplaySettings} already skips {@code drawBar}/{@code drawVerticalBar} calls; this is for a host whose "bars" are drawn some other way (e.g. plain {@code fillRect} pips, or rows in a hand-rolled HUD). */
+    public static boolean isBarsHidden(PersistenceProvider store, String panelId) {
+        return HideFlags.barsHidden(store, panelId);
+    }
+
+    /** Whether the module's "Hide Text" toggle is on. {@link #withDisplaySettings} already skips {@code drawText} calls; this is for a host that draws text some other way. */
+    public static boolean isTextHidden(PersistenceProvider store, String panelId) {
+        return HideFlags.textHidden(store, panelId);
+    }
+
+    /** Whether the module's "Hide Window" toggle is on — hides the whole module, box included. {@link #withDisplaySettings} already skips every draw call (text, icons, bars, fill, border, glow); this is for a host that draws its background box some other way, or wants to skip its render pass entirely. */
+    public static boolean isWindowHidden(PersistenceProvider store, String panelId) {
+        return HideFlags.windowHidden(store, panelId);
+    }
+
+    /** Whether the module's "Hide Header" toggle is on. A header is always a separate draw call from the rest of a module's text (see {@link #recordHeaderExtent}), so — unlike Hide Text/Icons/Bars/Window — {@link #withDisplaySettings} never checks this for you; a module with {@link StandardPanelBuilder#withHeaderSize} or a header of its own checks it before drawing the header. */
+    public static boolean isHeaderHidden(PersistenceProvider store, String panelId) {
+        return HideFlags.headerHidden(store, panelId);
+    }
+
+    /**
+     * Sets the "Hide Header" flag {@link #isHeaderHidden} reads (saved immediately), for a host that
+     * offers its own Hide Header toggle outside the standard panel's Hide group — e.g. a screen built
+     * with {@link StandardPanelBuilder#withoutMoveAndHide} that still has a title worth hiding.
+     */
+    public static void setHeaderHidden(PersistenceProvider store, String panelId, boolean hidden) {
+        HideFlags.setHeaderHidden(store, panelId, hidden);
+    }
+
+    /** Whether the "Move Icons" toggle is on. */
+    public static boolean isMoveIconsEnabled(PersistenceProvider store, String panelId) {
+        return MoveFlags.isOn(store, ModuleOffsets.moveIconsFlagId(panelId));
+    }
+
+    /** Where the module's bars (and their value text) sit relative to their default place. In memory; cheap to call every frame. */
+    public static int barOffsetX(PersistenceProvider store, String panelId) {
+        return ModuleOffsets.barX(store, panelId);
+    }
+
+    public static int barOffsetY(PersistenceProvider store, String panelId) {
+        return ModuleOffsets.barY(store, panelId);
+    }
+
+    /** Live drag preview of the bar offset; call {@link #commitBarOffset} when the drag ends. */
+    public static void setBarOffset(PersistenceProvider store, String panelId, int x, int y) {
+        ModuleOffsets.setBar(store, panelId, x, y);
+    }
+
+    public static void commitBarOffset(PersistenceProvider store, String panelId) {
+        ModuleOffsets.commitBar(store, panelId);
+    }
+
+    /** Whether the "Move Bars" toggle is on — a host polls this to route dragging to the bar offset. */
+    public static boolean isMoveBarsEnabled(PersistenceProvider store, String panelId) {
+        return MoveFlags.isOn(store, ModuleOffsets.moveBarsFlagId(panelId));
+    }
+
+    /** Where the module's header sits relative to its default place. In memory; cheap to call every frame. */
+    public static int headerOffsetX(PersistenceProvider store, String panelId) {
+        return ModuleOffsets.headerX(store, panelId);
+    }
+
+    public static int headerOffsetY(PersistenceProvider store, String panelId) {
+        return ModuleOffsets.headerY(store, panelId);
+    }
+
+    /** Live drag preview of the header offset; call {@link #commitHeaderOffset} when the drag ends. */
+    public static void setHeaderOffset(PersistenceProvider store, String panelId, int x, int y) {
+        ModuleOffsets.setHeader(store, panelId, x, y);
+    }
+
+    public static void commitHeaderOffset(PersistenceProvider store, String panelId) {
+        ModuleOffsets.commitHeader(store, panelId);
+    }
+
+    /** Whether the "Move Header" toggle is on. */
+    public static boolean isMoveHeaderEnabled(PersistenceProvider store, String panelId) {
+        return MoveFlags.isOn(store, ModuleOffsets.moveHeaderFlagId(panelId));
+    }
+
+    /** Whether the "Move Text" toggle is on. */
+    public static boolean isMoveTextEnabled(PersistenceProvider store, String panelId) {
+        return MoveFlags.isOn(store, panelId);
+    }
+
+    /** The move mode currently switched on (at most one is), or {@code null} if none — for a host routing dragging to the matching offset. */
+    public static MoveDrag.Mode activeMoveMode(PersistenceProvider store, String panelId) {
+        if (isMoveAllEnabled(store, panelId)) {
+            return MoveDrag.Mode.ALL;
+        }
+        if (isMoveTextEnabled(store, panelId)) {
+            return MoveDrag.Mode.TEXT;
+        }
+        if (isMoveIconsEnabled(store, panelId)) {
+            return MoveDrag.Mode.ICONS;
+        }
+        if (isMoveIconInnerEnabled(store, panelId)) {
+            return MoveDrag.Mode.ICON_INNER;
+        }
+        if (isMoveHeaderEnabled(store, panelId)) {
+            return MoveDrag.Mode.HEADER;
+        }
+        return isMoveBarsEnabled(store, panelId) ? MoveDrag.Mode.BARS : null;
+    }
+
+    /** {@code context} whose text and item icons are drawn at the given brightness multipliers; {@code context} itself when both are 1.0. */
+    public static RenderContext withBrightness(RenderContext context, double textBrightness, double iconBrightness) {
+        return BrightnessRenderContext.wrap(context, textBrightness, iconBrightness);
+    }
+
+    /** {@code argb} with RGB scaled by {@code brightness} (alpha untouched, capped at 255). */
+    public static int scaleBrightness(int argb, double brightness) {
+        return BrightnessRenderContext.scale(argb, brightness);
+    }
+
+    /**
+     * {@code baseArgb} (a module's own background fill color) adjusted by its self-contained
+     * Background opacity/shade (see {@link StandardPanelBuilder#withOwnStyle}) — {@code baseArgb}
+     * itself at the neutral defaults (opacity 100%, shade 0%), so a module that never opted in, or
+     * whose player never touched these sliders, looks unchanged.
+     */
+    public static int styledBackground(int baseArgb, PersistenceProvider store, String panelId) {
+        double opacity = ModuleStyle.backgroundOpacity(store, panelId);
+        double shade = ModuleStyle.backgroundShade(store, panelId);
+        int shaded = shade != 0.0d ? MarieColors.shade(baseArgb, shade) : baseArgb;
+        return withOpacity(shaded, opacity);
+    }
+
+    /** Same as {@link #styledBackground}, but over the module's Border opacity/shade instead. */
+    public static int styledBorder(int baseArgb, PersistenceProvider store, String panelId) {
+        double opacity = ModuleStyle.borderOpacity(store, panelId);
+        double shade = ModuleStyle.borderShade(store, panelId);
+        int shaded = shade != 0.0d ? MarieColors.shade(baseArgb, shade) : baseArgb;
+        return pulsedBorder(withOpacity(shaded, opacity), store, panelId);
+    }
+
+    /**
+     * {@code borderArgb} (a module's border line color) breathing with its Pulse, in its own color — see
+     * {@link MariePulse#apply}; unchanged while Pulse strength is 0 or its "Border line" toggle is off. {@link #styledBorder} already applies
+     * this; call it directly only for a border that doesn't go through {@code styledBorder}.
+     */
+    public static int pulsedBorder(int borderArgb, PersistenceProvider store, String panelId) {
+        return ModuleGlow.borderPulse(store, panelId).apply(borderArgb);
+    }
+
+    private static int withOpacity(int argb, double opacity) {
+        if (opacity == 1.0d) {
+            return argb;
+        }
+        int alpha = Math.min(255, Math.max(0, (int) Math.round(((argb >>> 24) & 0xFF) * opacity)));
+        return (alpha << 24) | (argb & 0x00FFFFFF);
+    }
+
+    /**
+     * Draws the module's own Border shadow and Border glow (see {@link StandardPanelBuilder#withShadow}/
+     * {@link StandardPanelBuilder#withGlow}) — the glow breathing with the module's Pulse (see {@link
+     * MariePulse}) — if either is configured — a no-op at the neutral
+     * defaults (both 0%). Call this once, immediately before a module draws its own background/border
+     * box at {@code (x, y, width, height)}, so the box paints over the innermost ring and only the
+     * outward rings remain visible (the same technique {@code drawGlow} already uses for the
+     * edit-mode movable highlight). Border shadow/glow cannot be applied generically the way text/bar
+     * shadow and glow are (a box's border is just one of many {@code fillRect} calls a module makes,
+     * indistinguishable from content fills at the {@link RenderContext} layer), so a module's own
+     * box-drawing code calls this explicitly.
+     */
+    public static void drawBoxGlow(RenderContext context, PersistenceProvider store, String panelId, int x, int y, int width, int height) {
+        double shadowStrength = ModuleGlow.borderShadowStrength(store, panelId);
+        if (shadowStrength > 0) {
+            int alpha = Math.min(255, (int) Math.round(shadowStrength * 255));
+            context.drawGlow(x, y, width, height, alpha << 24);
+        }
+        // The Pulse animates this Border glow itself rather than adding a ring of its own (see MariePulse).
+        ModuleGlow.borderGlowPulse(store, panelId).drawGlow(context, x, y, width, height,
+                ModuleGlow.borderGlowColor(store, panelId), ModuleGlow.borderGlowStrength(store, panelId));
+    }
+
+    /**
+     * Draws the module's Bar glow around one bar at {@code (x, y, width, height)}, breathing with its
+     * Pulse (see {@link MariePulse}) — for a host that draws a bar itself (plain {@code fillRect}s)
+     * rather than through {@link #withDisplaySettings}/{@link #withTextEffects}, which already glow and
+     * pulse every {@code drawBar} for you. Call it immediately before drawing the bar.
+     */
+    public static void drawBarGlow(RenderContext context, PersistenceProvider store, String panelId, int x, int y, int width, int height) {
+        ModuleGlow.barGlowPulse(store, panelId).drawGlow(context, x, y, width, height,
+                ModuleGlow.barGlowColor(store, panelId), ModuleGlow.barGlowStrength(store, panelId));
+    }
+
+    /**
+     * The module's Pulse tab settings as a {@link MariePulse} ({@link MariePulse#OFF} at strength 0),
+     * ignoring the per-target toggles — for a host animating something of its own with it.
+     */
+    public static MariePulse pulse(PersistenceProvider store, String panelId) {
+        return ModuleGlow.pulse(store, panelId);
+    }
+
+    /** Same, but {@link MariePulse#OFF} if the module's "Pulse bar glow" toggle is off — for a bar glow a host draws itself. */
+    public static MariePulse barGlowPulse(PersistenceProvider store, String panelId) {
+        return ModuleGlow.barGlowPulse(store, panelId);
+    }
+
+    /**
+     * Starts the standard options panel every module window shares: Layout (Padding), Behavior (collapsible Move group:
+     * Move Text/Icons/Bars/All and Reset Positions; collapsible Hide group: Hide Icons) and Style, whose collapsible
+     * groups are Sizes (Text/Icon/Bar size), Brightness, Background (opacity, shade) and Border (opacity, shade) — a
+     * group appears only when you bind something for it. Consumer-specific rows go in through {@code layoutRows},
+     * {@code behaviorRows}, {@code styleRows} and {@code extraTabs}, so no module hand-builds its own layout.
+     */
+    public static StandardPanelBuilder standardPanel(String title, PersistenceProvider store, String panelId) {
+        return new StandardPanelBuilder(title, store, panelId);
+    }
+
+
+}

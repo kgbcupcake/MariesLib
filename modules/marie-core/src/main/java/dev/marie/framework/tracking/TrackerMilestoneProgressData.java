@@ -21,7 +21,7 @@ import java.util.function.Supplier;
  * Per-player lifetime cumulative totals and one-shot completion bookkeeping for tracker
  * milestones. Structurally parallel to {@link MilestoneProgressData} but keyed by tracker id
  * rather than value key, and stored in a wholly separate attachment namespace — no shared
- * storage with the nutrient milestone system. Consumed by {@link TrackerMilestoneTracker}.
+ * storage with the value-based milestone system. Consumed by {@link TrackerMilestoneTracker}.
  */
 @ApiStatus.Internal
 public final class TrackerMilestoneProgressData {

@@ -79,7 +79,7 @@ public final class ItemClassifier {
          String namespace = itemId.getNamespace();
          String path = itemId.getPath();
          boolean hasSourceProperties = !MarieContext.isRegistered()
-                 || MarieContext.get().sourceItemFilter().test(stack);
+                 || MarieContext.isSourceItemAllowed(stack);
          if (traceOut.isPresent()) {
             Map<String, Object> discoveryDetail = new LinkedHashMap<>();
             discoveryDetail.put("itemId", itemId.toString());

@@ -1,13 +1,19 @@
 package dev.marie.framework.config;
 
+import dev.marie.framework.api.ApiStatus;
+
 /**
  * Stable Cloth Config / {@link LockRegistry} keys for MarieCore-owned settings.
  * Only scanner and debug keys remain — gameplay keys belong to consuming mods.
  */
+@ApiStatus.Internal
 public final class MariesLibConfigKeys {
 
     // Debug
     public static final String ENABLE_DEBUG_LOGGING = "debug.enableDebugLogging";
+
+    // Mod-file scan
+    public static final String ENABLE_MOD_SCAN = "modScan.enableModScan";
 
     // Scanner (context)
     public static final String SCANNER_CONFIDENCE_SPREAD_THRESHOLD = "scanner.confidenceSpreadThreshold";

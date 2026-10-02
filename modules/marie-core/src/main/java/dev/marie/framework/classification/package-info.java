@@ -13,4 +13,7 @@
  * </ul></p>
  */
 @javax.annotation.ParametersAreNonnullByDefault
+@ApiStatus.Internal
 package dev.marie.framework.classification;
+
+import dev.marie.framework.api.ApiStatus;

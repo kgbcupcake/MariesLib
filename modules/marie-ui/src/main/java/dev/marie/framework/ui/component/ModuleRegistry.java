@@ -30,7 +30,7 @@ public final class ModuleRegistry {
      * string beyond "identifies one independent, ordered module list" — a consumer that wants
      * multiple independently-stacked module groups (e.g. a left column and a right column, each with
      * its own chained {@code startLocalY}/{@code startLocalX} cursor) registers each group under its
-     * own distinct key, conventionally {@code <modId>.<region>} (e.g. {@code "nourished.diet.right"}),
+     * own distinct key, conventionally {@code <modId>.<region>} (e.g. {@code "mymod.hud.right"}),
      * rather than expecting a second registry object — this class has no instantiable/per-region
      * form, matching every other registry in this codebase. Nothing about ordering, lookup, or
      * storage differs between a plain modId key and a region-qualified one.

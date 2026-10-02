@@ -11,6 +11,7 @@ import dev.marie.framework.api.marie.MariePlayerData;
 import dev.marie.framework.api.marie.MarieSeasonHook;
 import dev.marie.framework.api.progression.MilestoneDefinition;
 import dev.marie.framework.api.progression.ProfileDefinition;
+import dev.marie.framework.api.progression.TrackerMilestoneDefinition;
 import dev.marie.framework.api.reporting.ApplicationHistoryView;
 import dev.marie.framework.api.reporting.ExportResolver;
 import dev.marie.framework.api.reporting.ReportProvider;
@@ -331,6 +332,28 @@ public final class MarieAPI {
         registerMilestone(definition);
     }
 
+    /**
+     * Registers a tracker milestone that fires once when a player's built-in MarieLib
+     * tracker (rather than a consuming mod's own value key) reaches a cumulative goal.
+     *
+     * @param definition the tracker milestone definition
+     * @throws IllegalArgumentException if a milestone with the same id already exists
+     */
+    @ApiStatus.Stable
+    public static void registerTrackerMilestone(TrackerMilestoneDefinition definition) {
+        ProfileMilestoneSeasonDelegate.registerTrackerMilestone(definition);
+    }
+
+    /**
+     * Alias for {@link #registerTrackerMilestone(TrackerMilestoneDefinition)}.
+     *
+     * @param definition the tracker milestone definition
+     */
+    @ApiStatus.Stable
+    public static void addTrackerMilestone(TrackerMilestoneDefinition definition) {
+        registerTrackerMilestone(definition);
+    }
+
     // ───────────────────────────────────────────────────────────────
     // Registration — Hooks & Modifiers
     // ───────────────────────────────────────────────────────────────
@@ -425,13 +448,16 @@ public final class MarieAPI {
      * @deprecated {@link ExportResolver} carries no registry key, so this overload has no way
      * to know which registry to iterate — it cannot be implemented correctly. Use
      * {@link #registerExportResolver(String, net.minecraft.resources.ResourceKey, ExportResolver)}
-     * instead, which takes the registry key explicitly.
+     * instead, which takes the registry key explicitly. Scheduled for removal in the next
+     * major version (see {@link MarieAPIVersion}); until then it stays present, {@code @Stable},
+     * and always throwing, per this library's semver contract that {@code @Stable} signatures
+     * are only removed on a major bump.
      * @param resolver the resolver (unused — this overload always throws)
      * @param <T> the registry entry type
      * @throws UnsupportedOperationException always
      */
     @ApiStatus.Stable
-    @Deprecated
+    @Deprecated(since = "1.1.0", forRemoval = true)
     public static <T> void registerExportResolver(ExportResolver<T> resolver) {
         HookProviderRegistrationDelegate.registerExportResolver(resolver);
     }

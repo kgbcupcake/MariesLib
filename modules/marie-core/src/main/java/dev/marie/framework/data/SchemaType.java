@@ -1,9 +1,12 @@
 package dev.marie.framework.data;
 
+import dev.marie.framework.api.ApiStatus;
+
 import com.google.gson.JsonElement;
 import com.google.gson.JsonPrimitive;
 import net.minecraft.resources.ResourceLocation;
 
+@ApiStatus.Experimental
 public enum SchemaType {
     STRING {
         @Override

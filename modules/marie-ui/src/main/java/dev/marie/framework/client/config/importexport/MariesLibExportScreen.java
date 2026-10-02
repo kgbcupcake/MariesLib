@@ -1,5 +1,7 @@
 package dev.marie.framework.client.config.importexport;
 
+import dev.marie.framework.api.ApiStatus;
+
 import com.google.gson.JsonObject;
 import dev.marie.framework.core.MarieCore;
 import net.minecraft.client.gui.GuiGraphics;
@@ -16,6 +18,7 @@ import java.util.List;
 /**
  * Select export sections and write a file or share code.
  */
+@ApiStatus.Internal
 public final class MariesLibExportScreen extends Screen {
 
     private final Screen returnTo;

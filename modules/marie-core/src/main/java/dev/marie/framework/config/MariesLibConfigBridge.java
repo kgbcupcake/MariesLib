@@ -1,11 +1,14 @@
 package dev.marie.framework.config;
 
+import dev.marie.framework.api.ApiStatus;
+
 import com.google.gson.JsonObject;
 
 /**
  * Builds import/export JSON sections from {@link MariesLibConfigHolder}.
  * Only scanner and diagnostics settings are exported.
  */
+@ApiStatus.Internal
 public final class MariesLibConfigBridge {
 
     private MariesLibConfigBridge() {}

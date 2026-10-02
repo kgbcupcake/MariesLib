@@ -1,11 +1,16 @@
 package dev.marie.framework.ui.render;
 
+import dev.marie.framework.api.ApiStatus;
+
 import com.mojang.blaze3d.vertex.PoseStack;
 import dev.marie.framework.ui.RenderContext;
 import dev.marie.framework.ui.Theme;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.core.Holder;
 import net.minecraft.util.Mth;
+import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayDeque;
@@ -14,6 +19,7 @@ import java.util.ArrayDeque;
  * The one concrete {@link RenderContext} MarieUI ships: draws through NeoForge's
  * {@link GuiGraphics}. Callers construct a fresh instance per frame.
  */
+@ApiStatus.Internal
 public final class GuiGraphicsRenderContext implements RenderContext {
 
     private final GuiGraphics graphics;
@@ -92,13 +98,45 @@ public final class GuiGraphicsRenderContext implements RenderContext {
     }
 
     @Override
+    public void drawGlow(int x, int y, int width, int height, int argbColor) {
+        int alpha = (argbColor >>> 24) & 0xFF;
+        int rgb = argbColor & 0x00FFFFFF;
+        int[] falloff = {100, 65, 35, 15};
+        for (int ring = 0; ring < falloff.length; ring++) {
+            int ringAlpha = alpha * falloff[ring] / 100;
+            int ringColor = (ringAlpha << 24) | rgb;
+            int rx = x - ring;
+            int ry = y - ring;
+            int rw = width + ring * 2;
+            int rh = height + ring * 2;
+            // Each ring leaves out its four corner pixels, so the glow follows a box's notched
+            // (rounded) corners instead of squaring them off.
+            graphics.fill(rx + 1, ry, rx + rw - 1, ry + 1, ringColor);
+            graphics.fill(rx + 1, ry + rh - 1, rx + rw - 1, ry + rh, ringColor);
+            graphics.fill(rx, ry + 1, rx + 1, ry + rh - 1, ringColor);
+            graphics.fill(rx + rw - 1, ry + 1, rx + rw, ry + rh - 1, ringColor);
+        }
+    }
+
+    @Override
     public void drawText(String text, int x, int y, int argbColor, float scale) {
+        // pushPose/popPose MUST be paired even if drawString throws partway through (e.g. a
+        // malformed component/font-provider edge case) — GuiGraphics' PoseStack is the same shared
+        // instance every RenderGuiEvent.Post subscriber this frame draws through. An unmatched
+        // pushPose here leaves that translate+scale applied to every later fill()/drawString()/
+        // renderItem() call for the rest of the frame (fill() applies the current pose transform to
+        // its quad), which is exactly how a tiny rect can end up stretched into a full-screen quad —
+        // see the matching comment on drawItem below, and GuiGraphicsRenderContext#resetClip's
+        // analogous reasoning for the scissor stack.
         PoseStack pose = graphics.pose();
         pose.pushPose();
-        pose.translate(x, y, 0);
-        pose.scale(scale, scale, 1f);
-        graphics.drawString(minecraft.font, text, 0, 0, argbColor, false);
-        pose.popPose();
+        try {
+            pose.translate(x, y, 0);
+            pose.scale(scale, scale, 1f);
+            graphics.drawString(minecraft.font, text, 0, 0, argbColor, false);
+        } finally {
+            pose.popPose();
+        }
     }
 
     @Override
@@ -108,12 +146,39 @@ public final class GuiGraphicsRenderContext implements RenderContext {
 
     @Override
     public void drawItem(ItemStack stack, int x, int y, float scale) {
+        // Same pairing requirement as drawText above: graphics.renderItem() resolves the stack's
+        // BakedModel and can throw (a transiently-unbaked/unregistered item id — plausible for a
+        // consumer mod's value-key icon resolved mid-sync while its values are updating rapidly,
+        // e.g. in response to a fast-repeating trigger). Without this try/finally, that throw skips
+        // popPose(), leaving this translate+scale baked into GuiGraphics' shared PoseStack for every
+        // remaining fill()/drawString()/renderItem() call this frame (fill() draws its quad through
+        // the current pose transform) — a small bar/icon fill elsewhere can then be stretched into
+        // covering the whole screen, which self-heals next successful call and re-corrupts on the
+        // next throw, producing the rapid full-screen black flashing reported when the fast-repeating
+        // trigger retriggers the same edge case.
         PoseStack pose = graphics.pose();
         pose.pushPose();
-        pose.translate(x, y, 0);
-        pose.scale(scale, scale, 1f);
-        graphics.renderItem(stack, 0, 0);
-        pose.popPose();
+        try {
+            pose.translate(x, y, 0);
+            pose.scale(scale, scale, 1f);
+            graphics.renderItem(stack, 0, 0);
+        } finally {
+            pose.popPose();
+        }
+    }
+
+    @Override
+    public void drawEffectIcon(Holder<MobEffect> effect, int x, int y, float scale) {
+        TextureAtlasSprite sprite = minecraft.getMobEffectTextures().get(effect);
+        PoseStack pose = graphics.pose();
+        pose.pushPose();
+        try {
+            pose.translate(x, y, 0);
+            pose.scale(scale, scale, 1f);
+            graphics.blit(0, 0, 0, 16, 16, sprite);
+        } finally {
+            pose.popPose();
+        }
     }
 
     @Override
@@ -160,11 +225,23 @@ public final class GuiGraphicsRenderContext implements RenderContext {
             return;
         }
         clipStack.pop();
-        if (clipStack.isEmpty()) {
+        // GuiGraphics keeps its own scissor stack: enableScissor pushes an entry, disableScissor pops
+        // one and restores the parent region itself.
+        graphics.disableScissor();
+    }
+
+    /**
+     * Resets the scissor stack to empty and disables scissoring, regardless of how many
+     * {@link #pushClip} calls are outstanding. Call this once per frame after a consumer's
+     * render pass completes (in a {@code finally} block around it) so that an exception thrown
+     * by that consumer between a {@link #pushClip}/{@link #popClip} pair — e.g. a HUD overlay
+     * whose backing data mutates mid-render — can never leave the GL scissor rect clamped for
+     * the rest of the frame.
+     */
+    public void resetClip() {
+        while (!clipStack.isEmpty()) {
+            clipStack.pop();
             graphics.disableScissor();
-        } else {
-            int[] parent = clipStack.peek();
-            graphics.enableScissor(parent[0], parent[1], parent[2], parent[3]);
         }
     }
 

@@ -1,6 +1,9 @@
 package dev.marie.framework.ui;
 
+import dev.marie.framework.api.ApiStatus;
+
 /** Semantic color slots a {@link Theme} must resolve. Components ask for meaning, not RGB values. */
+@ApiStatus.Experimental
 public enum ThemeKey {
     PANEL_BACKGROUND,
     BORDER,
@@ -17,5 +20,6 @@ public enum ThemeKey {
     EDIT_OVERLAY,
     EDIT_BANNER_TEXT,
     EDIT_BANNER_BACKGROUND,
-    DASHED_PREVIEW
+    DASHED_PREVIEW,
+    SUBBOX_GLOW
 }

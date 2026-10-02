@@ -7,7 +7,7 @@ import net.minecraft.resources.ResourceLocation;
 
 /**
  * Represents a context in which a value source was applied to a player.
- * Decouple the pipeline from item eating — any action can be a trigger.
+ * Decouple the pipeline from any single triggering action (e.g. item consumption) — any action can be a trigger.
  *
  * <p>Create instances via the static factory methods.</p>
  */

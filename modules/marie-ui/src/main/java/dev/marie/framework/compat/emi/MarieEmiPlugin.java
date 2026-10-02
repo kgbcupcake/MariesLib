@@ -21,7 +21,7 @@ public final class MarieEmiPlugin implements EmiPlugin {
         }
         for (Item item : BuiltInRegistries.ITEM) {
             ItemStack stack = new ItemStack(item);
-            if (!MarieContext.isRegistered() || !MarieContext.get().sourceItemFilter().test(stack)) {
+            if (!MarieContext.isRegistered() || !MarieContext.isSourceItemAllowed(stack)) {
                 continue;
             }
             int tooltipHash = MarieTooltipHelper.getTooltipLines(stack).hashCode();

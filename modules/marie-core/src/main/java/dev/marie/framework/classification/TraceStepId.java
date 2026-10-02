@@ -1,8 +1,11 @@
 package dev.marie.framework.classification;
 
+import dev.marie.framework.api.ApiStatus;
+
 /**
  * Identifies each decision point in the classification pipeline.
  */
+@ApiStatus.Internal
 public enum TraceStepId {
     ITEM_DISCOVERY,
     VALUE_TAG_LOOKUP,

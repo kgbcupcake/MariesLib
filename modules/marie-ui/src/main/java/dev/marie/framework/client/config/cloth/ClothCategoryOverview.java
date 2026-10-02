@@ -1,5 +1,7 @@
 package dev.marie.framework.client.config.cloth;
 
+import dev.marie.framework.api.ApiStatus;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -16,6 +18,7 @@ import net.neoforged.fml.ModList;
 /**
  * Overview tab: read-only framework status information.
  */
+@ApiStatus.Internal
 final class ClothCategoryOverview {
 
     private ClothCategoryOverview() {}

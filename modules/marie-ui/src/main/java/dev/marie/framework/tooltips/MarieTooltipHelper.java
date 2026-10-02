@@ -17,6 +17,7 @@ import dev.marie.framework.client.config.render.MarieValueColors;
 import dev.marie.framework.config.FeatureFlagCache;
 import dev.marie.framework.core.IMarieConfig;
 import dev.marie.framework.core.MarieContext;
+import dev.marie.framework.core.MarieModRegistry;
 import dev.marie.framework.scanner.ExcludedItemsRegistry;
 import dev.marie.framework.scanner.ScannerSpecRegistry;
 import dev.marie.framework.tracking.TrackingData;
@@ -60,12 +61,13 @@ public final class MarieTooltipHelper {
         }
 
         Player player = mc.player;
-        Map<String, Float> valueBars = MarieContext.get().tooltipValueResolver().apply(stack, player);
-        if (!MarieContext.get().sourceItemFilter().test(stack) && valueBars.isEmpty()) {
-            return lines;
+        // Every attached mod may classify this item for its own values, so every mod's resolver
+        // runs and the results merge — otherwise only the last-attached mod's items get tooltips.
+        Map<String, Float> valueBars = new java.util.LinkedHashMap<>();
+        for (MarieContext modCtx : MarieModRegistry.getAll()) {
+            valueBars.putAll(modCtx.tooltipValueResolver().apply(stack, player));
         }
 
-        String modId = MarieContext.get().modId();
         String itemId = MarieRegistryUtils.itemKey(stack).toString();
         String dominantCategory = valueBars.isEmpty()
                 ? null
@@ -73,8 +75,28 @@ public final class MarieTooltipHelper {
                         .max(Map.Entry.comparingByValue())
                         .map(Map.Entry::getKey)
                         .orElse(null);
-        String familyKey = MarieContext.get().sourceFamilyResolver().apply(MarieRegistryUtils.itemKey(stack));
-        TrackingData tracking = MarieContext.get().clientTrackingDataProvider().get();
+        // Header/translation keys are mod-specific; use the mod that owns the dominant value (or the
+        // primary mod when nothing resolved) rather than whichever mod last attached.
+        MarieContext headerCtx = dominantCategory != null
+                ? MarieContext.forValue(dominantCategory)
+                : MarieContext.get();
+        // Gate on the mod that would actually render this tooltip, not a global OR across every
+        // attached mod — MarieContext.isSourceItemAllowed() ORs every attached mod's filter, so any
+        // other mod using MarieBootstrap.attach()'s unconfigured default filter (which accepts every
+        // item) silently makes every mod's tooltip, including this one, show on every item in the
+        // game. Whether headerCtx itself considers this item a source is the only relevant signal.
+        if (!headerCtx.sourceItemFilter().test(stack) && valueBars.isEmpty()) {
+            return lines;
+        }
+        String modId = headerCtx.modId();
+        String familyKey = null;
+        for (MarieContext modCtx : MarieModRegistry.getAll()) {
+            familyKey = modCtx.sourceFamilyResolver().apply(MarieRegistryUtils.itemKey(stack));
+            if (familyKey != null) {
+                break;
+            }
+        }
+        TrackingData tracking = headerCtx.clientTrackingDataProvider().get();
         long gameTimeMs = tracking.lastTickTime > 0 ? tracking.lastTickTime : 0L;
         float multiplier = player != null ? tracking.peekMultiplier(itemId, dominantCategory, familyKey, gameTimeMs) : 1.0f;
 
@@ -221,8 +243,10 @@ public final class MarieTooltipHelper {
         if (beneficial) {
             return MarieValueColors.baseColorArgb(key);
         }
-        float excess = IMarieConfig.get().excessThreshold();
-        float low = IMarieConfig.get().lowThreshold();
+        MarieContext keyCtx = MarieContext.forValue(key);
+        var def = keyCtx.valueDefinitionFor(key);
+        float excess = def != null ? def.getExcessThreshold() : keyCtx.excessThreshold();
+        float low = def != null ? def.getLowThreshold() : keyCtx.lowThreshold();
         if (projected > excess) {
             return COL_CRITICAL;
         } else if (projected > low) {

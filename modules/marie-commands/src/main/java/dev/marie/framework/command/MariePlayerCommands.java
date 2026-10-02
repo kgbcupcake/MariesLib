@@ -1,5 +1,7 @@
 package dev.marie.framework.command;
 
+import dev.marie.framework.api.ApiStatus;
+
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -26,6 +28,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+@ApiStatus.Internal
 final class MariePlayerCommands {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();

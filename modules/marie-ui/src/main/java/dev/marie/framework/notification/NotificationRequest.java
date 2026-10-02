@@ -1,11 +1,14 @@
 package dev.marie.framework.notification;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.ui.api.MarieNotifications;
 
 import java.util.List;
 import java.util.function.BiFunction;
 
 /** Immutable description of a notification to trigger via {@link MarieNotifications#show}. */
+@ApiStatus.Experimental
 public record NotificationRequest(
         List<List<TextSegment>> content,
         int durationTicks,

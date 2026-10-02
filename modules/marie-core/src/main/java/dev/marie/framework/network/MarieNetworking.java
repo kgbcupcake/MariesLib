@@ -3,9 +3,11 @@ package dev.marie.framework.network;
 import dev.marie.framework.api.ApiStatus;
 import dev.marie.framework.api.registry.GenericStateSyncHandlerRegistry;
 import dev.marie.framework.core.MarieCore;
+import dev.marie.framework.runtime.SourceRegistry;
 
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
@@ -50,6 +52,27 @@ public final class MarieNetworking {
                 GenericStateSyncPayload.TYPE,
                 GenericStateSyncPayload.STREAM_CODEC,
                 MarieNetworking::handleServer);
+        registrar.playToClient(
+                SourceClassificationSyncPayload.TYPE,
+                SourceClassificationSyncPayload.STREAM_CODEC,
+                MarieNetworking::handleSourceClassificationSync);
+    }
+
+    private static void handleSourceClassificationSync(SourceClassificationSyncPayload payload, IPayloadContext context) {
+        // Integrated/LAN host shares the server's SourceRegistry statics; replacing them would race the server thread.
+        if (context.connection().isMemoryConnection()) {
+            return;
+        }
+        context.enqueueWork(() -> SourceRegistry.replaceFromServerSync(payload.classifications()));
+    }
+
+    /** Sends the server's external classifications to a remote player; no-op for the integrated host. */
+    public static void sendSourceClassifications(ServerPlayer player) {
+        if (player.connection.getConnection().isMemoryConnection()) {
+            return;
+        }
+        PacketDistributor.sendToPlayer(player,
+                new SourceClassificationSyncPayload(SourceRegistry.snapshotExternalClassifications()));
     }
 
     private static void handleServer(GenericStateSyncPayload payload, IPayloadContext context) {

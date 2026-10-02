@@ -1,12 +1,15 @@
 package dev.marie.framework.ui.theme;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.ui.Theme;
 import dev.marie.framework.ui.ThemeKey;
 
 import java.util.EnumMap;
 import java.util.Map;
 
-/** Built-in light palette. No Nourished analog exists yet — values chosen for contrast parity with {@link DarkTheme}. */
+/** Built-in light palette. No prior consumer-mod analog exists yet — values chosen for contrast parity with {@link DarkTheme}. */
+@ApiStatus.Experimental
 public final class LightTheme implements Theme {
 
     public static final Theme INSTANCE = new LightTheme();
@@ -30,6 +33,7 @@ public final class LightTheme implements Theme {
         COLORS.put(ThemeKey.EDIT_BANNER_TEXT, 0xFF101010);
         COLORS.put(ThemeKey.EDIT_BANNER_BACKGROUND, 0xCCFFFFFF);
         COLORS.put(ThemeKey.DASHED_PREVIEW, 0xFF1E7A63);
+        COLORS.put(ThemeKey.SUBBOX_GLOW, 0xFFB8860B);
     }
 
     private LightTheme() {}

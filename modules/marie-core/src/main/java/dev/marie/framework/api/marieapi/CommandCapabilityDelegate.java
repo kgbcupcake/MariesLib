@@ -1,9 +1,12 @@
 package dev.marie.framework.api.marieapi;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.command.CommandCapability;
 import dev.marie.framework.command.CommandCapabilityRegistry;
 import net.minecraft.resources.ResourceLocation;
 
+@ApiStatus.Stable
 final class CommandCapabilityDelegate {
 
     private CommandCapabilityDelegate() {}

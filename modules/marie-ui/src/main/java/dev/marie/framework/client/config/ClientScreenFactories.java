@@ -1,5 +1,7 @@
 package dev.marie.framework.client.config;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.core.MarieContext;
 import dev.marie.framework.core.MarieBootstrap;
 import net.minecraft.client.gui.screens.Screen;
@@ -8,6 +10,7 @@ import net.minecraft.client.gui.screens.Screen;
  * Client-only casts for screen factories registered on {@link MarieContext}
  * or {@link MarieBootstrap}.
  */
+@ApiStatus.Internal
 public final class ClientScreenFactories {
 
     private ClientScreenFactories() {}

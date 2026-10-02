@@ -1,5 +1,6 @@
 package dev.marie.framework.util;
 
+import dev.marie.framework.api.ApiStatus;
 import dev.marie.framework.core.MarieCore;
 import dev.marie.framework.core.MarieContext;
 import net.minecraft.resources.ResourceLocation;
@@ -17,6 +18,7 @@ import java.util.function.Consumer;
 /**
  * Loads JSON (or other text) from {@code <modid>:<relativePath>} in the active datapack stack.
  */
+@ApiStatus.Stable
 public final class MarieResourceLoader {
 
     private MarieResourceLoader() {}

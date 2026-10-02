@@ -1,5 +1,7 @@
 package dev.marie.framework.ui.component;
 
+import dev.marie.framework.api.ApiStatus;
+
 /**
  * Creates a registered module's {@link MarieComponent} for the current frame.
  *
@@ -8,6 +10,7 @@ package dev.marie.framework.ui.component;
  * @param <L> screen-specific layout/context type
  */
 
+@ApiStatus.Experimental
 public interface ModuleFactory<L>
 {
     MarieComponent create(L layoutContext, int startLocalY);

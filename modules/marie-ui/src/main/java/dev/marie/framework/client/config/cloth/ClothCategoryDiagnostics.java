@@ -1,10 +1,13 @@
 package dev.marie.framework.client.config.cloth;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.config.MariesLibConfigHolder;
 import dev.marie.framework.config.MariesLibConfigKeys;
 import me.shedaniel.clothconfig2.api.ConfigBuilder;
 import me.shedaniel.clothconfig2.api.ConfigEntryBuilder;
 
+@ApiStatus.Internal
 final class ClothCategoryDiagnostics {
 
     private ClothCategoryDiagnostics() {}
@@ -16,6 +19,10 @@ final class ClothCategoryDiagnostics {
         cat.addEntry(ClothConfigHelper.buildBool(entryBuilder, MariesLibConfigKeys.ENABLE_DEBUG_LOGGING,
                 "diagnostics.enableDebugLogging", h.enableDebugLogging, false,
                 v -> h.enableDebugLogging = v));
+
+        cat.addEntry(ClothConfigHelper.buildBool(entryBuilder, MariesLibConfigKeys.ENABLE_MOD_SCAN,
+                "diagnostics.enableModScan", h.enableModScan, true,
+                v -> h.enableModScan = v));
 
         cat.addEntry(entryBuilder.startTextDescription(ClothConfigHelper.t("diagnostics.hint")).build());
     }

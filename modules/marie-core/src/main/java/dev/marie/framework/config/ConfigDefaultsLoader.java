@@ -1,5 +1,7 @@
 package dev.marie.framework.config;
 
+import dev.marie.framework.api.ApiStatus;
+
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import dev.marie.framework.core.MarieCore;
@@ -9,6 +11,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 
+@ApiStatus.Internal
 public final class ConfigDefaultsLoader {
 
     private static final Gson GSON = new Gson();

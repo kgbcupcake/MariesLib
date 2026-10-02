@@ -6,6 +6,7 @@
  * beyond the JDK) and {@code serialization} (Gson JSON conversion, kept
  * separate so the math type never depends on Gson).</p>
  */
+@ApiStatus.Stable
 package dev.marie.framework.curve;
 
 import dev.marie.framework.api.ApiStatus;

@@ -5,13 +5,17 @@ import dev.marie.framework.api.marieapi.MarieAPIState;
 import dev.marie.framework.color.ColorDefinitionRegistry;
 import dev.marie.framework.core.MarieContext;
 import dev.marie.framework.core.MarieCore;
+import dev.marie.framework.core.MarieModRegistry;
 import dev.marie.framework.data.MarieDataManager;
+import dev.marie.framework.network.MarieNetworking;
 import dev.marie.framework.registry.RegistryLifecycleManager;
 import dev.marie.framework.tracking.tracker.registry.TrackerRegistry;
 import net.minecraft.server.MinecraftServer;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.AddReloadListenerEvent;
 import net.neoforged.neoforge.event.OnDatapackSyncEvent;
+import net.neoforged.neoforge.event.TagsUpdatedEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 
 @ApiStatus.Internal
@@ -62,13 +66,17 @@ public class ReloadGuardListener {
      * callers of this hook (e.g. {@code MarieAPI.registerTracker}) assert the window is open and
      * would otherwise throw "Registration closed". Both the registries and the phase are restored
      * to their prior state in a {@code finally} block regardless of whether the hook throws.</p>
+     *
+     * <p>Both registries are shared across every attached mod, so every mod's hook runs — not just
+     * the last-attached one — so each mod gets the chance to re-register its own trackers/colors.</p>
      */
     public static void reloadAndBroadcast(MinecraftServer server) {
         if (MarieContext.isRegistered()) {
             TrackerRegistry.unfreezeInternal();
             ColorDefinitionRegistry.unfreezeInternal();
             try (MarieAPIState.DatapackReloadScope scope = MarieAPIState.openForDatapackReload()) {
-                MarieContext.get().reloadBroadcastHook().accept(server);
+                MarieModRegistry.forEach(modCtx ->
+                        MarieContext.runAs(modCtx, () -> modCtx.reloadBroadcastHook().accept(server)));
             } finally {
                 TrackerRegistry.freezeInternal();
                 ColorDefinitionRegistry.freezeInternal();
@@ -90,6 +98,28 @@ public class ReloadGuardListener {
             return;
         }
         reloadAndBroadcast(event.getPlayerList().getServer());
+    }
+
+    /**
+     * Pushes the server's source classifications to remote clients on join and after every reload.
+     * LOWEST so it runs after {@link #onDatapackSync} and any consumer's re-registration.
+     */
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public void onDatapackSyncClassifications(OnDatapackSyncEvent event) {
+        event.getRelevantPlayers().forEach(MarieNetworking::sendSourceClassifications);
+    }
+
+    /**
+     * Item tags are bound only after every reload listener's apply() has run, so datapack
+     * {@code "tag"} source classifications are queued during apply and expanded here instead.
+     * Client-side tag syncs are ignored: the loader never runs on a remote client.
+     */
+    @SubscribeEvent
+    public void onTagsUpdated(TagsUpdatedEvent event) {
+        if (event.getUpdateCause() != TagsUpdatedEvent.UpdateCause.SERVER_DATA_LOAD) {
+            return;
+        }
+        MarieDataManager.resolvePendingTagClassifications();
     }
 
     @SubscribeEvent

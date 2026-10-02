@@ -5,11 +5,11 @@ import java.util.function.Supplier;
 
 import dev.marie.framework.api.registry.BlockHoverProviderRegistry;
 import dev.marie.framework.api.registry.GenericStateSyncHandlerRegistry;
+import dev.marie.framework.api.registry.ModScanRegistry;
 
 import dev.marie.framework.color.ColorRegistry;
 import dev.marie.framework.compat.AutoCompatDiscovery;
 import dev.marie.framework.compat.ModCompat;
-import dev.marie.framework.config.ModCompatRegistry;
 import dev.marie.framework.config.FeatureFlagCache;
 import dev.marie.framework.config.MarieModFeatureFlags;
 import dev.marie.framework.config.PresetRegistry;
@@ -22,6 +22,8 @@ import dev.marie.framework.handler.PlayerTrackingLifecycle;
 import dev.marie.framework.handler.ValueDecayListener;
 import dev.marie.framework.handler.ValueEffectsListener;
 import dev.marie.framework.api.source.SourceTriggerListener;
+import dev.marie.framework.modscan.ModInventory;
+import dev.marie.framework.modscan.ModScan;
 import dev.marie.framework.registry.MarieApiRegistries;
 import dev.marie.framework.runtime.TriggerHandlerRegistry;
 import dev.marie.framework.registry.MarieAttributes;
@@ -40,6 +42,9 @@ import dev.marie.framework.api.marieapi.MarieAPI;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.fml.event.lifecycle.FMLLoadCompleteEvent;
+import net.neoforged.fml.loading.FMLEnvironment;
+import net.neoforged.fml.loading.FMLPaths;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.common.NeoForge;
 
 /**
@@ -125,7 +130,6 @@ public final class MarieBootstrap {
     }
 
     private static void onLoadComplete(FMLLoadCompleteEvent event) {
-        ModCompatRegistry.load();
         ModCompat.initialize();
         AutoCompatDiscovery.discover();
     }
@@ -166,7 +170,6 @@ public final class MarieBootstrap {
         registerRegistries();
         registerHandlers(modEventBus);
         RegistryLifecycleManager.loadAll();
-        ModCompatRegistry.load();
         FeatureFlagCache.sync(MarieModFeatureFlags.disabled());
         MarieCore.LOGGER.info("[MarieCore] Bootstrap complete with owned config");
     }
@@ -189,6 +192,18 @@ public final class MarieBootstrap {
                 event.enqueueWork(BlockHoverProviderRegistry::freezeInternal));
         modEventBus.addListener((FMLCommonSetupEvent event) ->
                 event.enqueueWork(GenericStateSyncHandlerRegistry::freezeInternal));
+        // Load-complete runs after every mod's construction and common setup, so every scan
+        // extractor/listener/deferral registered during init is known: freeze them there. It still
+        // runs inside game load (on the client, inside the loading overlay's reload chain, before the
+        // game event bus starts), so the scan is only armed here and starts once the game is idle:
+        // ServerStartedEvent on a dedicated server, the loading overlay finishing on a client
+        // (signalled by marie-ui) or the first integrated server start.
+        modEventBus.addListener((FMLLoadCompleteEvent event) -> {
+            ModScanRegistry.freezeInternal();
+            ModScan.arm(FMLPaths.GAMEDIR.get().resolve("marieslib").resolve("cache"), ModInventory::collect,
+                    FMLEnvironment.dist.isDedicatedServer());
+            NeoForge.EVENT_BUS.addListener((ServerStartedEvent e) -> ModScan.onServerStarted());
+        });
     }
 
     private static boolean registriesRegistered;

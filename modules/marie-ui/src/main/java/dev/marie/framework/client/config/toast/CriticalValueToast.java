@@ -1,5 +1,7 @@
 package dev.marie.framework.client.config.toast;
 
+import dev.marie.framework.api.ApiStatus;
+
 import com.mojang.blaze3d.systems.RenderSystem;
 import dev.marie.framework.core.MarieContext;
 import dev.marie.framework.core.MarieCore;
@@ -17,6 +19,7 @@ import net.neoforged.api.distmarker.OnlyIn;
  * Toast when a value drops below the critical threshold.
  */
 @OnlyIn(Dist.CLIENT)
+@ApiStatus.Internal
 public class CriticalValueToast implements Toast {
 
     private static final long DISPLAY_MS = 3000L;

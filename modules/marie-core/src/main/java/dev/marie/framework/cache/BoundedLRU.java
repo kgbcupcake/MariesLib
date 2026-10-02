@@ -1,5 +1,7 @@
 package dev.marie.framework.cache;
 
+import dev.marie.framework.api.ApiStatus;
+
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -8,6 +10,7 @@ import java.util.Map;
  * Thread-safe bounded LRU cache backed by a synchronized access-order {@link LinkedHashMap}.
  * Evicts the eldest entry once size exceeds {@value #MAX}.
  */
+@ApiStatus.Internal
 public final class BoundedLRU<K, V> {
 
     private static final int MAX = 2048;

@@ -1,12 +1,15 @@
 package dev.marie.framework.ui.theme;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.ui.Theme;
 import dev.marie.framework.ui.ThemeKey;
 
 import java.util.EnumMap;
 import java.util.Map;
 
-/** Built-in dark palette, carried over from Nourished's existing HUD/edit-mode colors. */
+/** Built-in dark palette, carried over from an earlier consumer mod's existing HUD/edit-mode colors. */
+@ApiStatus.Experimental
 public final class DarkTheme implements Theme {
 
     public static final Theme INSTANCE = new DarkTheme();
@@ -30,6 +33,7 @@ public final class DarkTheme implements Theme {
         COLORS.put(ThemeKey.EDIT_BANNER_TEXT, 0xFFFFFFFF);
         COLORS.put(ThemeKey.EDIT_BANNER_BACKGROUND, 0xCC000000);
         COLORS.put(ThemeKey.DASHED_PREVIEW, 0xFF6CFFD0);
+        COLORS.put(ThemeKey.SUBBOX_GLOW, 0xFFE8B84B);
     }
 
     private DarkTheme() {}

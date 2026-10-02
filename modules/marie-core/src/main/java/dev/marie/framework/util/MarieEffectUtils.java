@@ -1,5 +1,6 @@
 package dev.marie.framework.util;
 
+import dev.marie.framework.api.ApiStatus;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -10,6 +11,7 @@ import java.util.Optional;
 /**
  * Helpers for resolving mob effect ids from strings.
  */
+@ApiStatus.Stable
 public final class MarieEffectUtils {
 
     private MarieEffectUtils() {}

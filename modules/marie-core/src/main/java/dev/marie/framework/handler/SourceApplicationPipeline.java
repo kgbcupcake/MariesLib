@@ -22,6 +22,7 @@ import dev.marie.framework.config.FeatureFlagCache;
 import dev.marie.framework.core.IMarieConfig;
 import dev.marie.framework.core.MarieContext;
 import dev.marie.framework.core.MarieCore;
+import dev.marie.framework.core.MarieModRegistry;
 import dev.marie.framework.runtime.SourceClassificationRegistry;
 import dev.marie.framework.runtime.SourceTriggerRegistry;
 import dev.marie.framework.tracking.MilestoneTracker;
@@ -63,8 +64,6 @@ public final class SourceApplicationPipeline {
             return;
         }
 
-        var ctx = MarieContext.get();
-
         DiminishingReturnsConfigOrNull config = resolveMemoryConfig();
         tracking.setMemoryConfig(config.config());
 
@@ -76,11 +75,11 @@ public final class SourceApplicationPipeline {
         }
 
         if (FeatureFlagCache.enableBlockHeavySources()
-                && ctx.isHeavySourceBlocked(player, trigger)) {
+                && anyModBlocks(ctx -> ctx.isHeavySourceBlocked(player, trigger))) {
             return;
         }
         if (FeatureFlagCache.enableBlockLightSource()
-                && ctx.isLightSourceBlocked(player, trigger)) {
+                && anyModBlocks(ctx -> ctx.isLightSourceBlocked(player, trigger))) {
             return;
         }
         boolean debugApplyLog = FeatureFlagCache.enableDebugLogging();
@@ -105,17 +104,30 @@ public final class SourceApplicationPipeline {
                 return;
             }
         }
-        Map<String, Float> resolverMatchedBars;
-        MarieContext.SourceDelta resolverDelta;
+        // Multiple mods may each own their own subset of value keys and independently classify the
+        // same source item/trigger, so every attached mod's resolver runs and their results merge —
+        // rather than only the resolver of whichever mod last called MarieBootstrap.attach.
+        Map<String, Float> resolverMatchedBars = new LinkedHashMap<>();
+        Map<String, Float> resolverDeltaValues = new HashMap<>();
+        float resolverDeltaTotal = 0f;
         if (stack == null || stack.isEmpty()) {
-            resolverMatchedBars = Map.of();
-            resolverDelta = ctx.sourceDeltaResolver().resolve(
-                    stack, player.level(), trigger.payload(), resolverMatchedBars);
+            for (MarieContext modCtx : MarieModRegistry.getAll()) {
+                MarieContext.SourceDelta delta = modCtx.sourceDeltaResolver().resolve(
+                        stack, player.level(), trigger.payload(), Map.of());
+                resolverDeltaTotal += delta.total();
+                delta.values().forEach((k, v) -> resolverDeltaValues.merge(k, v, Float::sum));
+            }
         } else {
-            resolverMatchedBars = new LinkedHashMap<>(ctx.sourceValueResolver().apply(stack, player.level()));
-            resolverDelta = ctx.sourceDeltaResolver().resolve(
-                    stack, player.level(), trigger.payload(), resolverMatchedBars);
+            for (MarieContext modCtx : MarieModRegistry.getAll()) {
+                Map<String, Float> bars = modCtx.sourceValueResolver().apply(stack, player.level());
+                resolverMatchedBars.putAll(bars);
+                MarieContext.SourceDelta delta = modCtx.sourceDeltaResolver().resolve(
+                        stack, player.level(), trigger.payload(), new LinkedHashMap<>(bars));
+                resolverDeltaTotal += delta.total();
+                delta.values().forEach((k, v) -> resolverDeltaValues.merge(k, v, Float::sum));
+            }
         }
+        MarieContext.SourceDelta resolverDelta = new MarieContext.SourceDelta(resolverDeltaTotal, resolverDeltaValues);
 
         if (override != null) {
             valueDeltas = new HashMap<>(override.values());
@@ -164,7 +176,13 @@ public final class SourceApplicationPipeline {
                         .max(Map.Entry.comparingByValue())
                         .map(Map.Entry::getKey)
                         .orElse(null);
-        String familyKey = ctx.sourceFamilyResolver().apply(sourceResourceId);
+        String familyKey = null;
+        for (MarieContext modCtx : MarieModRegistry.getAll()) {
+            familyKey = modCtx.sourceFamilyResolver().apply(sourceResourceId);
+            if (familyKey != null) {
+                break;
+            }
+        }
 
         float multiplier = tracking.recordSource(sourceKey, dominantCategory, familyKey, gameTimeMs);
         TrackingData.MultiplierBreakdown multiplierBreakdown = debugApplyLog
@@ -183,9 +201,10 @@ public final class SourceApplicationPipeline {
         Map<String, Float> afterMultiplierOnly = new HashMap<>();
         Map<String, Float> finalApplied = new HashMap<>();
 
-        for (String key : ctx.valueKeys()) {
+        for (String key : MarieContext.get().valueKeys()) {
             float valueDelta = valueDeltas.getOrDefault(key, 0f);
-            ValueDefinition valueDef = MarieContext.get().valueDefinitionFor(key);
+            MarieContext keyCtx = MarieContext.forValue(key);
+            ValueDefinition valueDef = keyCtx.valueDefinitionFor(key);
             if (valueDef != null && valueDef.getAmountScale() != 1.0) {
                 valueDelta = (float) (valueDelta / valueDef.getAmountScale());
             }
@@ -207,7 +226,7 @@ public final class SourceApplicationPipeline {
                 }
 
                 float finalDelta = modifierEvent.getAmount();
-                finalDelta = MarieContext.get().applyPostValueModifier(modifierCtx, finalDelta);
+                finalDelta = keyCtx.applyPostValueModifier(modifierCtx, finalDelta);
                 if (!Float.isFinite(finalDelta)) {
                     MarieCore.LOGGER.warn("[MarieLib] non-finite finalDelta {} for player={} source={} value={} — skipping",
                             finalDelta, player.getName().getString(), sourceKey, key);
@@ -266,7 +285,7 @@ public final class SourceApplicationPipeline {
                         continue;
                     }
                     float finalBonus = bonusEvent.getAmount();
-                    finalBonus = MarieContext.get().applyPostValueModifier(bonusCtx, finalBonus);
+                    finalBonus = MarieContext.forValue(bonusKey).applyPostValueModifier(bonusCtx, finalBonus);
                     if (!Float.isFinite(finalBonus) || finalBonus == 0f) {
                         continue;
                     }
@@ -349,8 +368,12 @@ public final class SourceApplicationPipeline {
         ThresholdCrossingEvaluator.checkThresholdCrossings(player, tracking);
 
         TrackingAttachment.setData(player, tracking);
-        ctx.trackingDeltaSyncer().accept(player, tracking);
-        ctx.effectApplier().accept(player, tracking);
+        // Every attached mod owns a subset of `tracking`'s values, so every mod's sync/effect hook
+        // runs against the shared blob rather than only the last-attached mod's.
+        MarieModRegistry.forEach(modCtx -> {
+            modCtx.trackingDeltaSyncer().accept(player, tracking);
+            modCtx.effectApplier().accept(player, tracking);
+        });
 
         MarieCore.LOGGER.debug("{} applied {} -> {}",
                 player.getName().getString(),
@@ -410,9 +433,23 @@ public final class SourceApplicationPipeline {
         if (!MarieContext.isRegistered()) {
             return;
         }
-        var ctx = MarieContext.get();
-        ctx.trackingDeltaSyncer().accept(player, tracking);
-        ctx.effectApplier().accept(player, tracking);
+        MarieModRegistry.forEach(modCtx -> {
+            modCtx.trackingDeltaSyncer().accept(player, tracking);
+            modCtx.effectApplier().accept(player, tracking);
+        });
+    }
+
+    /**
+     * True if any attached mod's blocking predicate returns true for the current trigger — a
+     * single mod objecting is enough to veto the shared trigger.
+     */
+    private static boolean anyModBlocks(java.util.function.Predicate<MarieContext> blocker) {
+        for (MarieContext modCtx : MarieModRegistry.getAll()) {
+            if (blocker.test(modCtx)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static DiminishingReturnsConfigOrNull resolveMemoryConfig() {

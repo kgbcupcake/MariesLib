@@ -1,5 +1,7 @@
 package dev.marie.framework.color;
 
+import dev.marie.framework.api.ApiStatus;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -37,6 +39,7 @@ import java.util.Optional;
  * }</pre>
  * Call {@link #load()} after effect registry initialization.
  */
+@ApiStatus.Internal
 public final class ColorRegistry {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -134,7 +137,7 @@ public final class ColorRegistry {
             Files.createDirectories(configDir);
             JsonArray arr = new JsonArray();
             // Persist every key currently held, not just ones matching a registered value id —
-            // ColorKey-based overrides (nutrient/activity/panel/etc., keyed by full ResourceLocation
+            // ColorKey-based overrides (value/activity/panel/etc., keyed by full ResourceLocation
             // string) are never value ids, so filtering to ValueRegistry would silently drop them.
             for (Map.Entry<String, Integer> e : INSTANCE.entries().entrySet()) {
                 JsonObject obj = new JsonObject();

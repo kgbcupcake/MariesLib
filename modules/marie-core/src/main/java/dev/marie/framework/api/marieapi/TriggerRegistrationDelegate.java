@@ -1,11 +1,14 @@
 package dev.marie.framework.api.marieapi;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.api.source.SourceTriggerDefinition;
 import dev.marie.framework.api.source.SourceTriggerListener;
 import dev.marie.framework.runtime.SourceTriggerRegistry;
 import dev.marie.framework.runtime.TriggerHandlerRegistry;
 import dev.marie.framework.util.MarieRegistryUtils;
 
+@ApiStatus.Stable
 final class TriggerRegistrationDelegate {
 
     private TriggerRegistrationDelegate() {}

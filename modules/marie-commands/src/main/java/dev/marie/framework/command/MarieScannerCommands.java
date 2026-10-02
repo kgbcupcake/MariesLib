@@ -43,7 +43,7 @@ final class MarieScannerCommands {
         ItemScanner.invalidateCache();
         RuntimeResolver.getInstance().invalidateCache();
         if (MarieContext.isRegistered()) {
-            MarieContext.get().cacheInvalidatedHook().run();
+            MarieContext.forMod(modId).cacheInvalidatedHook().run();
         }
         ItemScanner.scanAndApply(source.getServer().getRecipeManager());
         source.sendSuccess(() -> Component.literal(
@@ -75,7 +75,7 @@ final class MarieScannerCommands {
 
         for (Item item : BuiltInRegistries.ITEM) {
             ItemStack stack = new ItemStack(item);
-            if (!MarieContext.get().sourceItemFilter().test(stack)) {
+            if (!MarieContext.isSourceItemAllowed(stack)) {
                 continue;
             }
             ResourceLocation itemId = item.builtInRegistryHolder().key().location();

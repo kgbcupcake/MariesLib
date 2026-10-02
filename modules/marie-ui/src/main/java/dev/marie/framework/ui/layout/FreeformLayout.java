@@ -1,5 +1,7 @@
 package dev.marie.framework.ui.layout;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.ui.Layout;
 import dev.marie.framework.ui.component.Constraint;
 import dev.marie.framework.ui.component.MarieComponent;
@@ -13,8 +15,10 @@ import java.util.Map;
  * Positions each child independently within the available area, anchored to a corner/edge/center
  * and offset by its own margin — siblings never affect each other's placement. This is the shape
  * a free-floating, individually draggable panel needs (HUD panels, dialog windows): each owns its
- * anchor plus a pixel offset, nothing else. Generalizes Nourished's HudLayout anchor switch.
+ * anchor plus a pixel offset, nothing else. Generalizes the anchor-switch pattern an earlier,
+ * consumer-specific HUD layout implementation hand-rolled.
  */
+@ApiStatus.Experimental
 public final class FreeformLayout implements Layout {
 
     @Override

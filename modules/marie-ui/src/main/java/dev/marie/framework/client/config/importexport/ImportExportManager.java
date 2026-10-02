@@ -1,5 +1,7 @@
 package dev.marie.framework.client.config.importexport;
 
+import dev.marie.framework.api.ApiStatus;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -33,6 +35,7 @@ import java.util.zip.GZIPOutputStream;
 /**
  * Serializes and restores MarieCore scanner/diagnostics settings for file export and share codes.
  */
+@ApiStatus.Internal
 public final class ImportExportManager {
 
     public static final int SCHEMA_VERSION = 1;

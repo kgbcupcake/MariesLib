@@ -1,92 +1,51 @@
-[![License](https://img.shields.io/github/license/kgbcupcake/MarieLib)](LICENSE) [![Release](https://img.shields.io/github/v/release/kgbcupcake/MarieLib?include_prereleases)](https://github.com/kgbcupcake/MarieLib/releases) [![Stars](https://img.shields.io/github/stars/kgbcupcake/MarieLib?style=social)](https://github.com/kgbcupcake/MarieLib/stargazers) [![Issues](https://img.shields.io/github/issues/kgbcupcake/MarieLib)](https://github.com/kgbcupcake/MarieLib/issues) [![Minecraft](https://img.shields.io/badge/Minecraft-1.21.1-brightgreen)](https://www.minecraft.net) [![NeoForge](https://img.shields.io/badge/NeoForge-21.1.229-orange)](https://neoforged.net) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/kgbcupcake/MariesLib)
+# MariesLib
 
-![MariesLib Banner](Assets/MariesLib_banner.png)
+Shared development library for Marie's NeoForge mods.
 
-MariesLib is the shared backbone behind Marie mods: pulled out of Nourished so the reusable plumbing (item classification, player value tracking, compat discovery, tooltip customization, and a dynamic drag/resize UI framework) lives in one place instead of being rebuilt per mod.
+MariesLib contains reusable framework code shared between projects instead of being implemented separately in each mod.
 
-Split into four modules: `marie-core`, `marie-commands`, `marie-resources`, `marie-ui`: for easier maintenance.
-
----
-
-## Community
-
-[Discord](https://discord.gg/EZnFJsfQup) — questions, suggestions, and development discussion welcome.
+The library is intentionally domain-agnostic where possible. A consuming mod defines what its values, trackers, UI modules, compatibility rules, or gameplay systems mean; MariesLib provides the infrastructure they run on.
 
 ---
 
-## Do you need to install this?
+## Modules
 
-**Yes, if you use any Marie mod that depends on it.** Every Marie mod requires MariesLib as a **separate install**: there is no JarJar bundling.
+| Module            | Purpose                                                                                                            |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `marie-core`      | Core APIs, contexts, registries, classification, tracking, compatibility, effects, networking, and shared services |
+| `marie-commands`  | Framework commands and diagnostic tooling                                                                          |
+| `marie-resources` | Resource-driven definitions, configuration, overrides, and datapack loading                                        |
+| `marie-ui`        | Shared UI components, rendering, layouts, widgets, notifications, persistence, and command-center infrastructure   |
+| `marie-editor`    | UI editing, module settings, toolbox controls, scale configuration, layout editing, and editor-facing APIs         |
 
-Install both:
-
-- The Marie mod you want
-- MariesLib, matching (or newer than) the version that mod requires
-
-Most launchers resolve this automatically. If a Marie mod fails to load, check that MariesLib is installed and up to date.
-
----
-
-## What MariesLib actually does
-
-### Item classification & scanning
-
-`ItemScanner` walks every item in your modpack and classifies it via a cascading signal pipeline, community tags, namespace matching, keyword/suffix matching, recipe-ingredient inheritance — producing confidence-scored results. Run it in-game via `/marie scan`. It's how a mod like Nourished can auto-classify thousands of modded food items without hand-written per-item mappings.
-
-The scanner's behavior (weight tables, thresholds, multipliers) is configured through `ScannerSpecRegistry`, itself overridable per-server (`config/<modid>/scanner_spec.json`) or per-modpack (datapack).
-
-At actual gameplay time, `RuntimeResolver` does the same classification job live and cached (not the offline batch scan), with `ComponentClassifier` handling ingredient/sub-component lookups separately to avoid recursion.
-
-Two override/opt-out layers sit on top of whatever the classifier produces:
-
-- **`SourceClassificationRegistry`**: manual per-item value overrides for modpack authors
-- **`ExcludedItemsRegistry`** — a flat opt-out list; excluded items are never classified or tracked at all
-
-Every classification decision is inspectable: trace exactly which pipeline stage matched, what scores were considered, and why the final result was chosen.
-
-### Player value tracking
-
-A complete tracking system for mods that need player-facing bars: decay, thresholds, effects, memory-based diminishing returns, source-pair synergies, milestones, and profiles. Wired up per-mod through `MarieContext`.
-
-- **Memory**: recent source applications tracked per item, category, and family, each with its own diminishing-returns curve
-- **Thresholds**: critical/low/excess bands per value, each able to trigger a `ThresholdEffect`
-- **Synergies**: bonus conditions across two value levels (`SynergyDefinition`) or two specific sources (`SourcePairSynergy`)
-- **Milestones**: cumulative goals with reward effects/advancements
-
-### Tooltip customization
-
-`TooltipColorRegistry` / `TooltipMessageRegistry` let a consuming mod expose per-key and per-item tooltip text/color, overridable at two tiers: `config/<modId>/tooltips/*.json` (server owner) and `data/<modId>/marie/tooltips/*.json` (datapack, wins). Unlike other registries, these don't ship built-in defaults — a consuming mod calls `seedDefaultsIfAbsent(...)` to provide its own.
-
-### Dynamic UI (`marie-ui`)
-
-A drag/resize component framework for building editable HUD and screen panels: `MarieComponent` is the base contract, `DraggableResizable` handles the drag/resize gesture tracking (snap-to-siblings, per-edge and per-corner handles, parent-bounds clamping), and `ModuleRegistry` lets a consuming mod register a set of pluggable panel modules under a shared key so multiple screens/regions can each maintain an independent ordered module list.
-
-### Broad mod compatibility
-
-A three-tier compat system so mod authors, addon authors, and modpack creators can declare and override compatibility without recompiling:
-
-| Tier | Source                                         | Notes                                 |
-| ---- | ---------------------------------------------- | ------------------------------------- |
-| 1    | Bundled `mod_compat.json` in the consuming mod | Base registry                         |
-| 2    | Mod-provided `CompatDefinition` registrations  | Discovered at runtime via `ModCompat` |
-| 3    | `config/<modid>/compat_overrides.json`         | Modpack overrides                     |
-
-| Integration     | Status                         |
-| --------------- | ------------------------------ |
-| KubeJS          | ✅ Scripting support           |
-| Cloth Config    | ✅ Preset and import/export UI |
-| JEI / REI / EMI | ✅ Tooltips in recipe viewers  |
-| Any Marie mod   | ✅ Required separate install   |
+`marie-editor` builds on `marie-ui`.
 
 ---
 
-## Getting started
+## Requirements
 
-Add MariesLib as a compile-time dependency:
+|           | Version  |
+| --------- | -------- |
+| Minecraft | `1.21.1` |
+| NeoForge  | `21.1.x` |
+| Java      | `21`     |
+
+MariesLib is distributed as a normal NeoForge mod and is **not JarJar bundled** into consuming mods.
+
+If a mod depends on MariesLib, install MariesLib separately.
+
+---
+
+<details>
+<summary><strong>Development Dependency</strong></summary>
+
+Add the GitHub Maven repository and declare MariesLib as a compile-time dependency:
 
 ```gradle
 repositories {
-    maven { url = "https://maven.pkg.github.com/kgbcupcake/MariesLib" }
+    maven {
+        url = "https://maven.pkg.github.com/kgbcupcake/MariesLib"
+    }
 }
 
 dependencies {
@@ -94,111 +53,877 @@ dependencies {
 }
 ```
 
-At runtime, MariesLib must be installed as a separate mod.
+The corresponding MariesLib version must also be present at runtime.
 
-There are two real bootstrap patterns, depending on whether your mod needs player value tracking:
+</details>
 
-**Full value-tracking mod** (e.g. Nourished):
+---
 
-```java
-@Mod("examplemod")
-public final class ExampleMod {
-    public ExampleMod(IEventBus modBus) {
-        MarieBootstrap.attach("examplemod", modBus);
+<details>
+<summary><strong>Architecture</strong></summary>
 
-        MarieAPI.registerValue(ValueDefinition.builder("emc")
-                .displayName("EMC")
-                .color(0xFF44AAFF)
-                .defaultDecayRate(0.002f)
-                .build());
-    }
-}
+MariesLib is divided into framework areas rather than one large API.
+
+```text
+marieslib
+├── marie-core
+│   ├── API / context
+│   ├── classification
+│   ├── value tracking
+│   ├── generic tracking
+│   ├── compat
+│   ├── effects
+│   ├── networking
+│   └── shared services
+│
+├── marie-commands
+│   └── framework commands
+│
+├── marie-resources
+│   ├── JSON definitions
+│   ├── config overrides
+│   └── datapack resources
+│
+├── marie-ui
+│   ├── components
+│   ├── rendering
+│   ├── layouts
+│   ├── widgets
+│   ├── notifications
+│   ├── persistence
+│   └── command center
+│
+└── marie-editor
+    ├── module settings
+    ├── toolbox
+    ├── scale configuration
+    ├── layout editing
+    ├── edit mode
+    └── editor-facing API
 ```
 
-`MarieBootstrap.attach(modId, modEventBus)` is the one-call path: it registers a default `MarieContext`, wires data attachments, registers the value-tracking registries and event listeners, and freezes them after common setup. Guard your mod so it doesn't crash if MariesLib is somehow absent — check `ModList.get().isLoaded("marieslib")` if you support optional integration.
+A consuming mod should depend on the highest-level API necessary for the feature it uses rather than reaching into implementation classes.
 
-**Lightweight mod, no value tracking** (e.g. Thermal Systems):
+</details>
+
+---
+
+<details>
+<summary><strong>Bootstrap</strong></summary>
+
+There are two primary bootstrap paths.
+
+### Framework services
+
+Mods that only need shared framework services can use:
 
 ```java
-public final class ThermalSystemsMod {
-    public ThermalSystemsMod(IEventBus modBus) {
-        MarieBootstrap.attachFrameworkServices(modBus);
-    }
-}
+MarieBootstrap.attachFrameworkServices(modBus);
+```
 
-// separately, e.g. client-side wiring:
-MarieContext.register(
-    MarieContext.builder("thermalsystems")
-        .configScreenFactory(...)
-        .exportScreenFactory(...)
-        .importScreenFactory(...)
+This initializes domain-agnostic framework services without enabling the player value-tracking system.
+
+Use this for systems such as:
+
+- `marie-ui`
+- compatibility discovery
+- shared resource/config infrastructure
+- generic state synchronization
+- other framework services
+
+`attachFrameworkServices` is idempotent.
+
+### Value tracking
+
+Mods that define player-facing values can use:
+
+```java
+MarieBootstrap.attach("examplemod", modBus);
+```
+
+This initializes the default `MarieContext`, player data attachments, value registries, listeners, and related tracking infrastructure.
+
+A value can then be registered during initialization:
+
+```java
+MarieAPI.registerValue(
+    ValueDefinition.builder("example")
+        .displayName("Example")
+        .color(0xFF44AAFF)
+        .defaultDecayRate(0.002f)
         .build()
 );
 ```
 
-`attachFrameworkServices` is idempotent and only wires the domain-agnostic pieces (block-hover data, generic state sync), no value-tracking machinery. Use this if your mod only needs the UI framework, compat system, or hover data, not player bars.
+The consuming mod remains responsible for defining what the value means and how it affects gameplay.
 
-All `MarieAPI.register*` calls must happen during mod initialization, your `@Mod` constructor or an `FMLCommonSetupEvent` handler. The registration window closes after init; calling register outside it throws `IllegalStateException`.
+The older `bootstrap(IEventBus)` entry point is deprecated. New code should use `attach(...)` or `attachFrameworkServices(...)`.
+
+</details>
 
 ---
 
-## For mod developers
+<details>
+<summary><strong>Registration</strong></summary>
 
-See [API.md](API.md) for the full reference, every `@ApiStatus.Stable`/`Experimental` class, method, and datapack path, verified directly against source.
+Framework registrations are initialization-time operations.
+
+Examples:
 
 ```java
-float level = MarieAPI.getValueLevel(player, "emc");
-MarieAPI.registerValue(definition);
-MarieAPI.registerCompatEntry(definition);
-MarieAPI.registerCustomEffect(thresholdEffect);
+MarieAPI.registerValue(...);
+MarieAPI.registerCompatEntry(...);
+MarieAPI.registerCustomEffect(...);
 ```
 
-API elements are marked `@Stable`, `@Experimental`, or `@Internal`:
+These registrations must occur during mod initialization or an appropriate common setup event.
 
-- **`@Stable`**: safe for released addons, no breaking signature changes within a minor version
-- **`@Experimental`**: may change any release; most of `marie-ui` and all of KubeJS support falls here
-- **`@Internal`**: not a public contract, do not import
+Once the initialization registration window closes, attempting to register new definitions throws:
+
+```text
+IllegalStateException
+```
+
+This prevents runtime mutation of registries that are expected to remain stable during gameplay.
+
+Datapack-driven systems have their own reload registration scope. The registration state for mod initialization and datapack reloads is tracked independently.
+
+</details>
 
 ---
 
-## KubeJS support
+<details>
+<summary><strong>Classification</strong></summary>
 
-Scripting support for value registration, source classifications, synergies, milestones, and event hooks, no Java required. Experimental; may change between releases.
+MariesLib provides reusable item classification infrastructure for mods that need to determine what an item represents without maintaining a manually written mapping for every item in a modpack.
 
-```js
+### `ItemScanner`
+
+`ItemScanner` performs an offline/batch classification pass across available items.
+
+Classification can use:
+
+- explicit/community tags
+- namespace matching
+- keyword matching
+- suffix matching
+- recipe ingredients
+- inherited classifications
+- weighted confidence scoring
+
+The scanner can be invoked through:
+
+```text
+/marie scan
+```
+
+Scanner behavior is controlled by `ScannerSpecRegistry`.
+
+Scanner specifications can be overridden through configuration or datapack resources.
+
+The scanner is primarily developer and modpack tooling rather than a player-facing gameplay feature.
+
+### `RuntimeResolver`
+
+`RuntimeResolver` handles classification during actual gameplay.
+
+Unlike `ItemScanner`, it resolves individual items on demand and caches the result.
+
+`ComponentClassifier` handles ingredient/component classification separately so recursive resolution does not occur through the normal runtime resolver.
+
+### `SourceClassificationRegistry`
+
+Provides explicit per-item classification/value overrides.
+
+This can be used when a modpack author needs to correct or customize the result produced by automatic classification.
+
+### `ExcludedItemsRegistry`
+
+Provides a complete opt-out mechanism.
+
+Excluded items are not classified or tracked.
+
+### Classification tracing
+
+Classification decisions can be inspected through the tracing infrastructure.
+
+A trace can show:
+
+- pipeline stages that were evaluated
+- matching signals
+- scores produced by those signals
+- weights and multipliers
+- the final selected classification
+
+This is primarily intended for debugging classification behavior in large modpacks.
+
+</details>
+
+---
+
+<details>
+<summary><strong>Player Value Tracking</strong></summary>
+
+The value-tracking framework provides common infrastructure for mods that maintain persistent player-facing values.
+
+A value can provide:
+
+- decay
+- thresholds
+- effects
+- recent-source memory
+- diminishing returns
+- source synergies
+- milestones
+- player profiles
+
+Values are registered through `MarieAPI` and accessed through the active `MarieContext`.
+
+```java
+float level = MarieAPI.getValueLevel(player, "example");
+```
+
+### Memory
+
+Recent applications can be tracked by:
+
+- source
+- category
+- family
+
+Each can participate in its own diminishing-return behavior.
+
+This allows a consuming mod to implement repeated-source penalties without implementing its own history system.
+
+### Thresholds
+
+Values can define threshold bands such as:
+
+- critical
+- low
+- excess
+
+Threshold transitions can invoke registered `ThresholdEffect` implementations.
+
+### Synergies
+
+Two forms of synergy are supported:
+
+```text
+SynergyDefinition
+    value ↔ value
+
+SourcePairSynergy
+    source ↔ source
+```
+
+The consuming mod defines the actual gameplay meaning of each synergy.
+
+</details>
+
+---
+
+<details>
+<summary><strong>Generic Tracking</strong></summary>
+
+`MarieTracking` provides generic numeric accumulator tracking independently of the player value system.
+
+Trackers can be used for arbitrary counters such as:
+
+- blocks mined
+- entities defeated
+- distance traveled
+- machine operations
+- items produced
+- spells cast
+- resources consumed
+- any other numeric value
+
+Supported periods include:
+
+```text
+SESSION
+DAILY
+WEEKLY
+MONTHLY
+CUSTOM
+REAL_TIME
+```
+
+Trackers can retain historical periods according to their configured retention policy.
+
+Daily, weekly, and monthly periods use the world's day clock. This allows sleeping and `/time` changes to cross period boundaries correctly.
+
+`SESSION` and `CUSTOM` retain game-time behavior, while `REAL_TIME` uses the wall clock.
+
+Example:
+
+```java
+MarieTracking.registerTracker(
+    TrackerDefinition.daily("example:blocks_mined", 30)
+);
+
+MarieTracking.incrementTracker(
+    player,
+    "example:blocks_mined",
+    1
+);
+```
+
+</details>
+
+---
+
+<details>
+<summary><strong>Milestones</strong></summary>
+
+MariesLib provides a generic one-time milestone system.
+
+Milestones can operate against:
+
+- registered player values
+- generic `MarieTracking` accumulators
+
+A tracker milestone can evaluate either:
+
+- lifetime cumulative progress
+- the current tracking period
+
+Milestones can be registered through Java, datapack resources, or KubeJS where the corresponding integration is available.
+
+A milestone can provide configured rewards such as:
+
+- potion effects
+- vanilla advancements
+- event notifications
+
+The consuming mod defines what the milestone represents.
+
+</details>
+
+---
+
+<details>
+<summary><strong>Compatibility</strong></summary>
+
+MariesLib provides runtime compatibility discovery so integrations do not have to be hard-coded into the consuming mod.
+
+Compatibility definitions can come from multiple layers:
+
+| Tier | Source                           | Purpose                                       |
+| ---- | -------------------------------- | --------------------------------------------- |
+| 1    | Bundled compatibility resources  | Base definitions shipped by the consuming mod |
+| 2    | `CompatDefinition` registrations | Runtime integrations supplied by other mods   |
+| 3    | Configuration overrides          | Modpack-level changes                         |
+
+The runtime compatibility system is exposed through `ModCompat`.
+
+Later definitions can extend or override earlier definitions without requiring the original consuming mod to be recompiled.
+
+</details>
+
+---
+
+<details>
+<summary><strong>Tooltips</strong></summary>
+
+Tooltip customization is provided through:
+
+```java
+TooltipColorRegistry
+TooltipMessageRegistry
+```
+
+Both support per-key and per-item customization.
+
+Definitions can be provided through configuration and datapack resources.
+
+Typical resource paths are:
+
+```text
+config/<modid>/tooltips/*.json
+data/<modid>/marie/tooltips/*.json
+```
+
+Datapack definitions take precedence over configuration definitions where applicable.
+
+MariesLib does not provide universal tooltip defaults.
+
+A consuming mod owns its tooltip content and should seed its own defaults explicitly:
+
+```java
+seedDefaultsIfAbsent(...);
+```
+
+This keeps the library domain-agnostic.
+
+</details>
+
+---
+
+<details>
+<summary><strong>Dynamic UI</strong></summary>
+
+`marie-ui` provides reusable UI infrastructure for consuming mods.
+
+The framework is built around concrete reusable components rather than domain-specific screens.
+
+### `MarieComponent`
+
+Base component contract for UI elements participating in the framework.
+
+### `DraggableResizable`
+
+Provides interactive positioning and sizing.
+
+Supported behavior includes:
+
+- dragging
+- per-edge resize handles
+- per-corner resize handles
+- parent-bound clamping
+- snap-to-sibling behavior
+
+### `SnapRegistry`
+
+Provides shared snap relationships between registered components.
+
+Independent top-level components can participate in the same snap system without sharing a parent.
+
+### Rendering
+
+`RenderContext` provides common rendering operations for components.
+
+The rendering infrastructure includes support for:
+
+- text
+- items
+- rectangles
+- bars
+- lines
+- clipping
+- shared render-state handling
+
+The rendering layer also restores shared GUI state after component rendering so a consumer cannot leave the remainder of the frame with an altered pose or clipping state.
+
+### Widgets
+
+The UI module includes reusable components such as:
+
+#### `MarieTextList`
+
+A scrollable, word-wrapped text/output list supporting:
+
+- line insertion
+- bulk replacement
+- clearing
+- automatic following of new output
+- maximum line counts
+- width-aware wrapping
+
+#### `MarieListPicker`
+
+A scrollable single-selection list.
+
+#### `MarieGraph`
+
+A rolling single-series graph supporting:
+
+- sample insertion
+- configurable line color
+- optional units
+- automatic vertical scaling
+- minimum range handling for flat data
+- axis labels
+
+### Notifications
+
+The notification system provides stacking and mergeable player-facing notifications anchored to the GUI.
+
+Notifications are intended for discrete events rather than continuous HUD rendering.
+
+### Command Center
+
+`MarieCommandCenter` provides a shared, pluggable command-center screen.
+
+Consuming mods can register categories and cards into a common registry.
+
+Cards can:
+
+- open configuration
+- run a command
+- invoke a caller-supplied action
+
+A shared keybind can be registered with:
+
+```java
+MarieCommandCenter.registerOpenKey(modEventBus);
+```
+
+The keybind is registered once across consuming mods and only opens the command center when no other screen is active.
+
+</details>
+
+---
+
+<details>
+<summary><strong>UI Editor</strong></summary>
+
+`marie-editor` contains the editing systems built on top of `marie-ui`.
+
+It provides:
+
+- module display settings
+- layout editing
+- move modes
+- hide modes
+- toolbox controls
+- color editing
+- scale configuration
+- edit-mode coordination
+- editor-facing API facades
+
+### `MarieModuleSettings`
+
+Provides reusable display configuration for HUD-style modules.
+
+Settings can include:
+
+- text scale
+- icon scale
+- text position
+- icon position
+- bar position
+- bar scale
+- text brightness
+- icon brightness
+- move modes
+- hide modes
+- reset positions
+- per-tab reset values
+
+Move modes include:
+
+```text
+TEXT
+ICONS
+BARS
+HEADER
+ALL
+```
+
+Modules can separately expose controls for moving or hiding different parts of their content.
+
+The framework can track extents for text, icons, bars, and separately positioned headers so editor outlines correspond to the actual rendered areas.
+
+### `StandardPanelBuilder`
+
+Provides a reusable configuration-panel structure.
+
+Standard sections can include:
+
+- Layout
+- Behavior
+- Style
+
+Consumers can add their own tabs for module-specific settings.
+
+### `MarieToolbox`
+
+Provides reusable editing controls including:
+
+- sliders
+- toggles
+- buttons
+- sections
+- tabs
+- color slots
+- reset controls
+
+Controls can use caller-provided getters, setters, and defaults without the toolbox owning the underlying storage.
+
+### Color editing
+
+Color editing supports:
+
+- live RGB editing
+- hex display
+- reset
+- commit callbacks
+- optional cancel callbacks
+
+The color picker is a separate draggable/resizable window rather than being constrained by the module body's clipping region.
+
+### `ScaleConfigPanel`
+
+Provides configuration for:
+
+- content scale
+- text scale
+- padding
+- related display settings
+
+It can host caller-provided content while also providing standard controls.
+
+### `EditModeCoordinator`
+
+Coordinates edit mode across multiple independent UI panels.
+
+This allows several registered components to enter or leave edit mode together without each component implementing its own global editing state.
+
+</details>
+
+---
+
+<details>
+<summary><strong>Networking and Shared Requests</strong></summary>
+
+`MarieRequestChannel` provides a reusable client/server request-response channel for actions that need to execute on the server and return textual results to the client.
+
+A consumer creates its own channel and registers it on the mod event bus.
+
+Requests can provide:
+
+- an action identifier
+- an argument
+- a server-side permission predicate
+
+Responses provide:
+
+- a label
+- response lines
+
+Request fields and response data are bounded during encoding and decoding.
+
+`MarieRequestChannel` is currently `@Experimental`.
+
+</details>
+
+---
+
+<details>
+<summary><strong>Resources and Configuration</strong></summary>
+
+`marie-resources` contains resource-driven infrastructure used by MariesLib and consuming mods.
+
+Systems can load definitions and overrides from configuration and datapack resources.
+
+Resource-driven systems include areas such as:
+
+- classification
+- compatibility
+- tooltips
+- scanner specifications
+- other framework definitions
+
+The consuming mod remains responsible for the meaning and defaults of its domain-specific data.
+
+</details>
+
+---
+
+<details>
+<summary><strong>Commands and Diagnostics</strong></summary>
+
+`marie-commands` contains framework commands and diagnostic tooling.
+
+The classification scanner is available through:
+
+```text
+/marie scan
+```
+
+Diagnostic systems are intended for:
+
+- development
+- debugging
+- modpack configuration
+- classification troubleshooting
+- inspecting framework state
+
+The commands module does not define consuming-mod gameplay commands.
+
+</details>
+
+---
+
+<details>
+<summary><strong>API Stability</strong></summary>
+
+Public API elements use explicit `@ApiStatus` annotations.
+
+### `@Stable`
+
+Public API intended for released addons and consuming mods.
+
+Breaking signature changes should not occur within a minor version unless there is a compelling compatibility reason.
+
+### `@Experimental`
+
+API that is usable by consuming mods but may change between releases.
+
+Newer UI extension points, KubeJS bindings, request channels, and other developing systems may use this tier.
+
+### `@Internal`
+
+Implementation detail.
+
+External mods should not depend on `@Internal` classes or methods.
+
+If a feature is missing from the stable API, request the necessary API rather than depending on an internal implementation class.
+
+See [`API.md`](API.md) for the current API reference.
+
+</details>
+
+---
+
+<details>
+<summary><strong>KubeJS</strong></summary>
+
+MariesLib provides experimental KubeJS bindings for selected APIs.
+
+Supported areas include:
+
+- value registration
+- source classifications
+- synergies
+- milestones
+- event hooks
+
+Example:
+
+```javascript
 MarieAPI.registerValue({
-    id: 'custom_value',
-    displayName: 'Custom Value',
+    id: "custom_value",
+    displayName: "Custom Value",
     decayRate: 0.02
-})
+});
 
 MarieEvents.valueChanged(event => {
-    if (event.valueKey === 'custom_value' && event.newValue < 0.25) {
-        event.player.tell('Your custom value is low!')
+    if (event.valueKey === "custom_value" && event.newValue < 0.25) {
+        event.player.tell("Your custom value is low!");
     }
-})
+});
 ```
 
-Full event list and bindings in [API.md](API.md#kubejs).
+The KubeJS API is `@Experimental` and may change between releases.
+
+See [`API.md`](API.md) for the current bindings and event list.
+
+</details>
 
 ---
 
-## Mods built on MariesLib
+<details>
+<summary><strong>Integration Support</strong></summary>
 
-| Mod                                             | Description                             |
-| ----------------------------------------------- | --------------------------------------- |
-| [Nourished](https://modrinth.com/mod/nourished) | Nutrition framework for NeoForge 1.21.1 |
-| **Thermal Systems**                             | TBA                                     |
+MariesLib currently provides framework support for:
+
+| Integration  | Status       |
+| ------------ | ------------ |
+| KubeJS       | Experimental |
+| Cloth Config | Supported    |
+| JEI          | Supported    |
+| REI          | Supported    |
+| EMI          | Supported    |
+
+These integrations are kept separate from systems that do not require them where possible.
+
+</details>
 
 ---
 
-## Requirements
+<details>
+<summary><strong>Repository Structure</strong></summary>
 
-|               |            |
-| ------------- | ---------- |
-| **Minecraft** | **1.21.1** |
-| **NeoForge**  | **21.1.x** |
-| **Java**      | **21**     |
+The source tree follows the module boundaries:
+
+```text
+src/
+├── marie-core/
+├── marie-commands/
+├── marie-resources/
+├── marie-ui/
+└── marie-editor/
+```
+
+The general rule is that domain-specific behavior belongs in the consuming mod.
+
+Examples:
+
+```text
+Good:
+MariesLib → value tracking infrastructure
+Nourished → nutrition rules
+
+Good:
+MariesLib → dynamic UI/editor infrastructure
+Nourished → nutrition HUD modules
+
+Good:
+MariesLib → generic tracking
+Another mod → what its tracker counts
+
+Avoid:
+MariesLib → nutrition-specific calculations
+MariesLib → Nourished-specific UI
+MariesLib → consuming-mod gameplay rules
+```
+
+A system belongs in MariesLib when it represents reusable infrastructure rather than behavior belonging to one particular consuming mod.
+
+</details>
+
+---
+
+<details>
+<summary><strong>Projects Using MariesLib</strong></summary>
+
+- [Nourished](https://modrinth.com/mod/nourished) — nutrition mod for NeoForge 1.21.1
+- Thermal Systems — development
+- ProjectE Extended Life — planned
+
+</details>
+
+---
+
+<details>
+<summary><strong>Building</strong></summary>
+
+Clone the repository and build using the Gradle wrapper:
+
+```bash
+./gradlew build
+```
+
+Generated artifacts are placed in:
+
+```text
+build/libs/
+```
+
+For consuming-mod development, use the Maven development dependency rather than copying the MariesLib jar into the source tree.
+
+</details>
+
+---
+
+<details>
+<summary><strong>Documentation</strong></summary>
+
+- [`API.md`](API.md) — public API, stability tiers, resource paths, and usage details
+- [`CHANGELOG.md`](CHANGELOG.md) — release history and development changes
+
+</details>
+
+---
+
+## Community
+
+[Discord](https://discord.gg/EZnFJsfQup)
+
+Questions, bug reports, suggestions, and integration discussion are welcome.
 
 ---
 
@@ -211,6 +936,7 @@ LGPL-3.0-only
 ## Links
 
 - [Modrinth](https://modrinth.com/mod/marieslib)
-- [GitHub](https://github.com/kgbcupcake)
-- [API.md](API.md)
+- [GitHub](https://github.com/kgbcupcake/MariesLib)
+- [API Reference](API.md)
 - [Changelog](CHANGELOG.md)
+- [Discord](https://discord.gg/EZnFJsfQup)

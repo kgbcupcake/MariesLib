@@ -1,5 +1,7 @@
 package dev.marie.framework.client.config.presets;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.core.IMarieConfig;
 import dev.marie.framework.config.PresetRegistry;
 import dev.marie.framework.core.MarieCore;
@@ -13,6 +15,7 @@ import net.minecraft.network.chat.Component;
 /**
  * Prompts for preset name and description, then writes {@code config/<modid>/presets/<stem>.json}.
  */
+@ApiStatus.Internal
 public final class SavePresetScreen extends Screen {
 
     private final Screen returnTo;

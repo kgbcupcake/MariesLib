@@ -1,5 +1,7 @@
 package dev.marie.framework.api.marieapi;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.api.registry.GenericStateSyncHandlerRegistry;
 import dev.marie.framework.network.GenericStateSyncPayload;
 
@@ -7,6 +9,7 @@ import net.minecraft.server.level.ServerPlayer;
 
 import java.util.function.BiConsumer;
 
+@ApiStatus.Stable
 final class NetworkRegistrationDelegate {
 
     private NetworkRegistrationDelegate() {}

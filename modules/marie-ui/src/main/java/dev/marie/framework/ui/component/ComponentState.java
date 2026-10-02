@@ -12,12 +12,12 @@ import dev.marie.framework.api.ApiStatus;
  *
  * <p>{@code contentScale} is a multiplier applied on top of a component's existing box-driven
  * proportional content scale (its own {@code Math.min(widthScale, heightScale)}) rather than an
- * independent absolute scale — see {@link dev.marie.framework.ui.edit.ContentScaleController}.
+ * independent absolute scale — see {@code ContentScaleController} (marie-editor).
  * Defaults to {@code 1.0} (no adjustment, proportional scale passes through unchanged) for any
  * component that doesn't use this.
  *
  * <p>{@code paddingScale} is the analogous user multiplier for a component's content padding,
- * also managed by {@link dev.marie.framework.ui.edit.ContentScaleController}. Defaults to
+ * also managed by {@code ContentScaleController} (marie-editor). Defaults to
  * {@code 1.0} (no adjustment).
  */
 @ApiStatus.Experimental

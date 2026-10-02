@@ -10,6 +10,7 @@ import dev.marie.framework.classification.ClassificationTraceStep;
 import dev.marie.framework.classification.TraceStepId;
 import dev.marie.framework.classification.TraceStepStatus;
 import dev.marie.framework.core.MarieContext;
+import dev.marie.framework.core.MarieModRegistry;
 import dev.marie.framework.diagnostics.MarieUnknownItemLogger;
 import dev.marie.framework.scan.CacheStats;
 import dev.marie.framework.scan.ResolutionResult;
@@ -84,6 +85,10 @@ public final class RuntimeResolver {
         ResourceLocation itemId = MarieRegistryUtils.itemKey(item);
         if (itemId == null) return Map.of();
 
+        // The current mod's own filter, not the global isSourceItemAllowed() OR across every
+        // attached MarieLib mod — otherwise another mod's unconfigured (accept-everything) default
+        // filter lets the keyword/recipe/namespace-peer guess cascade below run on items that
+        // haven't actually cleared this mod's own food/eligibility check.
         if (!MarieContext.get().sourceItemFilter().test(stack)) return Map.of();
 
         ResolutionResult cached = resolvedCache.get(itemId);
@@ -307,7 +312,7 @@ public final class RuntimeResolver {
                     cacheDetail));
         }
 
-        ResolutionStageHandler[] stages = MarieContext.get().runtimeResolverStages();
+        ResolutionStageHandler[] stages = mergedRuntimeResolverStages();
 
         List<String> valueKeys = MarieContext.get().valueKeys();
         Holder<Item> holder = stack.getItemHolder();
@@ -524,6 +529,26 @@ public final class RuntimeResolver {
         stats.recordTiming(elapsed, itemId);
 
         return result;
+    }
+
+    /**
+     * {@code runtimeResolverStages()} is a fixed 5-slot pipeline override (community tag, keyword
+     * suffix, recipe inheritance, namespace peer, hard fallback — see the {@code STAGE_*}
+     * constants), one handler per slot, not an arbitrary list. For each slot, the first attached
+     * mod (in registration order) that supplies a non-null handler wins, instead of only the
+     * last-attached mod's array.
+     */
+    private static ResolutionStageHandler[] mergedRuntimeResolverStages() {
+        ResolutionStageHandler[] merged = new ResolutionStageHandler[STAGE_HARD_FALLBACK + 1];
+        for (MarieContext modCtx : MarieModRegistry.getAll()) {
+            ResolutionStageHandler[] stages = modCtx.runtimeResolverStages();
+            for (int i = 0; i < stages.length && i < merged.length; i++) {
+                if (merged[i] == null && stages[i] != null) {
+                    merged[i] = stages[i];
+                }
+            }
+        }
+        return merged;
     }
 
     public static void recordRecipeTimeout() {

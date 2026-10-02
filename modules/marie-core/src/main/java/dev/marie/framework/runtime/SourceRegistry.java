@@ -77,7 +77,7 @@ public class SourceRegistry {
         EXTERNAL_CLASSIFICATIONS.computeIfAbsent(sourceId, k -> new ConcurrentHashMap<>()).put(valueKey, amount);
         // Only registrations made outside a datapack reload (mod init / KubeJS startup / runtime API) are
         // mirrored so they can survive clearExternalClassifications(). Datapack-reload-scoped callers —
-        // nutrient-tag bridging and the datapack source_classifications/*.json directory — rebuild their
+        // value-tag bridging and the datapack source_classifications/*.json directory — rebuild their
         // entries in full on every reload, so mirroring them here would resurrect entries that were later
         // removed from the source files (stale EXTERNAL_CLASSIFICATION), which is exactly what this guards against.
         if (MarieAPIState.getPhase() != MarieAPIState.Phase.DATAPACK_RELOAD) {
@@ -178,6 +178,28 @@ public class SourceRegistry {
 
     public static boolean hasAuthoritativeClassification(ResourceLocation sourceId) {
         return EXTERNAL_CLASSIFICATIONS.containsKey(sourceId);
+    }
+
+    /** Deep copy of every external classification, for syncing the server's state to remote clients. */
+    public static Map<ResourceLocation, Map<String, Float>> snapshotExternalClassifications() {
+        Map<ResourceLocation, Map<String, Float>> copy = new java.util.HashMap<>();
+        for (Map.Entry<ResourceLocation, Map<String, Float>> entry : EXTERNAL_CLASSIFICATIONS.entrySet()) {
+            copy.put(entry.getKey(), new java.util.HashMap<>(entry.getValue()));
+        }
+        return copy;
+    }
+
+    /**
+     * Remote-client only: replaces the external classifications with the server's snapshot. Datapack
+     * source_classifications never load on a client connected to a dedicated server, so without this
+     * its tooltips would only see tag-derived values. Never call on a server or integrated host.
+     */
+    public static void replaceFromServerSync(Map<ResourceLocation, Map<String, Float>> snapshot) {
+        EXTERNAL_CLASSIFICATIONS.clear();
+        for (Map.Entry<ResourceLocation, Map<String, Float>> entry : snapshot.entrySet()) {
+            EXTERNAL_CLASSIFICATIONS.put(entry.getKey(), new ConcurrentHashMap<>(entry.getValue()));
+        }
+        RuntimeResolver.getInstance().invalidateCache();
     }
 
     static Map<ResourceLocation, Map<String, Float>> getAllExternalView() {

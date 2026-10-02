@@ -1,5 +1,7 @@
 package dev.marie.framework.compat;
 
+import dev.marie.framework.api.ApiStatus;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -28,6 +30,7 @@ import java.util.Set;
 /**
  * Auto-detects loaded source mods that have not been registered in the compat registry.
  */
+@ApiStatus.Internal
 public final class AutoCompatDiscovery {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -65,7 +68,6 @@ public final class AutoCompatDiscovery {
 
                 CompatDefinition definition = CompatDefinition.builder(modId)
                         .category(CompatDefinition.CompatCategory.SOURCE_MOD)
-                        .addAllSourceMappings(Map.of())
                         .build();
                 ModCompat.registerExternal(definition);
                 registeredModIds.add(modId);
@@ -92,7 +94,7 @@ public final class AutoCompatDiscovery {
             }
 
             ItemStack stack = new ItemStack(item);
-            if (!MarieContext.get().sourceItemFilter().test(stack)) {
+            if (!MarieContext.isSourceItemAllowed(stack)) {
                 continue;
             }
 

@@ -1,12 +1,20 @@
 package dev.marie.framework.data;
 
+import dev.marie.framework.api.ApiStatus;
+
 import dev.marie.framework.core.IMarieConfig;
 
 /**
  * Constants describing MarieLib datapack schema locations and keys.
  *
  * <p>All JSON files are loaded from {@code data/<namespace>/<modid>/}.</p>
+ *
+ * <h2>Schema versioning contract</h2>
+ * <p>See {@link SchemaDefinition} for the authoritative contract governing
+ * {@link #KEY_SCHEMA_VERSION}: what the number means, when MarieLib bumps it,
+ * and what a mismatch does (and does not) do to a datapack file.</p>
  */
+@ApiStatus.Experimental
 public final class DatapackSchema {
 
     private DatapackSchema() {}
@@ -28,7 +36,10 @@ public final class DatapackSchema {
     /** @deprecated Use {@link #CONFIG_SOURCE_CLASSIFICATIONS}. */
     @Deprecated
     public static final String CONFIG_SOURCE_VALUES = "config/source_values.json";
-    /** Optional integer key declaring datapack schema version. */
+    /**
+     * Optional integer key declaring the schema version a datapack file was written against.
+     * Current value and compatibility rules: {@link SchemaDefinition}.
+     */
     public static final String KEY_SCHEMA_VERSION = "marie_schema_version";
 
     /** Path: {@code data/<namespace>/<modid>/values/<id>.json}. */

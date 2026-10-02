@@ -323,7 +323,7 @@ public class TrackingData {
     @ApiStatus.Experimental
     public long lastTickTime = 0L;
 
-    // Tracker system state — separate from values/total (nutrient bars), which stay untouched.
+    // Tracker system state — separate from values/total (value bars), which stay untouched.
     // MarieLib has no domain knowledge of what a tracker measures.
     @ApiStatus.Experimental
     public final Map<ResourceLocation, Float> trackingAccumulators = new LinkedHashMap<>();
@@ -543,7 +543,9 @@ public class TrackingData {
         SourceMemoryEntry entry = memory.getOrDefault(key, new SourceMemoryEntry(0f, gameTimeMs));
         long elapsed = gameTimeMs - entry.lastAppliedTick();
         boolean inStreak = elapsed <= streakWindowMs && elapsed >= 0;
-        float increment = baseIncrement * (inStreak ? streakWeight : 1.0f);
+        // The free bites (the curve's midpoint) count as plain eats; streak weighting starts after them.
+        boolean pastFreeBites = entry.applicationCount() >= configuredDiminishingMidpoint() * baseIncrement;
+        float increment = baseIncrement * (inStreak && pastFreeBites ? streakWeight : 1.0f);
         entry = new SourceMemoryEntry(entry.applicationCount() + increment, gameTimeMs);
         memory.put(key, entry);
     }

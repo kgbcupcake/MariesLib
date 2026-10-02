@@ -1,5 +1,7 @@
 package dev.marie.framework.scan;
 
+import dev.marie.framework.api.ApiStatus;
+
 /**
  * Identifies the final authoritative stage that produced the resolved value map for an item
  * in the full value resolution pipeline.
@@ -16,6 +18,7 @@ package dev.marie.framework.scan;
  *   <li>{@link #UNCLASSIFIED} — Final merged bar map is empty.</li>
  * </ul>
  */
+@ApiStatus.Experimental
 public enum ResolutionStage {
     TAG_MATCH,
     SCANNER_CLASSIFIED,

@@ -52,7 +52,16 @@ A deprecated `bootstrap(IEventBus)` also exists (old owned-config path): use `at
 
 ## Registration window
 
-All `MarieAPI.register*` calls must happen during mod initialization, your `@Mod` constructor or an `FMLCommonSetupEvent` handler. The window closes after init; calling register outside it throws `IllegalStateException`. Datapack reloads open a secondary internal window for datapack-driven content; you don't manage that yourself.
+All `MarieAPI.register*` calls must happen during mod initialization, your `@Mod` constructor or an `FMLCommonSetupEvent` handler. The window closes after init; calling register outside it throws `IllegalStateException`. Datapack reloads open a secondary internal window for datapack-driven content.
+
+### Reload re-registration — what you must redo, what MarieLib does for you
+
+A `/reload` (or a world/server boot) wipes and rebuilds every datapack-backed registry. What that means for your own Java-registered (mod-constructor/common-setup) entries splits sharply by which registry they're in:
+
+- **Trackers** (`MarieTracking.registerTracker`) and **colors** (`MarieColors.registerColor`/`registerColorPair`) are wiped on every reload after the first and are **not** restored automatically — nothing re-invokes your registration code on its own. If you want a tracker or color to survive a reload, re-call `registerTracker`/`registerColor` yourself from `MarieContext.Builder#onReloadBroadcast(...)` (fires after the reload's reset/refreeze pass completes; see [`MarieContext`](#mariecontext)). Re-registering the same id is always safe — it replaces the existing definition instead of throwing.
+- **Profiles** (`registerTrackingProfile`/`addProfile`), **milestones** (`registerMilestone`/`addMilestone`), **tracker milestones** (`registerTrackerMilestone`/`addTrackerMilestone`), and **synergies** (`registerValueSynergy`/`registerSourcePairSynergy`) are the opposite: MarieLib snapshots whatever you registered from Java the first time a datapack pass runs, and re-seeds that snapshot after every later reset. Only the datapack-sourced entries for these four are actually replaced by a reload — **you do not need to re-register them**, and an `onReloadBroadcast` hook that does so anyway is harmless (same upsert-safe replace) but redundant.
+
+If you're only integrating datapack-driven content for any of the above (no Java-side `register*` calls at all), none of this applies to you — the datapack loader repopulates those entries on every pass regardless.
 
 ## Core concepts
 
@@ -115,6 +124,7 @@ void registerValueSynergy(SynergyDefinition definition)         // alias: addVal
 void registerSourcePairSynergy(SourcePairSynergy definition)    // alias: addSourceSynergy
 void registerTrackingProfile(ProfileDefinition definition)      // alias: addProfile
 void registerMilestone(MilestoneDefinition definition)          // alias: addMilestone
+void registerTrackerMilestone(TrackerMilestoneDefinition definition)  // alias: addTrackerMilestone
 ```
 
 ### Registration — hooks — mostly `@Stable`, two `@Experimental`
@@ -139,10 +149,10 @@ void registerGenericStateSyncHandler(BiConsumer<ServerPlayer, GenericStateSyncPa
 
 ```java
 <T> void registerExportResolver(String key, ResourceKey<Registry<T>> registryKey, ExportResolver<T> resolver)  // Stable — real path
-@Deprecated <T> void registerExportResolver(ExportResolver<T> resolver)  // Stable but non-functional — see below
+@Deprecated(since = "1.1.0", forRemoval = true) <T> void registerExportResolver(ExportResolver<T> resolver)  // Stable but non-functional — see below
 ```
 
-The single-arg overload is deprecated and structurally cannot work (no way to know which registry to iterate). Use the two-arg overload.
+The single-arg overload is deprecated and structurally cannot work (no way to know which registry to iterate) — calling it always throws `UnsupportedOperationException`. Use the two-arg overload. It is scheduled for removal in the next major version; per this library's own [versioning contract](#versioning) it stays in place (present, `@Stable`, always throwing) until then rather than being removed mid-major-version.
 
 ### Custom triggers — `@Stable`
 
@@ -244,8 +254,8 @@ MilestoneDefinition.builder("emc_master")
 
 ```java
 CompatDefinition.builder("farmersdelight")
-    .category(CompatDefinition.CompatCategory.CONTENT_MOD)  // SOURCE_MOD, FARMING_MOD, SURVIVAL_OVERHAUL
-    .addSourceMapping(someItemId, "emc")
+    .category(CompatDefinition.CompatCategory.SOURCE_MOD)  // SOURCE_MOD, FARMING_MOD, SURVIVAL_OVERHAUL
+    .addSourceMapping(someItemId, "emc", 5.0f)  // valueKey, amount contributed per use
     .build()
 ```
 
@@ -331,6 +341,15 @@ Source families and module locks load through `MarieDataLoader` (a real, active 
 
 Legacy/older file layouts for excluded items and source classifications are auto-migrated on load, you don't need to manually move existing files.
 
+### Datapack schema versioning contract
+
+Every datapack-loaded file type (`values`, `effects`, `synergies`, `milestones`, `tracker_milestones`, `source_classifications`, `food_overrides`, `source_pair_synergies` (`source_synergies` dir), `tracking_profiles`, `compat`, `source_families`, `module_locks`) accepts an optional top-level integer key, `marie_schema_version`.
+
+- **One version for all of them.** It's a single MarieLib-wide number (`SchemaDefinition.VERSION`, currently `1`), not versioned per file type — every schema factory (`SchemaDefinition.forValue()`, `forEffect()`, etc.) stamps the same constant.
+- **Bumped only for breaking changes**: a required field removed, a key renamed, or a field's type narrowed/changed. A new optional field, or a whole new file type, does not bump it.
+- **Informational only, never load-bearing.** A file with no `marie_schema_version`, or one that doesn't match the current version, produces a `WARN` diagnostic (visible via `/marieslib`) and nothing else — the file still loads and its fields are still parsed normally. The only thing that causes a file to be skipped is a real validation `ERROR`: a missing required field or a field of the wrong type.
+- **No silent migration.** MarieLib always parses the current field layout; it does not reinterpret older files based on their declared version. Treat a version mismatch as a nudge to re-check the file against the current schema, not as something MarieLib will paper over for you.
+
 ---
 
 ## Commands
@@ -355,21 +374,57 @@ MarieContext.register(
 );
 ```
 
-`MarieContext.get()` / `MarieContext.isRegistered()` read back the currently registered context. `MarieModRegistry` (`@Experimental`) tracks every registered context by `modId` for a future multi-mod config UI.
+`MarieContext.get()` / `MarieContext.isRegistered()` read back the *last-registered* context — with a single attached mod this is unambiguous, but it is not multi-mod-safe on its own. `MarieModRegistry` (`@Experimental`) tracks every registered context by `modId` and now backs real multi-mod dispatch:
+
+- `MarieContext.forValue(valueKey)` resolves the context of whichever mod registered that value key (tracked automatically at `registerValue` time), falling back to `get()` when the key is unregistered. Use this instead of `get()` for any per-value hook (decay rate, thresholds, post-value modifiers, icons).
+- `MarieContext.forTracker(trackerId)` does the same for tracker ids.
+- `MarieContext.forMod(modId)` resolves a specific mod's context directly.
+- `MarieContext.isSourceItemAllowed(stack)` and `MarieModRegistry.forEach(...)` fan a check/hook out across every attached mod, for gates and whole-player hooks (effect application, tracking sync, respawn handling, tracker-period callbacks) that no single mod should unilaterally own.
+
+When two or more mods attach MarieLib, every internal call site that used to read `MarieContext.get()` for a value/tracker/item-specific hook now resolves through the owning mod instead of whichever mod attached last.
+
+`Builder#onReloadBroadcast(Consumer<MinecraftServer> hook)` (`@Experimental`) is the "reload happened, please re-register" hook: it fires after every `/reload` and after every world/server boot, once the reset/refreeze pass for that reload has completed. This is the one you wire up if you register trackers or colors from Java — see [Reload re-registration](#reload-re-registration--what-you-must-redo-what-marielib-does-for-you).
 
 Most `MarieContext` fields are `@Internal` (implementation wiring for the framework itself). The consumer-relevant `@Stable`/`@Experimental` surface is: `respawnValueBehavior`/`respawnValueHandler` (`@Stable`; `deathNutritionBehavior`/`deathNutritionHandler` deprecated forwarders kept for compat), `valueKeys()`, `valueDefinitionFor(key)`, `dataProvider(...)`, and `builder(modId)` itself — all `@Stable`. Most `Builder` setter methods are unannotated (internal wiring); the ones a real integration is most likely to touch carry `@Experimental` (e.g. `sourceItemFilter`, `sourceValueResolver`, `sourceDeltaResolver`, `runtimeResolverStages`, `trackingDeltaSyncer`).
 
 ---
 
+## Module windows (marie-ui) — `@Experimental`
+
+Every module's options window is built through one facade, `dev.marie.framework.ui.api.MarieModuleSettings`, so all of them share the same tabs and groups. Do not hand-build a window's layout.
+
+```java
+MarieComponent content = MarieModuleSettings.standardPanel("My Module", persistence, "my_module")
+        .opacity(cfg::bg, cfg::setBg, 0.8)            // Style > Background
+        .backgroundShade(cfg::bgShade, cfg::setBgShade)
+        .borderOpacity(cfg::border, cfg::setBorder)   // Style > Border
+        .borderShade(cfg::borderShade, cfg::setBorderShade)
+        .textBrightness(cfg::text, cfg::setText)      // Style > Brightness
+        .iconBrightness(cfg::icon, cfg::setIcon)
+        .layoutRows(p -> p.toggle("Vertical", cfg::vertical, cfg::setVertical, cfg::save))
+        .behaviorRows(p -> p.section("Visibility").toggle(...))
+        .extraTabs(p -> p.colorTab("Colors").color("Header", ...))
+        .onCommit(cfg::save)
+        .build();
+```
+
+- **Tabs:** Layout (Padding + your `layoutRows`), Behavior (your `behaviorRows`, a collapsible **Move** group, a collapsible **Hide** group with Hide Icons), Style (collapsible **Sizes**, **Brightness**, **Background**, **Border** groups; a group shows only if you bind something for it) and any `extraTabs` such as a Colors tab.
+- **Groups:** `MarieToolbox.PanelBuilder.section(title)` / `endSection()` fold any options into a collapsible group.
+- **Hide Icons:** enforced for any module drawn through `MarieModuleSettings.withDisplaySettings`; read it with `MarieModuleSettings.isIconsHidden(store, panelId)` if you draw icons yourself.
+- **Standalone controls:** `dev.marie.framework.ui.api.MarieWidgets` is the one-file facade for the parts the windows are built from, usable in any screen: `tabBar(id, titles...)` (`.onChange`, `.selected()`), `button(id, caption, action)` (`.enabledWhen`), `slider`/`intSlider` (rounded bar with arrow buttons), `toggle`, `choice` and `section(title, rows...)` (collapsible). Each returns a `MarieComponent`; values stay behind your getters/setters and `onCommit` runs once per finished edit.
+- **Colors:** `PanelBuilder.colorTab(...).color(...)` opens the shared round color picker.
+
 ## Versioning
 
 ```java
-MarieAPIVersion.VERSION          // "1.0.0"
+MarieAPIVersion.VERSION          // "1.1.0"
 MarieAPIVersion.MAJOR / MINOR / PATCH
 MarieAPIVersion.isCompatible(1)  // true if MAJOR >= required
 ```
 
 Semantic versioning. Major bumps may break `@Stable` APIs with a migration guide. Minor bumps may evolve `@Experimental` APIs.
+
+A `@Stable` method marked `@Deprecated(forRemoval = true)` (currently just `registerExportResolver(ExportResolver)`, see [Export](#export)) is kept in place, still throwing/working as documented, until the next major version removes it — deprecation alone never removes or changes behavior of a `@Stable` signature mid-major-version.
 
 ---
 

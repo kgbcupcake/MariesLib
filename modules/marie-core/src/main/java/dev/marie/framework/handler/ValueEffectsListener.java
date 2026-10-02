@@ -7,6 +7,7 @@ import dev.marie.framework.api.value.ValueSourceTrigger;
 import dev.marie.framework.config.FeatureFlagCache;
 import dev.marie.framework.core.MarieContext;
 import dev.marie.framework.core.MarieCore;
+import dev.marie.framework.core.MarieModRegistry;
 import dev.marie.framework.tracking.TrackingAttachment;
 import dev.marie.framework.tracking.TrackingData;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -33,7 +34,7 @@ public class ValueEffectsListener {
 
         if (FeatureFlagCache.enableEffects() && !player.isCreative() && !player.isSpectator()) {
             TrackingData data = TrackingAttachment.getData(player);
-            MarieContext.get().effectApplier().accept(player, data);
+            MarieModRegistry.forEach(modCtx -> modCtx.effectApplier().accept(player, data));
             for (String oldId : EffectRegistry.legacyCleanupEffectIds()) {
                 if (oldId == null || oldId.isBlank()) {
                     continue;
@@ -49,7 +50,7 @@ public class ValueEffectsListener {
                 }
             }
         } else {
-            MarieContext.get().effectClearer().accept(player);
+            MarieModRegistry.forEach(modCtx -> modCtx.effectClearer().accept(player));
         }
     }
 
