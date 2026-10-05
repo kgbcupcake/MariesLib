@@ -75,6 +75,16 @@ tasks.register('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.Sha
     from uiProject.sourceSets.main.output
     from editorProject.sourceSets.main.output
 
+    // Merges same-path META-INF/services entries from different inputs (e.g. a real
+    // ServiceLoader-based service one of MariesLib's own dependencies registers this way) instead
+    // of one silently overwriting another - Gradle's own copy-spec duplicate handling runs before
+    // Shadow's merge transformer otherwise gets a look. Not relevant to EMI plugin discovery
+    // specifically: EMI's NeoForge platform never consults ServiceLoader/META-INF/services at all,
+    // only its own @EmiEntrypoint annotation scan, so marie-ui's MarieEmiPlugin and marie-editor's
+    // ItemEditorEmiPlugin carry that annotation directly rather than a services file.
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    mergeServiceFiles('META-INF/services')
+
     manifest {
         from coreProject.tasks.named('jar').get().manifest
     }

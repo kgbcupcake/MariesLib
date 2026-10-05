@@ -16,6 +16,7 @@ import dev.marie.framework.ui.component.widgets.ItemSlotComponent;
 import dev.marie.framework.ui.geometry.Bounds;
 import dev.marie.framework.ui.toolbox.ButtonOption;
 import dev.marie.framework.ui.toolbox.OptionLayout;
+import dev.marie.framework.ui.toolbox.OptionRow;
 import dev.marie.framework.ui.toolbox.SliderOption;
 import dev.marie.framework.ui.toolbox.ToggleOption;
 import dev.marie.framework.ui.widget.MarieTextList;
@@ -142,6 +143,12 @@ public final class ItemEditorPanel implements MarieComponent {
                     () -> editedValues.getOrDefault(def.getId(), 0f),
                     v -> editedValues.put(def.getId(), (float) v),
                     VALUE_MIN, VALUE_MAX, VALUE_STEP, () -> {}));
+        }
+        String sourceId = sourceId();
+        for (ItemEditorFieldProvider provider : ItemEditorFieldProviderRegistry.get(modId)) {
+            for (OptionRow row : provider.buildRows(modId, sourceId, slot.item())) {
+                layout.addRow(row);
+            }
         }
         layout.addRow(SliderOption.ofInt("Calories", () -> editedCalories, v -> editedCalories = v,
                 CALORIES_MIN, CALORIES_MAX, CALORIES_STEP, "cal", () -> {}));

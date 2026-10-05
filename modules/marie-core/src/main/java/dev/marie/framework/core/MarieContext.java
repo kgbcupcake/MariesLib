@@ -323,7 +323,10 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
     /**
      * True if any attached mod's {@link #sourceItemFilter()} allows this stack as a value source —
      * an item excluded by one mod's filter may still be a legitimate source for another mod's
-     * values, so a single mod objecting must not veto every other mod.
+     * values, so a single mod objecting must not veto every other mod. The default filter (for a
+     * mod that never calls {@link Builder#sourceItemFilter}) rejects everything, so a mod with no
+     * opinion on source items abstains rather than voting yes for every item on behalf of mods
+     * that did configure a real filter.
      */
     @ApiStatus.Experimental
     public static boolean isSourceItemAllowed(ItemStack stack) {
@@ -854,7 +857,7 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
         private Supplier<Float> compositeRatioThreshold = () -> 0.5f;
         private Supplier<Boolean> scannerEnableRecipeInheritance = () -> false;
         private Supplier<Boolean> enableDebugLogging = () -> false;
-        private Supplier<Predicate<ItemStack>> sourceItemFilter = () -> stack -> true;
+        private Supplier<Predicate<ItemStack>> sourceItemFilter = () -> stack -> false;
         private Supplier<Long> memoryWindowMinutes = () -> 60L;
         private Supplier<Integer> memoryWindowCount = () -> 20;
         private Supplier<Long> streakWindowMs = () -> 300_000L;
@@ -933,6 +936,15 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
         public Builder compositeRatioThreshold(Supplier<Float> s) { this.compositeRatioThreshold = s; return this; }
         public Builder scannerEnableRecipeInheritance(Supplier<Boolean> s) { this.scannerEnableRecipeInheritance = s; return this; }
         public Builder enableDebugLogging(Supplier<Boolean> s) { this.enableDebugLogging = s; return this; }
+        /**
+         * Restricts which items this mod will offer up as value sources (to
+         * {@link dev.marie.framework.scanner.ItemScanner} and
+         * {@link dev.marie.framework.runtime.RuntimeResolver}). Defaults to rejecting everything — a
+         * mod that has no concept of "source items" (e.g. one only using Marieslib for its
+         * config-screen plumbing) should leave this unset rather than accept everything, since
+         * {@link #isSourceItemAllowed} ORs every attached mod's filter together and an unset
+         * accept-all filter would silently make every item scannable for every other mod too.
+         */
         @ApiStatus.Experimental
         public Builder sourceItemFilter(Supplier<Predicate<ItemStack>> s) { this.sourceItemFilter = s; return this; }
         public Builder memoryWindowMinutes(Supplier<Long> s) { this.memoryWindowMinutes = s; return this; }
