@@ -31,9 +31,20 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Loads per-source manual value assignments from config/&lt;modid&gt;/source_classifications.json.
+ * Loads per-source manual value assignments — the overrides the in-game item editor's File &gt; Save
+ * Override writes ({@link #save()}) — from under {@code config/&lt;modid&gt;/item_editor/}, split by
+ * value key to match the editor's own per-category sliders (Protein, Dairy, Vegetables, etc., driven
+ * by whatever {@code ValueDefinition}s the consuming mod registers — not a fixed list):
+ * <pre>
+ * item_editor/
+ *   source_classifications.json        — source id + calories + enabled (not tied to any one value)
+ *   Source Classification/
+ *     &lt;value key&gt;/source_classifications.json   — source id + that one value's override, one file per key
+ * </pre>
  * Replaces both SourceOverrideRegistry (source_overrides.json) and SourceValueRegistry (source_values.json).
- * On first load, migrates existing old files automatically.
+ * On first load, migrates existing old files automatically — including a not-yet-split single combined
+ * file from the earlier {@code overrides/Overrides/source_classifications.json} location, before the
+ * folder was renamed to {@code item_editor} and split per value key.
  */
 @ApiStatus.Internal
 public class SourceClassificationRegistry {
@@ -97,49 +108,76 @@ public class SourceClassificationRegistry {
         return score != null ? score : 0f;
     }
 
+    /** Subfolder of {@code item_editor/} holding one subfolder per value key (the item editor's own sliders — Protein, Dairy, Vegetables, etc.), each with its own {@code source_classifications.json}. */
+    private static final String CATEGORIES_DIR_NAME = "Source Classification";
+    private static final String DATA_FILE_NAME = "source_classifications.json";
+
     public static void load() {
         Path configDir = FMLPaths.CONFIGDIR.get().resolve(IMarieConfig.get().modId());
-        Path overridesDir = configDir.resolve("overrides");
-        Path dataDir = overridesDir.resolve("Overrides");
-        Path readmeDir = overridesDir.resolve("Read_Me");
-        Path newFile = dataDir.resolve("source_classifications.json");
-        Path oldFlatFile = overridesDir.resolve("source_classifications.json");
+        Path itemEditorDir = configDir.resolve("item_editor");
+        Path categoriesDir = itemEditorDir.resolve(CATEGORIES_DIR_NAME);
+        Path readmeDir = itemEditorDir.resolve("Read_Me");
+        Path rootFile = itemEditorDir.resolve(DATA_FILE_NAME);
+        // Pre-"item_editor" locations, oldest first: a bare config/<modid>/source_classifications.json
+        // (or the even older source_overrides.json/source_values.json pair it replaced), then a flat
+        // config/<modid>/overrides/source_classifications.json, then the most recent (still one combined
+        // file, not yet split by category) config/<modid>/overrides/Overrides/source_classifications.json.
+        Path oldOverridesDir = configDir.resolve("overrides");
+        Path oldDataFile = oldOverridesDir.resolve("Overrides").resolve(DATA_FILE_NAME);
+        Path oldFlatFile = oldOverridesDir.resolve(DATA_FILE_NAME);
         Path oldOverrides = configDir.resolve("source_overrides.json");
         Path oldValues = configDir.resolve("source_values.json");
-        Path oldRootFile = configDir.resolve("source_classifications.json");
+        Path oldRootFile = configDir.resolve(DATA_FILE_NAME);
 
         try {
-            Files.createDirectories(dataDir);
+            Files.createDirectories(categoriesDir);
             Files.createDirectories(readmeDir);
-            if (Files.exists(oldFlatFile) && !Files.exists(newFile)) {
-                Files.move(oldFlatFile, newFile);
-            }
-            if (Files.exists(newFile)) {
-                parse(newFile);
-                LOGGER.info("[SourceClassificationRegistry] Loaded {} entries from config folder", INSTANCE.size());
-                if (Files.deleteIfExists(oldOverrides) | Files.deleteIfExists(oldValues) | Files.deleteIfExists(oldFlatFile) | Files.deleteIfExists(oldRootFile)) {
-                    LOGGER.info("[SourceClassificationRegistry] Cleaned up leftover legacy files (source_overrides.json / source_values.json / flat source_classifications.json / root source_classifications.json)");
+
+            boolean hasSplitData = Files.exists(rootFile) || hasAnyCategoryFile(categoriesDir);
+            boolean hasLegacyData = Files.exists(oldDataFile) || Files.exists(oldFlatFile)
+                    || Files.exists(oldOverrides) || Files.exists(oldValues) || hasContent(oldRootFile);
+
+            if (hasSplitData) {
+                parseSplit(rootFile, categoriesDir);
+            } else if (hasLegacyData) {
+                JsonArray legacy = readLegacyCombined(oldDataFile, oldFlatFile, oldOverrides, oldRootFile);
+                INSTANCE.reset();
+                for (int i = 0; i < legacy.size(); i++) {
+                    JsonElement el = legacy.get(i);
+                    if (!el.isJsonObject()) {
+                        LOGGER.warn("[SourceClassificationRegistry] Skipping malformed entry at index {}: not a JSON object", i);
+                        continue;
+                    }
+                    parseEntry(el.getAsJsonObject(), i);
                 }
-            } else if (Files.exists(oldOverrides) || Files.exists(oldValues) || hasContent(oldRootFile)) {
-                migrateFromLegacy(newFile, oldOverrides, oldValues, oldRootFile);
-                Files.deleteIfExists(oldOverrides);
-                Files.deleteIfExists(oldValues);
-                Files.deleteIfExists(oldRootFile);
-                LOGGER.warn("[SourceClassificationRegistry] Migrated source_values.json, source_overrides.json, and root source_classifications.json into source_classifications.json. The old files were deleted.");
+                INSTANCE.freeze();
+                writeSplit(rootFile, categoriesDir);
+                pushToSourceRegistry();
+                LOGGER.warn("[SourceClassificationRegistry] Migrated {} entries into {}/{} (per-category subfolders)", INSTANCE.size(), itemEditorDir, CATEGORIES_DIR_NAME);
             } else {
-                Files.deleteIfExists(oldRootFile);
-                writeDefaults(newFile);
+                writeSplit(rootFile, categoriesDir);
+                INSTANCE.reset();
+                INSTANCE.freeze();
+                pushToSourceRegistry();
                 LOGGER.info("[SourceClassificationRegistry] Wrote default source_classifications.json");
-                parse(newFile);
             }
+
+            Files.deleteIfExists(oldOverrides);
+            Files.deleteIfExists(oldValues);
+            Files.deleteIfExists(oldFlatFile);
+            Files.deleteIfExists(oldDataFile);
+            Files.deleteIfExists(oldRootFile);
+            deleteIfEmptyDir(oldOverridesDir.resolve("Overrides"));
+            deleteIfEmptyDir(oldOverridesDir.resolve("Read_Me"));
+            deleteIfEmptyDir(oldOverridesDir);
         } catch (IOException e) {
             LOGGER.error("[SourceClassificationRegistry] Failed to load source_classifications.json", e);
             INSTANCE.reset();
             INSTANCE.freeze();
             pushToSourceRegistry();
         } catch (RuntimeException e) {
-            // Per-entry parse failures are isolated in parseEntry()/parseFromReader(); this only
-            // catches whole-file corruption (invalid JSON syntax, or top-level value isn't an array).
+            // Per-entry parse failures are isolated in parseEntry()/parseSplit(); this only catches
+            // whole-file corruption (invalid JSON syntax, or a top-level value that isn't an array).
             LOGGER.error("[SourceClassificationRegistry] source_classifications.json is not valid JSON, ignoring file", e);
             INSTANCE.reset();
             INSTANCE.freeze();
@@ -147,13 +185,232 @@ public class SourceClassificationRegistry {
         }
 
         try {
-            Path oldReadme = overridesDir.resolve("SOURCE_CLASSIFICATIONS_README.md");
-            if (Files.exists(oldReadme)) {
-                Files.deleteIfExists(oldReadme);
+            Path oldReadmeNested = oldOverridesDir.resolve("Read_Me").resolve("SOURCE_CLASSIFICATIONS_README.md");
+            Path oldReadmeFlat = oldOverridesDir.resolve("SOURCE_CLASSIFICATIONS_README.md");
+            Path newReadme = readmeDir.resolve("SOURCE_CLASSIFICATIONS_README.md");
+            if (Files.exists(oldReadmeNested) && !Files.exists(newReadme)) {
+                Files.move(oldReadmeNested, newReadme);
             }
+            Files.deleteIfExists(oldReadmeFlat);
             writeReadmeIfAbsent(readmeDir);
+            deleteIfEmptyDir(oldOverridesDir.resolve("Read_Me"));
+            deleteIfEmptyDir(oldOverridesDir);
         } catch (IOException e) {
             LOGGER.warn("[SourceClassificationRegistry] Failed to write SOURCE_CLASSIFICATIONS_README.md", e);
+        }
+    }
+
+    /** Whether {@code categoriesDir} already has at least one {@code <category>/source_classifications.json} — i.e. this mod's data is already in the split, per-category layout rather than one combined file. */
+    private static boolean hasAnyCategoryFile(Path categoriesDir) {
+        if (!Files.isDirectory(categoriesDir)) {
+            return false;
+        }
+        try (var dirs = Files.list(categoriesDir)) {
+            return dirs.anyMatch(dir -> Files.exists(dir.resolve(DATA_FILE_NAME)));
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    /** Reads whichever single-file legacy location is present (checked newest first) into one combined array, matching the shape {@link #parseEntry} already expects. */
+    private static JsonArray readLegacyCombined(Path oldDataFile, Path oldFlatFile, Path oldOverrides, Path oldRootFile) {
+        JsonArray combined = new JsonArray();
+        if (Files.exists(oldDataFile)) {
+            appendArrayFrom(oldDataFile, combined);
+            return combined;
+        }
+        if (Files.exists(oldFlatFile)) {
+            appendArrayFrom(oldFlatFile, combined);
+            return combined;
+        }
+        // Oldest layout: source_overrides.json and a root source_classifications.json, merged
+        // (mirrors the pre-item_editor migrateFromLegacy behavior this replaces).
+        appendArrayFrom(oldOverrides, combined);
+        appendArrayFrom(oldRootFile, combined);
+        return combined;
+    }
+
+    private static void appendArrayFrom(Path file, JsonArray into) {
+        if (!Files.exists(file)) {
+            return;
+        }
+        try (Reader r = Files.newBufferedReader(file)) {
+            JsonArray arr = GSON.fromJson(r, JsonArray.class);
+            if (arr != null) {
+                for (JsonElement el : arr) {
+                    into.add(el);
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.warn("[SourceClassificationRegistry] Could not read {} during migration: {}", file, e.getMessage());
+        }
+    }
+
+    /**
+     * Loads the split, per-category layout: {@code rootFile} (source id + calories + enabled, no
+     * values) plus one {@code categoriesDir/<key>/source_classifications.json} per value key (source
+     * id + that one key's value), merged back into full {@link SourceClassification} entries. A
+     * source id present in a category file but missing from {@code rootFile} (e.g. the root file was
+     * hand-edited) still loads, defaulting to enabled with no calorie override — the same lenient
+     * fallback {@link #parseEntry} already applies to a missing {@code "enabled"}/{@code "calories"}.
+     */
+    private static void parseSplit(Path rootFile, Path categoriesDir) throws IOException {
+        LinkedHashMap<String, JsonObject> rootById = new LinkedHashMap<>();
+        if (Files.exists(rootFile)) {
+            try (Reader r = Files.newBufferedReader(rootFile)) {
+                JsonArray arr = GSON.fromJson(r, JsonArray.class);
+                if (arr != null) {
+                    for (JsonElement el : arr) {
+                        if (el.isJsonObject() && el.getAsJsonObject().has("source_id")) {
+                            rootById.put(el.getAsJsonObject().get("source_id").getAsString(), el.getAsJsonObject());
+                        }
+                    }
+                }
+            }
+        }
+
+        LinkedHashMap<String, Map<String, Float>> valuesBySource = new LinkedHashMap<>();
+        if (Files.isDirectory(categoriesDir)) {
+            try (var dirs = Files.list(categoriesDir)) {
+                for (Path categoryDir : dirs.filter(Files::isDirectory).toList()) {
+                    String category = categoryDir.getFileName().toString();
+                    Path file = categoryDir.resolve(DATA_FILE_NAME);
+                    if (!Files.exists(file)) {
+                        continue;
+                    }
+                    try (Reader r = Files.newBufferedReader(file)) {
+                        JsonArray arr = GSON.fromJson(r, JsonArray.class);
+                        if (arr == null) {
+                            continue;
+                        }
+                        for (JsonElement el : arr) {
+                            if (!el.isJsonObject()) {
+                                continue;
+                            }
+                            JsonObject obj = el.getAsJsonObject();
+                            if (!obj.has("source_id") || !obj.has("value")) {
+                                continue;
+                            }
+                            valuesBySource.computeIfAbsent(obj.get("source_id").getAsString(), k -> new LinkedHashMap<>())
+                                    .put(category, obj.get("value").getAsFloat());
+                        }
+                    } catch (RuntimeException e) {
+                        LOGGER.warn("[SourceClassificationRegistry] Skipping malformed category file {}: {}", file, e.getMessage());
+                    }
+                }
+            }
+        }
+
+        LinkedHashMap<String, SourceClassification> combined = new LinkedHashMap<>();
+        for (Map.Entry<String, JsonObject> e : rootById.entrySet()) {
+            try {
+                combined.put(e.getKey(), classificationFromRoot(e.getValue(), valuesBySource.getOrDefault(e.getKey(), Map.of())));
+            } catch (RuntimeException ex) {
+                LOGGER.warn("[SourceClassificationRegistry] Skipping malformed entry ({}): {}", e.getKey(), ex.getMessage());
+            }
+        }
+        for (Map.Entry<String, Map<String, Float>> e : valuesBySource.entrySet()) {
+            combined.computeIfAbsent(e.getKey(), id -> new SourceClassification(id, new HashMap<>(e.getValue()), 0f, 0, true));
+        }
+
+        INSTANCE.reset();
+        for (Map.Entry<String, SourceClassification> e : combined.entrySet()) {
+            INSTANCE.register(e.getKey(), e.getValue());
+        }
+        INSTANCE.freeze();
+        pushToSourceRegistry();
+        LOGGER.info("[SourceClassificationRegistry] Loaded {} entries from config folder", INSTANCE.size());
+    }
+
+    private static SourceClassification classificationFromRoot(JsonObject obj, Map<String, Float> values) {
+        String sourceId = obj.get("source_id").getAsString();
+        boolean enabled = !obj.has("enabled") || obj.get("enabled").getAsBoolean();
+        float legacyTotal = obj.has("total") && !obj.get("total").isJsonNull() ? obj.get("total").getAsFloat() : 0f;
+        int calories = obj.has("calories") && !obj.get("calories").isJsonNull() ? obj.get("calories").getAsInt() : 0;
+        float total = calories != 0 ? (float) calories : legacyTotal;
+        return new SourceClassification(sourceId, new HashMap<>(values), total, calories, enabled);
+    }
+
+    /** Writes the current {@link #INSTANCE} out in the split layout: {@code rootFile} (id/calories/enabled) plus one {@code categoriesDir/<key>/source_classifications.json} per value key found across every entry's {@link SourceClassification#values()}. Prunes any category subfolder no longer referenced by any entry. */
+    private static void writeSplit(Path rootFile, Path categoriesDir) throws IOException {
+        JsonArray rootArr = new JsonArray();
+        LinkedHashMap<String, JsonArray> byCategory = new LinkedHashMap<>();
+        for (SourceClassification entry : INSTANCE.values()) {
+            JsonObject rootObj = new JsonObject();
+            rootObj.addProperty("source_id", entry.sourceId());
+            if (entry.calories() != 0) {
+                rootObj.addProperty("calories", entry.calories());
+            } else {
+                rootObj.addProperty("total", entry.total());
+            }
+            rootObj.addProperty("enabled", entry.enabled());
+            rootArr.add(rootObj);
+
+            for (Map.Entry<String, Float> v : entry.values().entrySet()) {
+                JsonObject catObj = new JsonObject();
+                catObj.addProperty("source_id", entry.sourceId());
+                catObj.addProperty("value", v.getValue());
+                byCategory.computeIfAbsent(v.getKey(), k -> new JsonArray()).add(catObj);
+            }
+        }
+
+        Files.createDirectories(categoriesDir);
+        try (Writer w = Files.newBufferedWriter(rootFile)) {
+            GSON.toJson(rootArr, w);
+        }
+        pruneStaleCategoryDirs(categoriesDir, byCategory.keySet());
+        for (Map.Entry<String, JsonArray> e : byCategory.entrySet()) {
+            Path dir = categoriesDir.resolve(sanitizeCategoryName(e.getKey()));
+            Files.createDirectories(dir);
+            try (Writer w = Files.newBufferedWriter(dir.resolve(DATA_FILE_NAME))) {
+                GSON.toJson(e.getValue(), w);
+            }
+        }
+    }
+
+    /** Deletes a category subfolder (and its one data file) that no entry references anymore, so a renamed/removed value key doesn't leave a stale folder behind. */
+    private static void pruneStaleCategoryDirs(Path categoriesDir, Set<String> currentKeys) {
+        if (!Files.isDirectory(categoriesDir)) {
+            return;
+        }
+        Set<String> sanitizedCurrent = new HashSet<>();
+        for (String key : currentKeys) {
+            sanitizedCurrent.add(sanitizeCategoryName(key));
+        }
+        try (var dirs = Files.list(categoriesDir)) {
+            for (Path dir : dirs.filter(Files::isDirectory).toList()) {
+                if (sanitizedCurrent.contains(dir.getFileName().toString())) {
+                    continue;
+                }
+                try {
+                    Files.deleteIfExists(dir.resolve(DATA_FILE_NAME));
+                    deleteIfEmptyDir(dir);
+                } catch (IOException ignored) {
+                    // Best-effort prune only.
+                }
+            }
+        } catch (IOException ignored) {
+            // Best-effort prune only.
+        }
+    }
+
+    /** A value key as a filesystem-safe folder name — value keys are mod-defined strings, not guaranteed path-safe. */
+    private static String sanitizeCategoryName(String key) {
+        String sanitized = key.trim().replaceAll("[^A-Za-z0-9_\\- ]", "_");
+        return sanitized.isEmpty() ? "_" : sanitized;
+    }
+
+    /** Removes {@code dir} only if it exists and migrating its contents elsewhere left it empty, so a legacy folder tree doesn't linger once nothing in it is current. */
+    private static void deleteIfEmptyDir(Path dir) {
+        if (!Files.isDirectory(dir)) {
+            return;
+        }
+        try (var entries = Files.list(dir)) {
+            if (entries.findAny().isEmpty()) {
+                Files.delete(dir);
+            }
+        } catch (IOException ignored) {
+            // Best-effort cleanup only; a leftover empty legacy folder isn't worth failing load() over.
         }
     }
 
@@ -228,12 +485,6 @@ public class SourceClassificationRegistry {
         bridgedSourceIds = pushed;
     }
 
-    private static void parse(Path file) throws IOException {
-        try (Reader r = Files.newBufferedReader(file)) {
-            parseFromReader(r);
-        }
-    }
-
     private static void parseEntry(JsonObject obj, int index) {
         try {
             if (!obj.has("source_id")) {
@@ -269,53 +520,6 @@ public class SourceClassificationRegistry {
         }
     }
 
-    private static void migrateFromLegacy(Path newFile, Path oldOverrides, Path oldValues, Path oldRootFile) throws IOException {
-        JsonArray merged = new JsonArray();
-
-        if (Files.exists(oldOverrides)) {
-            try (Reader r = Files.newBufferedReader(oldOverrides)) {
-                JsonArray arr = GSON.fromJson(r, JsonArray.class);
-                if (arr != null) {
-                    for (JsonElement el : arr) {
-                        merged.add(el);
-                    }
-                }
-            } catch (Exception e) {
-                LOGGER.warn("[SourceClassificationRegistry] Could not read source_overrides.json during migration: {}", e.getMessage());
-            }
-        }
-
-        if (Files.exists(oldRootFile)) {
-            try (Reader r = Files.newBufferedReader(oldRootFile)) {
-                JsonArray arr = GSON.fromJson(r, JsonArray.class);
-                if (arr != null) {
-                    for (JsonElement el : arr) {
-                        merged.add(el);
-                    }
-                }
-            } catch (Exception e) {
-                LOGGER.warn("[SourceClassificationRegistry] Could not read root source_classifications.json during migration: {}", e.getMessage());
-            }
-        }
-
-        try (Writer w = Files.newBufferedWriter(newFile)) {
-            GSON.toJson(merged, w);
-        }
-
-        INSTANCE.reset();
-        for (int i = 0; i < merged.size(); i++) {
-            JsonElement el = merged.get(i);
-            if (!el.isJsonObject()) {
-                LOGGER.warn("[SourceClassificationRegistry] Skipping malformed entry at index {}: not a JSON object", i);
-                continue;
-            }
-            parseEntry(el.getAsJsonObject(), i);
-        }
-        INSTANCE.freeze();
-        pushToSourceRegistry();
-        LOGGER.info("[SourceClassificationRegistry] Migration complete — {} entries written to source_classifications.json", INSTANCE.size());
-    }
-
     private static boolean hasContent(Path file) {
         if (!Files.exists(file)) {
             return false;
@@ -325,12 +529,6 @@ public class SourceClassificationRegistry {
             return arr != null && !arr.isEmpty();
         } catch (Exception e) {
             return false;
-        }
-    }
-
-    private static void writeDefaults(Path file) throws IOException {
-        try (Writer w = Files.newBufferedWriter(file)) {
-            GSON.toJson(new JsonArray(), w);
         }
     }
 
@@ -351,10 +549,9 @@ public class SourceClassificationRegistry {
     }
 
     public static void save() {
-        Path configDir = FMLPaths.CONFIGDIR.get().resolve(IMarieConfig.get().modId());
-        Path file = configDir.resolve("overrides").resolve("Overrides").resolve("source_classifications.json");
+        Path itemEditorDir = FMLPaths.CONFIGDIR.get().resolve(IMarieConfig.get().modId()).resolve("item_editor");
         try {
-            writeRegistry(file);
+            writeSplit(itemEditorDir.resolve(DATA_FILE_NAME), itemEditorDir.resolve(CATEGORIES_DIR_NAME));
             LOGGER.info("[SourceClassificationRegistry] Saved source_classifications.json");
         } catch (IOException e) {
             LOGGER.error("[SourceClassificationRegistry] Failed to save source_classifications.json", e);
@@ -395,30 +592,4 @@ public class SourceClassificationRegistry {
         pushToSourceRegistry();
     }
 
-    private static void writeRegistry(Path file) throws IOException {
-        JsonArray arr = new JsonArray();
-        for (SourceClassification entry : INSTANCE.values()) {
-            JsonObject obj = new JsonObject();
-            obj.addProperty("source_id", entry.sourceId());
-
-            JsonObject valuesObj = new JsonObject();
-            for (Map.Entry<String, Float> e : entry.values().entrySet()) {
-                valuesObj.addProperty(e.getKey(), e.getValue());
-            }
-            obj.add("values", valuesObj);
-
-            // Emit the explicit calorie override under its own name when present; otherwise fall
-            // back to the legacy "total" field so pre-existing files still round-trip.
-            if (entry.calories() != 0) {
-                obj.addProperty("calories", entry.calories());
-            } else {
-                obj.addProperty("total", entry.total());
-            }
-            obj.addProperty("enabled", entry.enabled());
-            arr.add(obj);
-        }
-        try (Writer w = Files.newBufferedWriter(file)) {
-            GSON.toJson(arr, w);
-        }
-    }
 }

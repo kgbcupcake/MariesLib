@@ -46,6 +46,8 @@ final class ItemEditorWindow {
     private static final int TITLE_COLOR = 0xFFFFFF;
     private static final int CONTENT_PADDING = 6;
     private static final int GEAR_SIZE = 10;
+    /** Gap between the File/Info menu bar's own row and the divider drawn under it. */
+    private static final int MENU_DIVIDER_GAP = 2;
 
     private static final Constraint PANEL_CONSTRAINT = new Constraint(
             new Size(DEFAULT_WIDTH, DEFAULT_HEIGHT), new Size(MIN_WIDTH, MIN_HEIGHT), new Size(MAX_WIDTH, MAX_HEIGHT),
@@ -141,6 +143,7 @@ final class ItemEditorWindow {
     }
 
     void render(RenderContext context, int mouseX, int mouseY) {
+        refreshMinSize();
         Bounds livePreview = (panelDrag.isDragging() || panelDrag.isResizing()) ? panelDrag.mouseDragged(mouseX, mouseY) : null;
         Bounds activeBounds = livePreview != null ? livePreview : panelBounds;
 
@@ -158,12 +161,17 @@ final class ItemEditorWindow {
         context.drawResizeHandle(activeBounds.x() + activeBounds.width() - DraggableResizable.RESIZE_HANDLE_SIZE,
                 activeBounds.y() + activeBounds.height() - DraggableResizable.RESIZE_HANDLE_SIZE, false, panelDrag.isResizing());
 
+        // Drawn last, on top of the header/body content above: otherwise that content (rendered
+        // after the chrome's menu-bar row) painted right over the dropdown instead of the other way
+        // around, garbling both.
+        panel.renderFileMenuOverlay(context);
+
         if (scaleConfigVisible) {
             scaleConfigPanel.render(context, new Bounds(0, 0, context.screenWidth(), context.screenHeight()));
         }
     }
 
-    /** Background/border (Style-tab opacity+shade), Glow/Pulse ring, title and divider — everything {@code drawWindowChrome} draws, but through the player's own Style settings instead of fixed theme colors. */
+    /** Background/border (Style-tab opacity+shade), Glow/Pulse ring, title, the File/Info menu bar, and divider — everything {@code drawWindowChrome} draws, but through the player's own Style settings instead of fixed theme colors, plus the panel's menu bar between the title and the divider. */
     private void drawChrome(RenderContext context, Bounds b) {
         MarieModuleSettings.drawBoxGlow(context, store, panelId, b.x(), b.y(), b.width(), b.height());
         int background = MarieModuleSettings.styledBackground(context.theme().color(ThemeKey.PANEL_BACKGROUND), store, panelId);
@@ -177,13 +185,39 @@ final class ItemEditorWindow {
         gearBounds = new Bounds(b.x() + b.width() - RenderContext.WINDOW_CHROME_TITLE_ROW_HEIGHT + 6, b.y() + 3, GEAR_SIZE, GEAR_SIZE);
         context.drawText("⚙", gearBounds.x(), gearBounds.y(), scaleConfigVisible ? 0xFFFFFFFF : 0xFFAAAAAA, 0.9f);
 
-        int dividerY = b.y() + RenderContext.WINDOW_CHROME_TITLE_ROW_HEIGHT;
+        int menuBarY = b.y() + RenderContext.WINDOW_CHROME_TITLE_ROW_HEIGHT;
+        int menuBarHeight = panel.menuBarHeight();
+        Bounds menuBarBounds = new Bounds(b.x() + CONTENT_PADDING, menuBarY, Math.max(0, b.width() - 2 * CONTENT_PADDING), menuBarHeight);
+        panel.renderMenuBar(context, menuBarBounds);
+
+        int dividerY = menuBarY + menuBarHeight + MENU_DIVIDER_GAP;
         context.fillRect(b.x() + 1, dividerY, Math.max(0, b.width() - 2), 1, RenderContext.WINDOW_CHROME_DIVIDER_COLOR);
-        contentBounds = new Bounds(b.x(), dividerY + 1, b.width(), Math.max(0, b.y() + b.height() - RenderContext.WINDOW_CHROME_TITLE_ROW_HEIGHT - 1));
+        contentBounds = new Bounds(b.x(), dividerY + 1, b.width(), Math.max(0, b.y() + b.height() - (dividerY + 1 - b.y())));
+    }
+
+    /** {@link #chromeOverhead()}'s worth of space plus the panel's own content-derived preferred size, so a drag/resize can never shrink the box smaller than what's actually in it — the generic floor every {@link DraggableResizable} resize already enforces via {@link Constraint#minSize()}, refreshed here each frame since the panel's preferred size changes with the targeted item (more/fewer value rows). Also grows an already-too-small persisted box (e.g. after switching to an item with more rows) instead of letting its content spill past the border. */
+    private void refreshMinSize() {
+        Constraint panelConstraint = panel.constraint();
+        int minWidth = Math.max(MIN_WIDTH, panelConstraint.preferredSize().width());
+        int minHeight = Math.max(MIN_HEIGHT, chromeOverhead() + panelConstraint.preferredSize().height());
+        panelDrag.setConstraint(new Constraint(new Size(DEFAULT_WIDTH, DEFAULT_HEIGHT), new Size(minWidth, minHeight), new Size(MAX_WIDTH, MAX_HEIGHT),
+                false, false, true, true, Anchor.TOP_LEFT, Insets.NONE, Insets.NONE));
+        if (panelBounds != null && (panelBounds.width() < minWidth || panelBounds.height() < minHeight)) {
+            panelBounds = new Bounds(panelBounds.x(), panelBounds.y(),
+                    Math.max(panelBounds.width(), minWidth), Math.max(panelBounds.height(), minHeight));
+        }
+    }
+
+    /** Vertical space {@link #drawChrome} spends on everything above {@link #contentBounds} (title row, menu bar, divider, content padding) — the fixed part of {@link #refreshMinSize}'s height floor. */
+    private int chromeOverhead() {
+        return RenderContext.WINDOW_CHROME_TITLE_ROW_HEIGHT + panel.menuBarHeight() + MENU_DIVIDER_GAP + 1 + 2 * CONTENT_PADDING;
     }
 
     boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (scaleConfigVisible && scaleConfigPanel.mouseClicked(mouseX, mouseY, button)) {
+            return true;
+        }
+        if (panel.menuBarMouseClicked(mouseX, mouseY, button)) {
             return true;
         }
         if (button == 0 && gearBounds.contains((int) mouseX, (int) mouseY)) {

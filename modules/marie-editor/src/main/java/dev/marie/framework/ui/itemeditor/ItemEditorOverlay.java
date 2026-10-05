@@ -69,10 +69,26 @@ public final class ItemEditorOverlay {
         }
     }
 
-    /** The open overlay's slot area, for a JEI/REI/EMI ghost-ingredient handler to target. Null if the overlay isn't open or hasn't rendered yet this session. */
+    /**
+     * Whether the overlay is open <em>and</em> the screen it was opened over is still the one
+     * actually on screen right now. {@link #window} alone isn't enough: {@code toggle} only ever
+     * gets called again to null it out if the player explicitly re-presses the overlay keybind, so
+     * switching to some other screen without doing that (e.g. opening the standalone editor, or just
+     * closing the inventory) leaves {@link #window} non-null with a now-stale {@link #boundScreen}.
+     * The render/input event handlers below already guard against exactly that with their own
+     * {@code event.getScreen() != boundScreen} checks; the area-reporting methods need the same
+     * guard, since unlike those handlers they're not reached via a {@code ScreenEvent} for a specific
+     * screen at all - a global JEI/EMI exclusion-area query runs for whatever screen is active, stale
+     * overlay or not.
+     */
+    private static boolean isActiveOnCurrentScreen() {
+        return window != null && boundScreen != null && Minecraft.getInstance().screen == boundScreen;
+    }
+
+    /** The open overlay's slot area, for a JEI/REI/EMI ghost-ingredient handler to target. Null if the overlay isn't open on the current screen or hasn't rendered yet this session. */
     @Nullable
     public static Rect2i slotScreenArea() {
-        return window != null ? window.slotScreenArea() : null;
+        return isActiveOnCurrentScreen() ? window.slotScreenArea() : null;
     }
 
     /**
@@ -83,11 +99,15 @@ public final class ItemEditorOverlay {
      * a mouse release against its own panel bounds before ever reaching a generic drag-drop handler,
      * releasing a dragged item on what looks like the overlay's slot instead lands on whatever EMI
      * panel happens to occupy that same screen area, e.g. silently adding it as a favorite instead of
-     * targeting the slot. Null if the overlay isn't open or hasn't rendered yet this session.
+     * targeting the slot. Null if the overlay isn't open on the current screen or hasn't rendered yet
+     * this session - reported unconditionally on {@code window != null} alone, this leaked a stale
+     * exclusion zone onto every other screen (including the standalone editor) once the overlay had
+     * been opened at least once without an explicit re-toggle to close it, which could crowd out
+     * JEI's/EMI's own display area entirely depending on where it happened to overlap.
      */
     @Nullable
     public static Rect2i occupiedArea() {
-        if (window == null || boundScreen == null) {
+        if (!isActiveOnCurrentScreen()) {
             return null;
         }
         return window.occupiedArea(boundScreen.width, boundScreen.height);
