@@ -83,6 +83,7 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
     private final Supplier<Boolean> scannerEnableRecipeInheritance;
     private final Supplier<Boolean> enableDebugLogging;
     private final Supplier<Predicate<ItemStack>> sourceItemFilter;
+    private final Supplier<Predicate<ItemStack>> sourceExclusionFilter;
     private final Supplier<Long> memoryWindowMinutes;
     private final Supplier<Integer> memoryWindowCount;
     private final Supplier<Long> streakWindowMs;
@@ -153,6 +154,7 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
         this.scannerEnableRecipeInheritance = builder.scannerEnableRecipeInheritance;
         this.enableDebugLogging = builder.enableDebugLogging;
         this.sourceItemFilter = builder.sourceItemFilter;
+        this.sourceExclusionFilter = builder.sourceExclusionFilter;
         this.memoryWindowMinutes = builder.memoryWindowMinutes;
         this.memoryWindowCount = builder.memoryWindowCount;
         this.streakWindowMs = builder.streakWindowMs;
@@ -338,6 +340,22 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
         return false;
     }
 
+    /**
+     * True if any attached mod's {@link #sourceExclusionFilter()} considers {@code stack} excluded
+     * from its own classification — the OR, not a unanimous vote, since one mod's player-authored
+     * exclusion is a real "don't apply my values to this item" and must not be diluted by every
+     * other attached mod abstaining (the default filter).
+     */
+    @ApiStatus.Experimental
+    public static boolean isSourceExcludedByAnyMod(ItemStack stack) {
+        for (MarieContext ctx : MarieModRegistry.getAll()) {
+            if (ctx.sourceExclusionFilter().test(stack)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Override
     @ApiStatus.Stable
     public String modId() {
@@ -379,6 +397,20 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
     @ApiStatus.Internal
     public Predicate<ItemStack> sourceItemFilter() {
         return sourceItemFilter.get();
+    }
+
+    /**
+     * Whether {@code this} mod considers {@code stack} excluded from its own value classification —
+     * e.g. a player-authored "don't classify this item" toggle a mod builds on top of MariesLib (see
+     * {@link dev.marie.framework.handler.SourceApplicationPipeline#process}, which consults this
+     * across every attached mod before letting a generic {@code SourceClassificationRegistry}
+     * override win outright). The default (for a mod that never calls {@link
+     * Builder#sourceExclusionFilter}) rejects nothing, matching a mod with no exclusion concept of
+     * its own staying silent rather than vetoing an item on behalf of a mod that does have one.
+     */
+    @ApiStatus.Internal
+    public Predicate<ItemStack> sourceExclusionFilter() {
+        return sourceExclusionFilter.get();
     }
 
     @ApiStatus.Internal
@@ -858,6 +890,7 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
         private Supplier<Boolean> scannerEnableRecipeInheritance = () -> false;
         private Supplier<Boolean> enableDebugLogging = () -> false;
         private Supplier<Predicate<ItemStack>> sourceItemFilter = () -> stack -> false;
+        private Supplier<Predicate<ItemStack>> sourceExclusionFilter = () -> stack -> false;
         private Supplier<Long> memoryWindowMinutes = () -> 60L;
         private Supplier<Integer> memoryWindowCount = () -> 20;
         private Supplier<Long> streakWindowMs = () -> 300_000L;
@@ -947,6 +980,18 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
          */
         @ApiStatus.Experimental
         public Builder sourceItemFilter(Supplier<Predicate<ItemStack>> s) { this.sourceItemFilter = s; return this; }
+        /**
+         * A predicate for "is {@code stack} excluded from my own value classification" — e.g. a
+         * player-authored exclusion toggle a mod builds on top of MariesLib (Nourished's "Excluded
+         * from classification" item-editor page is the first consumer). Checked across every
+         * attached mod by {@link #isSourceExcludedByAnyMod} wherever a generic, mod-agnostic
+         * mechanism (like a {@code SourceClassificationRegistry} override) would otherwise bypass
+         * per-mod exclusion entirely. Leave unset (rejects nothing) for a mod with no exclusion
+         * concept of its own, the same reasoning {@link #sourceItemFilter} documents for its own
+         * unset default.
+         */
+        @ApiStatus.Experimental
+        public Builder sourceExclusionFilter(Supplier<Predicate<ItemStack>> s) { this.sourceExclusionFilter = s; return this; }
         public Builder memoryWindowMinutes(Supplier<Long> s) { this.memoryWindowMinutes = s; return this; }
         public Builder memoryWindowCount(Supplier<Integer> s) { this.memoryWindowCount = s; return this; }
         public Builder streakWindowMs(Supplier<Long> s) { this.streakWindowMs = s; return this; }

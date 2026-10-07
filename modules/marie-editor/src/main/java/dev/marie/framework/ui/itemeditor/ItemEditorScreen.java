@@ -141,11 +141,22 @@ public final class ItemEditorScreen extends AbstractContainerScreen<ItemEditorMe
         // Not AbstractContainerScreen#keyPressed: replicates plain Screen's own default (ESC closes)
         // instead of also picking up its hotbar-swap/clone/throw-on-hovered-slot handling, which
         // ItemEditorMenu's display-only slot was never meant to support.
+        // Offered to the window first, so a focused text field inside a page (see MarieComponent#charTyped)
+        // gets first crack at Backspace/arrows/Escape — e.g. an Escape that should only blur a text
+        // field, not close the whole editor.
+        if (window.keyPressed(keyCode, scanCode, modifiers)) {
+            return true;
+        }
         if (keyCode == GLFW.GLFW_KEY_ESCAPE && this.shouldCloseOnEsc()) {
             this.onClose();
             return true;
         }
         return false;
+    }
+
+    @Override
+    public boolean charTyped(char codePoint, int modifiers) {
+        return window.charTyped(codePoint, modifiers);
     }
 
     @Override

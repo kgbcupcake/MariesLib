@@ -165,4 +165,31 @@ public final class SectionRow implements OptionRow {
         }
         return false;
     }
+
+    @Override
+    public boolean charTyped(char codePoint, int modifiers) {
+        for (OptionRow row : children) {
+            if (row.charTyped(codePoint, modifiers)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        for (OptionRow row : children) {
+            if (row.keyPressed(keyCode, scanCode, modifiers)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public void blur() {
+        for (OptionRow row : children) {
+            row.blur();
+        }
+    }
 }

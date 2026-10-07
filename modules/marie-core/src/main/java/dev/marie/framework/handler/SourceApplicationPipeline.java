@@ -88,6 +88,17 @@ public final class SourceApplicationPipeline {
         String sourceKey = trigger.sourceId();
         SourceClassificationRegistry.SourceClassification override =
                 SourceClassificationRegistry.getOverride(sourceKey).orElse(null);
+        // The generic, mod-agnostic SourceClassificationRegistry override (the item editor's own
+        // Values sliders) otherwise always wins outright below, bypassing every attached mod's own
+        // per-mod exclusion concept entirely — a player excluding an item through, say, Nourished's
+        // own exclusion toggle had no effect on eating it if *any* mod's item editor had ever saved
+        // an override for that same item, since this override has no notion of which mod's exclusion
+        // should apply to it. If any attached mod now considers this item excluded, the override is
+        // set aside here so the pipeline falls through to the normal per-mod resolver merge below,
+        // which already correctly yields zero/empty for whichever mod's own exclusion applies.
+        if (override != null && stack != null && !stack.isEmpty() && MarieContext.isSourceExcludedByAnyMod(stack)) {
+            override = null;
+        }
 
         float totalAdded;
         Map<String, Float> valueDeltas;

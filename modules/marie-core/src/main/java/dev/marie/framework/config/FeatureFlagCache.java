@@ -45,4 +45,5 @@ public final class FeatureFlagCache {
     public static boolean enableAbsorptionModifiers() { return current.enableAbsorptionModifiers(); }
     public static boolean enableDebugLogging() { return current.enableDebugLogging(); }
     public static boolean enableCalorieHistory() { return current.enableCalorieHistory(); }
+    public static boolean enableDiminishingReturns() { return current.enableDiminishingReturns(); }
 }

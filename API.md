@@ -413,6 +413,7 @@ MarieComponent content = MarieModuleSettings.standardPanel("My Module", persiste
 - **Hide Icons:** enforced for any module drawn through `MarieModuleSettings.withDisplaySettings`; read it with `MarieModuleSettings.isIconsHidden(store, panelId)` if you draw icons yourself.
 - **Standalone controls:** `dev.marie.framework.ui.api.MarieWidgets` is the one-file facade for the parts the windows are built from, usable in any screen: `tabBar(id, titles...)` (`.onChange`, `.selected()`), `button(id, caption, action)` (`.enabledWhen`), `slider`/`intSlider` (rounded bar with arrow buttons), `toggle`, `choice` and `section(title, rows...)` (collapsible). Each returns a `MarieComponent`; values stay behind your getters/setters and `onCommit` runs once per finished edit.
 - **Colors:** `PanelBuilder.colorTab(...).color(...)` opens the shared round color picker.
+- **Decimal values:** `PanelBuilder.decimalSlider(label, get, set, min, max, step, decimals, unit, onCommit)` shows the raw value with `decimals` places plus `unit` ("293.15 K"); `slider` stays a percentage and `intSlider` a whole number. `button(label, () -> caption, action, onCommit)` takes a live caption.
 
 ## Versioning
 

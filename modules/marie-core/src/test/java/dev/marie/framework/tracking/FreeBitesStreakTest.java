@@ -1,5 +1,7 @@
 package dev.marie.framework.tracking;
 
+import dev.marie.framework.config.FeatureFlagCache;
+import dev.marie.framework.config.MarieModFeatureFlags;
 import dev.marie.framework.core.IMarieConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,6 +18,15 @@ class FreeBitesStreakTest {
 
     @BeforeEach
     void setUp() {
+        // recordSource() is a no-op unless the consuming mod's feature flags enable diminishing
+        // returns (see FeatureFlagCache) — a real mod calls FeatureFlagCache.sync() during init,
+        // which this test stands in for.
+        FeatureFlagCache.sync(new MarieModFeatureFlags(
+                true, true, true, true, true,
+                true, true, true, true, true,
+                true, true, true, true, true,
+                true, true, true, true
+        ));
         data = new TrackingData();
         data.setMemoryConfig(new DiminishingReturnsConfig(60L, 1.25, 5.0, 0.15, 0.5));
         now = 1_000_000L;

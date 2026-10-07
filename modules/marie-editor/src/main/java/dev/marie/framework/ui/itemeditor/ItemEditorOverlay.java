@@ -163,6 +163,26 @@ public final class ItemEditorOverlay {
         }
     }
 
+    @SubscribeEvent
+    public static void onKeyPressed(ScreenEvent.KeyPressed.Pre event) {
+        if (window == null || event.getScreen() != boundScreen) {
+            return;
+        }
+        if (window.keyPressed(event.getKeyCode(), event.getScanCode(), event.getModifiers())) {
+            event.setCanceled(true);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onCharTyped(ScreenEvent.CharacterTyped.Pre event) {
+        if (window == null || event.getScreen() != boundScreen) {
+            return;
+        }
+        if (window.charTyped(event.getCodePoint(), event.getModifiers())) {
+            event.setCanceled(true);
+        }
+    }
+
     /** Closes the overlay once the screen it was drawn on top of closes, so it doesn't linger over whatever opens next. */
     @SubscribeEvent
     public static void onScreenClosing(ScreenEvent.Closing event) {

@@ -37,7 +37,10 @@ import java.util.List;
 @ApiStatus.Internal
 final class ItemEditorWindow {
 
-    static final int DEFAULT_WIDTH = 260;
+    // Wide enough for the preview box + sliders side by side (see ItemEditorPanel#constraint) without
+    // a first-open resize snap — refreshMinSize() would correct an undersized default anyway, this
+    // just avoids the visible jump.
+    static final int DEFAULT_WIDTH = 320;
     static final int DEFAULT_HEIGHT = 260;
     private static final int MIN_WIDTH = 220;
     private static final int MIN_HEIGHT = 200;
@@ -147,7 +150,7 @@ final class ItemEditorWindow {
         Bounds livePreview = (panelDrag.isDragging() || panelDrag.isResizing()) ? panelDrag.mouseDragged(mouseX, mouseY) : null;
         Bounds activeBounds = livePreview != null ? livePreview : panelBounds;
 
-        drawChrome(context, activeBounds);
+        drawChrome(context, activeBounds, mouseX, mouseY);
 
         Bounds inner = new Bounds(contentBounds.x() + CONTENT_PADDING, contentBounds.y() + CONTENT_PADDING,
                 Math.max(0, contentBounds.width() - 2 * CONTENT_PADDING), Math.max(0, contentBounds.height() - 2 * CONTENT_PADDING));
@@ -166,13 +169,18 @@ final class ItemEditorWindow {
         // around, garbling both.
         panel.renderFileMenuOverlay(context);
 
+        // The active page's own overlay (see ItemEditorPage#renderOverlay), drawn after the inner
+        // clip above has already been popped so it can paint outside this window's own box, e.g. a
+        // floating color-picker window positioned beside it.
+        panel.renderActiveScreenOverlay(context, new Bounds(0, 0, context.screenWidth(), context.screenHeight()));
+
         if (scaleConfigVisible) {
             scaleConfigPanel.render(context, new Bounds(0, 0, context.screenWidth(), context.screenHeight()));
         }
     }
 
     /** Background/border (Style-tab opacity+shade), Glow/Pulse ring, title, the File/Info menu bar, and divider — everything {@code drawWindowChrome} draws, but through the player's own Style settings instead of fixed theme colors, plus the panel's menu bar between the title and the divider. */
-    private void drawChrome(RenderContext context, Bounds b) {
+    private void drawChrome(RenderContext context, Bounds b, int mouseX, int mouseY) {
         MarieModuleSettings.drawBoxGlow(context, store, panelId, b.x(), b.y(), b.width(), b.height());
         int background = MarieModuleSettings.styledBackground(context.theme().color(ThemeKey.PANEL_BACKGROUND), store, panelId);
         int border = MarieModuleSettings.styledBorder(context.theme().color(ThemeKey.BORDER), store, panelId);
@@ -188,7 +196,7 @@ final class ItemEditorWindow {
         int menuBarY = b.y() + RenderContext.WINDOW_CHROME_TITLE_ROW_HEIGHT;
         int menuBarHeight = panel.menuBarHeight();
         Bounds menuBarBounds = new Bounds(b.x() + CONTENT_PADDING, menuBarY, Math.max(0, b.width() - 2 * CONTENT_PADDING), menuBarHeight);
-        panel.renderMenuBar(context, menuBarBounds);
+        panel.renderMenuBar(context, menuBarBounds, mouseX, mouseY);
 
         int dividerY = menuBarY + menuBarHeight + MENU_DIVIDER_GAP;
         context.fillRect(b.x() + 1, dividerY, Math.max(0, b.width() - 2), 1, RenderContext.WINDOW_CHROME_DIVIDER_COLOR);
@@ -217,6 +225,11 @@ final class ItemEditorWindow {
         if (scaleConfigVisible && scaleConfigPanel.mouseClicked(mouseX, mouseY, button)) {
             return true;
         }
+        // Offered before everything else below, since the active page's overlay (e.g. a floating
+        // color-picker window) can be positioned outside this window's own box entirely.
+        if (panel.activeScreenOverlayMouseClicked(mouseX, mouseY, button)) {
+            return true;
+        }
         if (panel.menuBarMouseClicked(mouseX, mouseY, button)) {
             return true;
         }
@@ -234,6 +247,9 @@ final class ItemEditorWindow {
         if (scaleConfigVisible && scaleConfigPanel.mouseDragged(mouseX, mouseY, button)) {
             return true;
         }
+        if (panel.activeScreenOverlayMouseDragged(mouseX, mouseY, button, dragX, dragY)) {
+            return true;
+        }
         if (panelDrag.isDragging() || panelDrag.isResizing()) {
             panelDrag.mouseDragged((int) mouseX, (int) mouseY);
             return true;
@@ -243,6 +259,9 @@ final class ItemEditorWindow {
 
     boolean mouseReleased(double mouseX, double mouseY, int button) {
         if (scaleConfigVisible && scaleConfigPanel.mouseReleased(mouseX, mouseY, button)) {
+            return true;
+        }
+        if (panel.activeScreenOverlayMouseReleased(mouseX, mouseY, button)) {
             return true;
         }
         if (panelDrag.isDragging() || panelDrag.isResizing()) {
@@ -256,7 +275,18 @@ final class ItemEditorWindow {
         if (scaleConfigVisible && scaleConfigPanel.mouseScrolled(mouseX, mouseY, scrollX, scrollY)) {
             return true;
         }
+        if (panel.activeScreenOverlayMouseScrolled(mouseX, mouseY, scrollX, scrollY)) {
+            return true;
+        }
         return panel.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+    }
+
+    boolean charTyped(char codePoint, int modifiers) {
+        return panel.charTyped(codePoint, modifiers);
+    }
+
+    boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        return panel.keyPressed(keyCode, scanCode, modifiers);
     }
 
     /** Whether {@code (mouseX, mouseY)} falls within this window's own box, for a host that only wants to claim/cancel input it's actually over (the Style panel, when open, is handled by its own mouseClicked/Dragged/Released/Scrolled return value instead, since it can extend outside the box). */

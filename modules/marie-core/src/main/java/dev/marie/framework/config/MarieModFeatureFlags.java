@@ -25,7 +25,8 @@ public record MarieModFeatureFlags(
         boolean enableSeasonHooks,
         boolean enableAbsorptionModifiers,
         boolean enableDebugLogging,
-        boolean enableCalorieHistory
+        boolean enableCalorieHistory,
+        boolean enableDiminishingReturns
 ) {
     /**
      * Conservative defaults: all pipelines disabled.
@@ -36,7 +37,7 @@ public record MarieModFeatureFlags(
                 false, false, false, false, false,
                 false, false, false, false, false,
                 false, false, false, false, false,
-                false, false, false
+                false, false, false, false
         );
     }
 }

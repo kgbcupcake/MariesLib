@@ -37,10 +37,13 @@ import java.util.Set;
  * by whatever {@code ValueDefinition}s the consuming mod registers — not a fixed list):
  * <pre>
  * item_editor/
- *   source_classifications.json        — source id + calories + enabled (not tied to any one value)
  *   Source Classification/
+ *     General/source_classifications.json       — source id + calories + enabled (not tied to any one value)
  *     &lt;value key&gt;/source_classifications.json   — source id + that one value's override, one file per key
  * </pre>
+ * Nothing sits loose anywhere in this tree — every file lives inside some named folder, down to the
+ * {@code General} subfolder for the one file ({@code Source Classification}'s own id/calories/enabled
+ * data) that isn't tied to a value key the way its siblings are.
  * Replaces both SourceOverrideRegistry (source_overrides.json) and SourceValueRegistry (source_values.json).
  * On first load, migrates existing old files automatically — including a not-yet-split single combined
  * file from the earlier {@code overrides/Overrides/source_classifications.json} location, before the
@@ -110,6 +113,8 @@ public class SourceClassificationRegistry {
 
     /** Subfolder of {@code item_editor/} holding one subfolder per value key (the item editor's own sliders — Protein, Dairy, Vegetables, etc.), each with its own {@code source_classifications.json}. */
     private static final String CATEGORIES_DIR_NAME = "Source Classification";
+    /** The root (id/calories/enabled) file's own subfolder inside {@link #CATEGORIES_DIR_NAME} — not tied to any one value key, so it doesn't belong directly alongside the per-key ones, and (per the same "nothing sits loose" rule as {@code item_editor/} itself) it gets a folder of its own rather than sitting bare next to them. Excluded from the per-key category scan in {@link #parseSplit}/{@link #pruneStaleCategoryDirs}. */
+    private static final String GENERAL_DIR_NAME = "General";
     private static final String DATA_FILE_NAME = "source_classifications.json";
 
     public static void load() {
@@ -117,7 +122,16 @@ public class SourceClassificationRegistry {
         Path itemEditorDir = configDir.resolve("item_editor");
         Path categoriesDir = itemEditorDir.resolve(CATEGORIES_DIR_NAME);
         Path readmeDir = itemEditorDir.resolve("Read_Me");
-        Path rootFile = itemEditorDir.resolve(DATA_FILE_NAME);
+        // Lives inside categoriesDir/General/, its own subfolder, rather than loose directly inside
+        // categoriesDir alongside the per-value-key subfolders (or, before that, loose directly under
+        // item_editor/ itself) — nothing should sit loose anywhere in this tree; every file belongs in
+        // some named folder.
+        Path rootFile = categoriesDir.resolve(GENERAL_DIR_NAME).resolve(DATA_FILE_NAME);
+        // Earlier layouts of this class's own root file, both migrated like any other old location
+        // below: briefly loose directly under item_editor/, then loose directly under categoriesDir
+        // (a sibling of the per-key subfolders) before General/ was introduced.
+        Path oldLooseRootFile = itemEditorDir.resolve(DATA_FILE_NAME);
+        Path oldCategoriesRootFile = categoriesDir.resolve(DATA_FILE_NAME);
         // Pre-"item_editor" locations, oldest first: a bare config/<modid>/source_classifications.json
         // (or the even older source_overrides.json/source_values.json pair it replaced), then a flat
         // config/<modid>/overrides/source_classifications.json, then the most recent (still one combined
@@ -130,8 +144,17 @@ public class SourceClassificationRegistry {
         Path oldRootFile = configDir.resolve(DATA_FILE_NAME);
 
         try {
-            Files.createDirectories(categoriesDir);
             Files.createDirectories(readmeDir);
+            if (Files.exists(oldLooseRootFile) && !Files.exists(rootFile)) {
+                Files.createDirectories(rootFile.getParent());
+                Files.move(oldLooseRootFile, rootFile);
+            }
+            Files.deleteIfExists(oldLooseRootFile);
+            if (Files.exists(oldCategoriesRootFile) && !Files.exists(rootFile)) {
+                Files.createDirectories(rootFile.getParent());
+                Files.move(oldCategoriesRootFile, rootFile);
+            }
+            Files.deleteIfExists(oldCategoriesRootFile);
 
             boolean hasSplitData = Files.exists(rootFile) || hasAnyCategoryFile(categoriesDir);
             boolean hasLegacyData = Files.exists(oldDataFile) || Files.exists(oldFlatFile)
@@ -155,11 +178,15 @@ public class SourceClassificationRegistry {
                 pushToSourceRegistry();
                 LOGGER.warn("[SourceClassificationRegistry] Migrated {} entries into {}/{} (per-category subfolders)", INSTANCE.size(), itemEditorDir, CATEGORIES_DIR_NAME);
             } else {
-                writeSplit(rootFile, categoriesDir);
+                // Nothing saved yet anywhere (no split data, no legacy data to migrate): leave
+                // Source Classification/ unwritten entirely rather than creating an empty General/
+                // folder with a placeholder "[]" file — there's nothing to put in it yet. The item
+                // editor's own Save (writeSplit, via #save()) creates it the first time there's
+                // actually something worth persisting.
                 INSTANCE.reset();
                 INSTANCE.freeze();
                 pushToSourceRegistry();
-                LOGGER.info("[SourceClassificationRegistry] Wrote default source_classifications.json");
+                LOGGER.info("[SourceClassificationRegistry] No saved overrides yet");
             }
 
             Files.deleteIfExists(oldOverrides);
@@ -274,6 +301,9 @@ public class SourceClassificationRegistry {
             try (var dirs = Files.list(categoriesDir)) {
                 for (Path categoryDir : dirs.filter(Files::isDirectory).toList()) {
                     String category = categoryDir.getFileName().toString();
+                    if (GENERAL_DIR_NAME.equals(category)) {
+                        continue;
+                    }
                     Path file = categoryDir.resolve(DATA_FILE_NAME);
                     if (!Files.exists(file)) {
                         continue;
@@ -332,21 +362,40 @@ public class SourceClassificationRegistry {
     }
 
     /** Writes the current {@link #INSTANCE} out in the split layout: {@code rootFile} (id/calories/enabled) plus one {@code categoriesDir/<key>/source_classifications.json} per value key found across every entry's {@link SourceClassification#values()}. Prunes any category subfolder no longer referenced by any entry. */
+    /**
+     * Writes only what's actually meaningful: a category only gets a {@code (sourceId, value)} entry
+     * when that value is non-zero (the item editor's sliders always show 0 for any value the player
+     * never touched — treating "0" as "no override" here, rather than writing a zero-valued entry
+     * into every registered category's file for every saved source, is what keeps
+     * {@code Source Classification/} from filling up with files the player never asked for). Likewise
+     * the root entry (id/calories/enabled) is only written when it actually says something — a
+     * non-zero calorie override or an explicit {@code enabled: false}; a plain "enabled: true, no
+     * calories" entry with no non-zero values anywhere is skipped entirely, not persisted as an
+     * empty placeholder. A source with only category values and no meaningful root data still loads
+     * back correctly: {@link #parseSplit} already defaults a category-only source to enabled/no
+     * calories when it's missing from the root file.
+     */
     private static void writeSplit(Path rootFile, Path categoriesDir) throws IOException {
         JsonArray rootArr = new JsonArray();
         LinkedHashMap<String, JsonArray> byCategory = new LinkedHashMap<>();
         for (SourceClassification entry : INSTANCE.values()) {
-            JsonObject rootObj = new JsonObject();
-            rootObj.addProperty("source_id", entry.sourceId());
-            if (entry.calories() != 0) {
-                rootObj.addProperty("calories", entry.calories());
-            } else {
-                rootObj.addProperty("total", entry.total());
+            boolean meaningfulRoot = entry.calories() != 0 || !entry.enabled();
+            if (meaningfulRoot) {
+                JsonObject rootObj = new JsonObject();
+                rootObj.addProperty("source_id", entry.sourceId());
+                if (entry.calories() != 0) {
+                    rootObj.addProperty("calories", entry.calories());
+                } else {
+                    rootObj.addProperty("total", entry.total());
+                }
+                rootObj.addProperty("enabled", entry.enabled());
+                rootArr.add(rootObj);
             }
-            rootObj.addProperty("enabled", entry.enabled());
-            rootArr.add(rootObj);
 
             for (Map.Entry<String, Float> v : entry.values().entrySet()) {
+                if (v.getValue() == null || v.getValue() == 0f) {
+                    continue;
+                }
                 JsonObject catObj = new JsonObject();
                 catObj.addProperty("source_id", entry.sourceId());
                 catObj.addProperty("value", v.getValue());
@@ -354,7 +403,7 @@ public class SourceClassificationRegistry {
             }
         }
 
-        Files.createDirectories(categoriesDir);
+        Files.createDirectories(rootFile.getParent());
         try (Writer w = Files.newBufferedWriter(rootFile)) {
             GSON.toJson(rootArr, w);
         }
@@ -379,7 +428,8 @@ public class SourceClassificationRegistry {
         }
         try (var dirs = Files.list(categoriesDir)) {
             for (Path dir : dirs.filter(Files::isDirectory).toList()) {
-                if (sanitizedCurrent.contains(dir.getFileName().toString())) {
+                String dirName = dir.getFileName().toString();
+                if (GENERAL_DIR_NAME.equals(dirName) || sanitizedCurrent.contains(dirName)) {
                     continue;
                 }
                 try {
@@ -549,9 +599,9 @@ public class SourceClassificationRegistry {
     }
 
     public static void save() {
-        Path itemEditorDir = FMLPaths.CONFIGDIR.get().resolve(IMarieConfig.get().modId()).resolve("item_editor");
+        Path categoriesDir = FMLPaths.CONFIGDIR.get().resolve(IMarieConfig.get().modId()).resolve("item_editor").resolve(CATEGORIES_DIR_NAME);
         try {
-            writeSplit(itemEditorDir.resolve(DATA_FILE_NAME), itemEditorDir.resolve(CATEGORIES_DIR_NAME));
+            writeSplit(categoriesDir.resolve(GENERAL_DIR_NAME).resolve(DATA_FILE_NAME), categoriesDir);
             LOGGER.info("[SourceClassificationRegistry] Saved source_classifications.json");
         } catch (IOException e) {
             LOGGER.error("[SourceClassificationRegistry] Failed to save source_classifications.json", e);
