@@ -111,16 +111,31 @@ final class ItemEditorWindow {
                 .build();
         this.scaleConfigPanel = MarieScaleConfig.create(
                 List.of(new ScaleConfigEntry(panelId, title).withContent(stylePanel)),
-                store, Anchor.TOP_RIGHT);
+                store, Anchor.TOP_CENTER);
     }
 
     /** Sets the initial position/size the first time this is called, from the saved state or centered in {@code screenWidth}x{@code screenHeight}. A no-op on later calls. */
     void init(int screenWidth, int screenHeight) {
         if (panelBounds == null) {
             panelBounds = store.load(windowId)
-                    .map(s -> new Bounds(s.x(), s.y(), s.width(), s.height()))
+                    .map(s -> clampOnScreen(new Bounds(s.x(), s.y(), s.width(), s.height()), screenWidth, screenHeight))
                     .orElseGet(() -> new Bounds((screenWidth - DEFAULT_WIDTH) / 2, (screenHeight - DEFAULT_HEIGHT) / 2, DEFAULT_WIDTH, DEFAULT_HEIGHT));
         }
+    }
+
+    /**
+     * Pulls a loaded position back on-screen if it isn't — a bad drag/resize interaction (e.g. a
+     * resize handle that ended up far below/right of the visible screen, as happened when a page
+     * briefly reported an oversized preferred height) can save an x/y thousands of pixels off
+     * either edge, after which the window renders and persists there forever, indistinguishable
+     * from the window silently failing to open at all. Clamps so the window's full extent sits
+     * inside the screen whenever it fits, otherwise anchors it to the top-left corner so its title
+     * bar — the one thing a player needs to be able to grab and drag it back — is always reachable.
+     */
+    private static Bounds clampOnScreen(Bounds bounds, int screenWidth, int screenHeight) {
+        int x = Math.max(0, Math.min(bounds.x(), Math.max(0, screenWidth - bounds.width())));
+        int y = Math.max(0, Math.min(bounds.y(), Math.max(0, screenHeight - bounds.height())));
+        return x == bounds.x() && y == bounds.y() ? bounds : new Bounds(x, y, bounds.width(), bounds.height());
     }
 
     /** The slot's current screen-space area, for a JEI/REI/EMI ghost-ingredient handler to target. Null before {@link #init} has run. */
@@ -200,7 +215,7 @@ final class ItemEditorWindow {
 
         int dividerY = menuBarY + menuBarHeight + MENU_DIVIDER_GAP;
         context.fillRect(b.x() + 1, dividerY, Math.max(0, b.width() - 2), 1, RenderContext.WINDOW_CHROME_DIVIDER_COLOR);
-        contentBounds = new Bounds(b.x(), dividerY + 1, b.width(), Math.max(0, b.y() + b.height() - (dividerY + 1 - b.y())));
+        contentBounds = new Bounds(b.x(), dividerY + 1, b.width(), Math.max(0, b.y() + b.height() - (dividerY + 1)));
     }
 
     /** {@link #chromeOverhead()}'s worth of space plus the panel's own content-derived preferred size, so a drag/resize can never shrink the box smaller than what's actually in it — the generic floor every {@link DraggableResizable} resize already enforces via {@link Constraint#minSize()}, refreshed here each frame since the panel's preferred size changes with the targeted item (more/fewer value rows). Also grows an already-too-small persisted box (e.g. after switching to an item with more rows) instead of letting its content spill past the border. */

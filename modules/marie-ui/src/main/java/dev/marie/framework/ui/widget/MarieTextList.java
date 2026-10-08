@@ -22,14 +22,17 @@ public final class MarieTextList implements MarieComponent {
     public static final int LINE_HEIGHT = 10;
     private static final int SCROLLBAR_WIDTH = 3;
 
+    /** One source line plus the color it (and every line it wraps into) renders with. */
+    public record Line(String text, int color) {}
+
     private final String id;
     private final int maxLines;
-    private final List<String> lines = new ArrayList<>();
+    private final List<Line> lines = new ArrayList<>();
     private int textColor = 0xFFE0E0E0;
     private int scrollRow;
     private boolean followTail = true;
 
-    private List<String> wrapped = List.of();
+    private List<Line> wrapped = List.of();
     private int wrappedWidth = -1;
     private Bounds lastBounds = new Bounds(0, 0, 0, 0);
 
@@ -39,13 +42,18 @@ public final class MarieTextList implements MarieComponent {
         this.maxLines = Math.max(1, maxLines);
     }
 
+    /** Sets the default color new plain-text lines (added via {@link #add(String)}) use. */
     public MarieTextList withTextColor(int argb) {
         this.textColor = argb;
         return this;
     }
 
     public void add(String line) {
-        lines.add(line);
+        add(line, textColor);
+    }
+
+    public void add(String line, int color) {
+        lines.add(new Line(line, color));
         while (lines.size() > maxLines) {
             lines.remove(0);
         }
@@ -59,6 +67,18 @@ public final class MarieTextList implements MarieComponent {
     public void setLines(List<String> newLines) {
         lines.clear();
         addAll(newLines);
+        scrollRow = 0;
+        followTail = false;
+    }
+
+    /** Same as {@link #setLines(List)}, but each line carries its own color. */
+    public void setColoredLines(List<Line> newLines) {
+        lines.clear();
+        lines.addAll(newLines);
+        while (lines.size() > maxLines) {
+            lines.remove(0);
+        }
+        wrappedWidth = -1;
         scrollRow = 0;
         followTail = false;
     }
@@ -101,7 +121,8 @@ public final class MarieTextList implements MarieComponent {
         try {
             int end = Math.min(wrapped.size(), scrollRow + visibleRows);
             for (int row = scrollRow; row < end; row++) {
-                ctx.drawText(wrapped.get(row), bounds.x() + 1, bounds.y() + (row - scrollRow) * LINE_HEIGHT, textColor, 1f);
+                Line line = wrapped.get(row);
+                ctx.drawText(line.text(), bounds.x() + 1, bounds.y() + (row - scrollRow) * LINE_HEIGHT, line.color(), 1f);
             }
             if (maxScroll > 0) {
                 int trackH = bounds.height();
@@ -132,9 +153,11 @@ public final class MarieTextList implements MarieComponent {
         if (width == wrappedWidth) {
             return;
         }
-        List<String> out = new ArrayList<>();
-        for (String line : lines) {
-            out.addAll(wrap(line, width, s -> ctx.textWidth(s, 1f)));
+        List<Line> out = new ArrayList<>();
+        for (Line line : lines) {
+            for (String segment : wrap(line.text(), width, s -> ctx.textWidth(s, 1f))) {
+                out.add(new Line(segment, line.color()));
+            }
         }
         wrapped = out;
         wrappedWidth = width;

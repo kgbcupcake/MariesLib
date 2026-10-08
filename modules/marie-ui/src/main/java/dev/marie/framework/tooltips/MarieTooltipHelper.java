@@ -98,6 +98,12 @@ public final class MarieTooltipHelper {
         }
         TrackingData tracking = headerCtx.clientTrackingDataProvider().get();
         long gameTimeMs = tracking.lastTickTime > 0 ? tracking.lastTickTime : 0L;
+        // peekMultiplier reads whatever DiminishingReturnsConfig is currently injected on `tracking`
+        // (set by the last full/delta sync, via the mod-wide clientMemoryConfigProvider) — re-inject
+        // the source-aware config for this specific hovered item first, so a per-item exemption shows
+        // up in the "Diminished (N%)" preview the same way it already applies server-side on eat,
+        // instead of this preview always reflecting the mod-wide curve for every item.
+        tracking.setMemoryConfig(headerCtx.clientMemoryConfig(itemId));
         float multiplier = player != null ? tracking.peekMultiplier(itemId, dominantCategory, familyKey, gameTimeMs) : 1.0f;
 
         lines.add(Component.literal("✦ " + modId).withStyle(ChatFormatting.GOLD));

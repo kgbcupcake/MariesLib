@@ -56,6 +56,18 @@ public interface IMarieConfig extends MarieLibSettings {
 
     DiminishingReturnsConfig trackingMemoryConfig();
 
+    /**
+     * Source-aware variant of {@link #trackingMemoryConfig()}, letting a consuming mod return a
+     * different curve for a specific source item/trigger (e.g. an item flagged to bypass
+     * diminishing returns entirely). {@code sourceKey} is the trigger's {@code sourceId()} and may
+     * be null. Default delegates to {@link #trackingMemoryConfig()} for implementers that have no
+     * per-source concept.
+     */
+    @ApiStatus.Internal
+    default DiminishingReturnsConfig trackingMemoryConfig(String sourceKey) {
+        return trackingMemoryConfig();
+    }
+
     JsonObject configExporter();
 
     void configImporter(JsonObject json);

@@ -64,7 +64,8 @@ public final class SourceApplicationPipeline {
             return;
         }
 
-        DiminishingReturnsConfigOrNull config = resolveMemoryConfig();
+        String sourceKey = trigger.sourceId();
+        DiminishingReturnsConfigOrNull config = resolveMemoryConfig(sourceKey);
         tracking.setMemoryConfig(config.config());
 
         MarieEvents.SourceTriggerEvent triggerEvent =
@@ -85,7 +86,6 @@ public final class SourceApplicationPipeline {
         boolean debugApplyLog = FeatureFlagCache.enableDebugLogging();
         Map<String, Float> valuesBefore = debugApplyLog ? snapshotValues(tracking) : Map.of();
 
-        String sourceKey = trigger.sourceId();
         SourceClassificationRegistry.SourceClassification override =
                 SourceClassificationRegistry.getOverride(sourceKey).orElse(null);
         // The generic, mod-agnostic SourceClassificationRegistry override (the item editor's own
@@ -463,8 +463,22 @@ public final class SourceApplicationPipeline {
         return false;
     }
 
-    private static DiminishingReturnsConfigOrNull resolveMemoryConfig() {
-        return new DiminishingReturnsConfigOrNull(IMarieConfig.get().trackingMemoryConfig(), false);
+    /**
+     * {@link MarieContext#get()} returns whichever mod registered last — fine for the common
+     * single-mod case, but when a second MariesLib-based mod attaches afterward it silently steals
+     * that slot, and a source-aware {@code trackingMemoryConfigProvider} an earlier mod registered
+     * (e.g. for a per-item diminishing-returns exemption) would never be consulted again even though
+     * that mod is still fully attached. Scanning every attached mod for the one that actually
+     * registered a source-aware provider — instead of trusting {@code get()}'s "last wins" context —
+     * keeps this resolving correctly regardless of attach order or how many mods share MariesLib.
+     */
+    private static DiminishingReturnsConfigOrNull resolveMemoryConfig(String sourceKey) {
+        for (MarieContext modCtx : MarieModRegistry.getAll()) {
+            if (modCtx.hasSourceAwareMemoryConfigProvider()) {
+                return new DiminishingReturnsConfigOrNull(modCtx.trackingMemoryConfig(sourceKey), false);
+            }
+        }
+        return new DiminishingReturnsConfigOrNull(IMarieConfig.get().trackingMemoryConfig(sourceKey), false);
     }
 
     private static Map<String, Float> snapshotValues(TrackingData tracking) {
