@@ -57,6 +57,8 @@ public final class MarieRequestChannel {
     public static final int MAX_LINE_CHARS = 1024;
     public static final int MAX_RESPONSE_BYTES = 512 * 1024;
     private static final int MAX_LINES_ON_WIRE = 100_000;
+    /** Room kept free for the truncation marker line, which is at most ~45 UTF-8 bytes plus framing. */
+    private static final int TRUNCATION_MARKER_RESERVE = 64;
 
     /** What the server computes for one request. {@code label} says which side/JVM produced it. */
     public record Response(String label, List<String> lines) {}
@@ -170,7 +172,8 @@ public final class MarieRequestChannel {
 
     /**
      * Cuts each line to {@link #MAX_LINE_CHARS} and stops once the total UTF-8 size would exceed
-     * {@code byteBudget}, ending with a marker line saying how many lines were dropped.
+     * {@code byteBudget}, ending with a marker line saying how many lines were dropped. The marker
+     * itself counts against the budget.
      */
     static List<String> clampLines(List<String> lines, int byteBudget) {
         List<String> out = new ArrayList<>();
@@ -178,7 +181,8 @@ public final class MarieRequestChannel {
         for (int i = 0; i < lines.size(); i++) {
             String line = truncate(lines.get(i), MAX_LINE_CHARS);
             int size = line.getBytes(StandardCharsets.UTF_8).length + 4;
-            if (used + size > byteBudget || out.size() >= MAX_LINES_ON_WIRE - 1) {
+            int reserve = i == lines.size() - 1 ? 0 : TRUNCATION_MARKER_RESERVE;
+            if (used + size + reserve > byteBudget || out.size() >= MAX_LINES_ON_WIRE - 1) {
                 out.add("... truncated, " + (lines.size() - i) + " more line(s)");
                 return out;
             }

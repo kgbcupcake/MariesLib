@@ -217,6 +217,12 @@ public final class OptionLayout implements MarieComponent {
         if (button != 0) {
             return false;
         }
+        // Unconditional, regardless of where this click lands: a focused text row (see
+        // OptionRow#blur) must drop focus on any click elsewhere, including the tab strip or
+        // outside this layout entirely — not just a click that another row goes on to consume.
+        for (OptionRow row : allRows()) {
+            row.blur();
+        }
         if (tabs.size() > 1 && tabRow.mouseClicked(mouseX, mouseY)) {
             scroll = 0;
             return true;
@@ -226,6 +232,28 @@ public final class OptionLayout implements MarieComponent {
         }
         for (OptionRow row : selectedRows()) {
             if (row.mouseClicked(mouseX, mouseY)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Routes a typed character to whichever row currently holds focus (see {@link OptionRow#charTyped}), on the selected tab only. */
+    @Override
+    public boolean charTyped(char codePoint, int modifiers) {
+        for (OptionRow row : selectedRows()) {
+            if (row.charTyped(codePoint, modifiers)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Routes a raw key press to whichever row currently holds focus (see {@link OptionRow#keyPressed}), on the selected tab only. */
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        for (OptionRow row : selectedRows()) {
+            if (row.keyPressed(keyCode, scanCode, modifiers)) {
                 return true;
             }
         }

@@ -11,6 +11,7 @@ import com.mojang.serialization.RecordBuilder;
 import dev.marie.framework.api.ApiStatus;
 
 
+import dev.marie.framework.config.FeatureFlagCache;
 import dev.marie.framework.core.IMarieConfig;
 import dev.marie.framework.core.MarieCore;
 import dev.marie.framework.core.MarieContext;
@@ -107,6 +108,10 @@ public class TrackingData {
 
     private static double configuredDiminishingMidpoint() {
         return IMarieConfig.get().diminishingMidpoint();
+    }
+
+    private static boolean configuredDiminishingReturnsEnabled() {
+        return FeatureFlagCache.enableDiminishingReturns();
     }
 
     // ── Codec ─────────────────────────────────────────────────────────────────
@@ -481,7 +486,11 @@ public class TrackingData {
      */
     @ApiStatus.Experimental
     public float recordSource(String sourceKey, String dominantCategory, String familyKey, long gameTimeMs) {
-        
+        if (!configuredDiminishingReturnsEnabled()) {
+            this.lastTickTime = resolveCurrentTime(gameTimeMs);
+            return 1.0f;
+        }
+
         int maxCount = configuredMemoryWindowCount();
         long streakWindowMs = configuredStreakWindowMs();
         float streakWeight = configuredStreakWeight();
@@ -570,6 +579,9 @@ public class TrackingData {
      */
     @ApiStatus.Experimental
     public float peekMultiplier(String sourceKey) {
+        if (!configuredDiminishingReturnsEnabled()) {
+            return 1.0f;
+        }
         long halfLifeMs = config().memoryWindowMinutes() * 60_000L;
         long gameTimeMs = resolveCurrentTime(0L);
         SourceMemoryEntry entry = sourceMemory.get(sourceKey);
@@ -716,6 +728,9 @@ public class TrackingData {
      */
     @ApiStatus.Experimental
     public float computeBlendedMultiplier(String itemId, String dominantCategory, String familyKey, long gameTimeMs) {
+        if (!configuredDiminishingReturnsEnabled()) {
+            return 1.0f;
+        }
         DiminishingReturnsConfig memCfg = config();
         long halfLifeMs = memCfg.memoryWindowMinutes() * 60_000L;
         double floor = memCfg.diminishingFloor();
@@ -874,6 +889,9 @@ public class TrackingData {
      */
     @ApiStatus.Experimental
     public MultiplierBreakdown getMultiplierBreakdown(String sourceKey, String dominantCategory, String familyKey, long gameTimeMs) {
+        if (!configuredDiminishingReturnsEnabled()) {
+            return new MultiplierBreakdown(1f, 0f, 0f, 1f, 1f, 1f, 0f, 0f);
+        }
         DiminishingReturnsConfig memCfg = config();
         long halfLifeMs = memCfg.memoryWindowMinutes() * 60_000L;
         double noveltyBonus = memCfg.noveltyBonus();

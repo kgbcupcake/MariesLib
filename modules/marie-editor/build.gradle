@@ -13,6 +13,12 @@ dependencies {
     implementation project(':marie-core')
     implementation project(':marie-ui')
 
+    // JEI ghost-ingredient / EMI drag-drop support for the item editor screen (itemeditor
+    // plugins), matching marie-ui's own compileOnly declarations for each.
+    compileOnly "mezz.jei:jei-${minecraft_version}-common-api:${jei_version}"
+    compileOnly "mezz.jei:jei-${minecraft_version}-neoforge-api:${jei_version}"
+    compileOnly "dev.emi:emi-neoforge:${emi_version}"
+
     // Gson and FMLPaths are on the compile classpath transitively via NeoForge, but that
     // classpath isn't wired into plain JUnit tests (unlike marie-core, this module has no mod
     // metadata to run the moddev unitTest bootstrap against) — so tests need them declared

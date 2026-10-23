@@ -75,7 +75,6 @@ public final class MarieBootstrap {
     private static volatile Supplier<Object> configScreenFactory = () -> null;
     private static volatile Function<Object, Object> exportScreenFactory = parent -> null;
     private static volatile Function<Object, Object> importScreenFactory = parent -> null;
-    private static volatile IEventBus attachedModEventBus;
 
     private MarieBootstrap() {}
 
@@ -111,20 +110,16 @@ public final class MarieBootstrap {
         MilestoneProgressAttachment.register(modEventBus);
         TrackerMilestoneProgressAttachment.register(modEventBus);
 
-        attachedModEventBus = modEventBus;
-        modEventBus.addListener(MarieBootstrap::onCommonSetup);
+        modEventBus.addListener((FMLCommonSetupEvent event) -> onCommonSetup(event, modEventBus));
         modEventBus.addListener(MarieBootstrap::onLoadComplete);
 
         MarieCore.LOGGER.info("[MarieLib] Attached to mod: {}", modId);
     }
 
-    private static void onCommonSetup(FMLCommonSetupEvent event) {
+    private static void onCommonSetup(FMLCommonSetupEvent event, IEventBus modEventBus) {
         event.enqueueWork(() -> {
             registerRegistries();
-            IEventBus bus = attachedModEventBus;
-            if (bus != null) {
-                registerHandlers(bus);
-            }
+            registerHandlers(modEventBus);
             RegistryLifecycleManager.loadAll();
         });
     }

@@ -83,6 +83,7 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
     private final Supplier<Boolean> scannerEnableRecipeInheritance;
     private final Supplier<Boolean> enableDebugLogging;
     private final Supplier<Predicate<ItemStack>> sourceItemFilter;
+    private final Supplier<Predicate<ItemStack>> sourceExclusionFilter;
     private final Supplier<Long> memoryWindowMinutes;
     private final Supplier<Integer> memoryWindowCount;
     private final Supplier<Long> streakWindowMs;
@@ -101,6 +102,7 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
     private final Function<Object, Object> importScreenFactory;
     private final Consumer<Map<String, Float>> onValuesDeltaReceived;
     private final Supplier<DiminishingReturnsConfig> clientMemoryConfigProvider;
+    private final Function<String, DiminishingReturnsConfig> clientMemoryConfigBySourceProvider;
     private final Supplier<JsonObject> configExporter;
     private final Consumer<JsonObject> configImporter;
     private final Supplier<PresetRegistry.PresetValues> currentConfigPresetValues;
@@ -118,6 +120,8 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
     private final DoubleSupplier multiValueInheritanceThreshold;
     private final ResolutionStageHandler[] runtimeResolverStages;
     private final Supplier<DiminishingReturnsConfig> trackingMemoryConfigProvider;
+    @Nullable
+    private final Function<String, DiminishingReturnsConfig> trackingMemoryConfigBySourceProvider;
     private final BiFunction<ItemStack, Level, Map<String, Float>> sourceValueResolver;
     private final SourceDeltaResolver sourceDeltaResolver;
     private final BiConsumer<ServerPlayer, TrackingData> effectApplier;
@@ -153,6 +157,7 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
         this.scannerEnableRecipeInheritance = builder.scannerEnableRecipeInheritance;
         this.enableDebugLogging = builder.enableDebugLogging;
         this.sourceItemFilter = builder.sourceItemFilter;
+        this.sourceExclusionFilter = builder.sourceExclusionFilter;
         this.memoryWindowMinutes = builder.memoryWindowMinutes;
         this.memoryWindowCount = builder.memoryWindowCount;
         this.streakWindowMs = builder.streakWindowMs;
@@ -171,6 +176,7 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
         this.importScreenFactory = builder.importScreenFactory;
         this.onValuesDeltaReceived = builder.onValuesDeltaReceived;
         this.clientMemoryConfigProvider = builder.clientMemoryConfigProvider;
+        this.clientMemoryConfigBySourceProvider = builder.clientMemoryConfigBySourceProvider;
         this.configExporter = builder.configExporter;
         this.configImporter = builder.configImporter;
         this.currentConfigPresetValues = builder.currentConfigPresetValues;
@@ -188,6 +194,7 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
         this.multiValueInheritanceThreshold = builder.multiValueInheritanceThreshold;
         this.runtimeResolverStages = builder.runtimeResolverStages;
         this.trackingMemoryConfigProvider = builder.trackingMemoryConfigProvider;
+        this.trackingMemoryConfigBySourceProvider = builder.trackingMemoryConfigBySourceProvider;
         this.sourceValueResolver = builder.sourceValueResolver;
         this.sourceDeltaResolver = builder.sourceDeltaResolver;
         this.effectApplier = builder.effectApplier;
@@ -323,12 +330,31 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
     /**
      * True if any attached mod's {@link #sourceItemFilter()} allows this stack as a value source —
      * an item excluded by one mod's filter may still be a legitimate source for another mod's
-     * values, so a single mod objecting must not veto every other mod.
+     * values, so a single mod objecting must not veto every other mod. The default filter (for a
+     * mod that never calls {@link Builder#sourceItemFilter}) rejects everything, so a mod with no
+     * opinion on source items abstains rather than voting yes for every item on behalf of mods
+     * that did configure a real filter.
      */
     @ApiStatus.Experimental
     public static boolean isSourceItemAllowed(ItemStack stack) {
         for (MarieContext ctx : MarieModRegistry.getAll()) {
             if (ctx.sourceItemFilter().test(stack)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * True if any attached mod's {@link #sourceExclusionFilter()} considers {@code stack} excluded
+     * from its own classification — the OR, not a unanimous vote, since one mod's player-authored
+     * exclusion is a real "don't apply my values to this item" and must not be diluted by every
+     * other attached mod abstaining (the default filter).
+     */
+    @ApiStatus.Experimental
+    public static boolean isSourceExcludedByAnyMod(ItemStack stack) {
+        for (MarieContext ctx : MarieModRegistry.getAll()) {
+            if (ctx.sourceExclusionFilter().test(stack)) {
                 return true;
             }
         }
@@ -376,6 +402,20 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
     @ApiStatus.Internal
     public Predicate<ItemStack> sourceItemFilter() {
         return sourceItemFilter.get();
+    }
+
+    /**
+     * Whether {@code this} mod considers {@code stack} excluded from its own value classification —
+     * e.g. a player-authored "don't classify this item" toggle a mod builds on top of MariesLib (see
+     * {@link dev.marie.framework.handler.SourceApplicationPipeline#process}, which consults this
+     * across every attached mod before letting a generic {@code SourceClassificationRegistry}
+     * override win outright). The default (for a mod that never calls {@link
+     * Builder#sourceExclusionFilter}) rejects nothing, matching a mod with no exclusion concept of
+     * its own staying silent rather than vetoing an item on behalf of a mod that does have one.
+     */
+    @ApiStatus.Internal
+    public Predicate<ItemStack> sourceExclusionFilter() {
+        return sourceExclusionFilter.get();
     }
 
     @ApiStatus.Internal
@@ -466,6 +506,23 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
     @ApiStatus.Internal
     public DiminishingReturnsConfig clientMemoryConfigProvider() {
         return clientMemoryConfigProvider.get();
+    }
+
+    /**
+     * Source-aware client-side variant, mirroring {@link #trackingMemoryConfig(String)} on the
+     * server side: consulted by tooltip rendering ({@code MarieTooltipHelper}) so the "Diminished
+     * (N%)" preview line and its scaled gain numbers reflect a per-item exemption the same way the
+     * actual server-side application does, instead of always falling back to one curve for every
+     * item. Falls back to {@link #clientMemoryConfigProvider()} when the consumer never called
+     * {@link Builder#clientMemoryConfigProvider(Function)}.
+     */
+    @ApiStatus.Internal
+    public DiminishingReturnsConfig clientMemoryConfig(String sourceKey) {
+        if (clientMemoryConfigBySourceProvider == null) {
+            return clientMemoryConfigProvider();
+        }
+        DiminishingReturnsConfig cfg = clientMemoryConfigBySourceProvider.apply(sourceKey);
+        return cfg != null ? cfg : defaultDiminishingReturnsConfig();
     }
 
     @ApiStatus.Internal
@@ -571,10 +628,39 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
         return runtimeResolverStages;
     }
 
+    @Override
     @ApiStatus.Internal
     public DiminishingReturnsConfig trackingMemoryConfig() {
         DiminishingReturnsConfig cfg = trackingMemoryConfigProvider.get();
         return cfg != null ? cfg : defaultDiminishingReturnsConfig();
+    }
+
+    /**
+     * Source-aware variant consulted by {@link dev.marie.framework.handler.SourceApplicationPipeline#process}
+     * so a mod can return a different curve for a specific source item/trigger (e.g. an item flagged
+     * to bypass diminishing returns). Falls back to {@link #trackingMemoryConfig()} when the consumer
+     * never called {@link Builder#trackingMemoryConfigProvider(Function)}.
+     */
+    @Override
+    @ApiStatus.Internal
+    public DiminishingReturnsConfig trackingMemoryConfig(String sourceKey) {
+        if (trackingMemoryConfigBySourceProvider == null) {
+            return trackingMemoryConfig();
+        }
+        DiminishingReturnsConfig cfg = trackingMemoryConfigBySourceProvider.apply(sourceKey);
+        return cfg != null ? cfg : defaultDiminishingReturnsConfig();
+    }
+
+    /**
+     * Whether this context registered a source-aware {@link Builder#trackingMemoryConfigProvider(Function)}.
+     * Lets {@link dev.marie.framework.handler.SourceApplicationPipeline#process} pick out, among every
+     * attached mod, the one that actually wants per-source control over the diminishing-returns curve
+     * — rather than trusting {@link #get()}'s "last-registered wins" context, which silently drops a
+     * source-aware provider the moment a second MariesLib-based mod attaches after it.
+     */
+    @ApiStatus.Internal
+    public boolean hasSourceAwareMemoryConfigProvider() {
+        return trackingMemoryConfigBySourceProvider != null;
     }
 
     @ApiStatus.Internal
@@ -854,7 +940,8 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
         private Supplier<Float> compositeRatioThreshold = () -> 0.5f;
         private Supplier<Boolean> scannerEnableRecipeInheritance = () -> false;
         private Supplier<Boolean> enableDebugLogging = () -> false;
-        private Supplier<Predicate<ItemStack>> sourceItemFilter = () -> stack -> true;
+        private Supplier<Predicate<ItemStack>> sourceItemFilter = () -> stack -> false;
+        private Supplier<Predicate<ItemStack>> sourceExclusionFilter = () -> stack -> false;
         private Supplier<Long> memoryWindowMinutes = () -> 60L;
         private Supplier<Integer> memoryWindowCount = () -> 20;
         private Supplier<Long> streakWindowMs = () -> 300_000L;
@@ -873,6 +960,7 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
         private Function<Object, Object> importScreenFactory = parent -> null;
         private Consumer<Map<String, Float>> onValuesDeltaReceived = delta -> {};
         private Supplier<DiminishingReturnsConfig> clientMemoryConfigProvider = MarieContext::defaultDiminishingReturnsConfig;
+        private Function<String, DiminishingReturnsConfig> clientMemoryConfigBySourceProvider = null;
         private Supplier<JsonObject> configExporter = MariesLibConfigBridge::buildExportRoot;
         private Consumer<JsonObject> configImporter = MariesLibConfigBridge::applyImport;
         private Supplier<PresetRegistry.PresetValues> currentConfigPresetValues = PresetRegistry.PresetValues::empty;
@@ -893,6 +981,8 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
         private DoubleSupplier multiValueInheritanceThreshold = () -> 0.20;
         private ResolutionStageHandler[] runtimeResolverStages = new ResolutionStageHandler[0];
         private Supplier<DiminishingReturnsConfig> trackingMemoryConfigProvider = MarieContext::defaultDiminishingReturnsConfig;
+        @Nullable
+        private Function<String, DiminishingReturnsConfig> trackingMemoryConfigBySourceProvider = null;
         private BiFunction<ItemStack, Level, Map<String, Float>> sourceValueResolver;
         private SourceDeltaResolver sourceDeltaResolver = MarieContext::defaultSourceDeltaResolver;
         private BiConsumer<ServerPlayer, TrackingData> effectApplier = (p, d) -> {};
@@ -933,8 +1023,29 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
         public Builder compositeRatioThreshold(Supplier<Float> s) { this.compositeRatioThreshold = s; return this; }
         public Builder scannerEnableRecipeInheritance(Supplier<Boolean> s) { this.scannerEnableRecipeInheritance = s; return this; }
         public Builder enableDebugLogging(Supplier<Boolean> s) { this.enableDebugLogging = s; return this; }
+        /**
+         * Restricts which items this mod will offer up as value sources (to
+         * {@link dev.marie.framework.scanner.ItemScanner} and
+         * {@link dev.marie.framework.runtime.RuntimeResolver}). Defaults to rejecting everything — a
+         * mod that has no concept of "source items" (e.g. one only using Marieslib for its
+         * config-screen plumbing) should leave this unset rather than accept everything, since
+         * {@link #isSourceItemAllowed} ORs every attached mod's filter together and an unset
+         * accept-all filter would silently make every item scannable for every other mod too.
+         */
         @ApiStatus.Experimental
         public Builder sourceItemFilter(Supplier<Predicate<ItemStack>> s) { this.sourceItemFilter = s; return this; }
+        /**
+         * A predicate for "is {@code stack} excluded from my own value classification" — e.g. a
+         * player-authored exclusion toggle a mod builds on top of MariesLib (Nourished's "Excluded
+         * from classification" item-editor page is the first consumer). Checked across every
+         * attached mod by {@link #isSourceExcludedByAnyMod} wherever a generic, mod-agnostic
+         * mechanism (like a {@code SourceClassificationRegistry} override) would otherwise bypass
+         * per-mod exclusion entirely. Leave unset (rejects nothing) for a mod with no exclusion
+         * concept of its own, the same reasoning {@link #sourceItemFilter} documents for its own
+         * unset default.
+         */
+        @ApiStatus.Experimental
+        public Builder sourceExclusionFilter(Supplier<Predicate<ItemStack>> s) { this.sourceExclusionFilter = s; return this; }
         public Builder memoryWindowMinutes(Supplier<Long> s) { this.memoryWindowMinutes = s; return this; }
         public Builder memoryWindowCount(Supplier<Integer> s) { this.memoryWindowCount = s; return this; }
         public Builder streakWindowMs(Supplier<Long> s) { this.streakWindowMs = s; return this; }
@@ -955,6 +1066,14 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
         @ApiStatus.Experimental
         public Builder onValuesDeltaReceived(Consumer<Map<String, Float>> c) { this.onValuesDeltaReceived = c; return this; }
         public Builder clientMemoryConfigProvider(Supplier<DiminishingReturnsConfig> s) { this.clientMemoryConfigProvider = s; return this; }
+        /**
+         * Source-aware overload of {@link #clientMemoryConfigProvider(Supplier)}: {@code f} is
+         * invoked with the hovered item's id so tooltip rendering ({@code MarieTooltipHelper}) can
+         * show a per-item exemption in its "Diminished (N%)" preview the same way the server-side
+         * application already honors it, instead of always using one curve for every item.
+         */
+        @ApiStatus.Experimental
+        public Builder clientMemoryConfigProvider(Function<String, DiminishingReturnsConfig> f) { this.clientMemoryConfigBySourceProvider = f; return this; }
         public Builder configExporter(Supplier<JsonObject> s) { this.configExporter = s; return this; }
         public Builder configImporter(Consumer<JsonObject> c) { this.configImporter = c; return this; }
         public Builder currentConfigPresetValues(Supplier<PresetRegistry.PresetValues> s) { this.currentConfigPresetValues = s; return this; }
@@ -982,6 +1101,15 @@ public final class MarieContext implements MarieLibSettings, IMarieConfig {
         @ApiStatus.Experimental
         public Builder runtimeResolverStages(ResolutionStageHandler[] stages) { this.runtimeResolverStages = stages; return this; }
         public Builder trackingMemoryConfigProvider(Supplier<DiminishingReturnsConfig> s) { this.trackingMemoryConfigProvider = s; return this; }
+        /**
+         * Source-aware overload of {@link #trackingMemoryConfigProvider(Supplier)}: {@code f} is
+         * invoked with the triggering source's {@code sourceId()} (may be null) so a mod can return
+         * a different curve for specific items (e.g. one flagged to bypass diminishing returns)
+         * instead of one curve for every source. Setting this takes priority over the no-arg
+         * overload at lookup time ({@link MarieContext#trackingMemoryConfig(String)}).
+         */
+        @ApiStatus.Experimental
+        public Builder trackingMemoryConfigProvider(Function<String, DiminishingReturnsConfig> f) { this.trackingMemoryConfigBySourceProvider = f; return this; }
         @ApiStatus.Experimental
         public Builder sourceValueResolver(BiFunction<ItemStack, Level, Map<String, Float>> f) { this.sourceValueResolver = f; return this; }
         @ApiStatus.Experimental

@@ -15,8 +15,21 @@ class MarieRequestChannelTest {
 
     @Test
     void overBudgetEndsWithMarkerCountingDroppedLines() {
-        List<String> out = MarieRequestChannel.clampLines(List.of("aaaa", "bbbb", "cccc", "dddd"), 20);
+        List<String> out = MarieRequestChannel.clampLines(List.of("aaaa", "bbbb", "cccc", "dddd"), 80);
         assertEquals(List.of("aaaa", "bbbb", "... truncated, 2 more line(s)"), out);
+    }
+
+    @Test
+    void truncationMarkerStaysWithinBudget() {
+        List<String> lines = java.util.Collections.nCopies(10_000, "x".repeat(100));
+        int budget = 4096;
+        List<String> out = MarieRequestChannel.clampLines(lines, budget);
+        assertTrue(out.get(out.size() - 1).startsWith("... truncated, "));
+        int used = 0;
+        for (String line : out) {
+            used += line.getBytes(java.nio.charset.StandardCharsets.UTF_8).length + 4;
+        }
+        assertTrue(used <= budget, "clamped output used " + used + " of " + budget + " bytes");
     }
 
     @Test

@@ -30,6 +30,8 @@ public final class SliderOption implements OptionRow {
     private final Runnable onCommit;
     /** Suffix shown after the value in place of a percentage ("60 px"); null shows the value as a percent. */
     private final String unit;
+    /** Decimal places shown for a value with a unit; 0 rounds to a whole number. Ignored for percent sliders. */
+    private final int decimals;
     private BooleanSupplier enabled = () -> true;
     private Runnable resetAction;
 
@@ -46,14 +48,30 @@ public final class SliderOption implements OptionRow {
     /** Whole-number slider over {@code [min, max]} that shows {@code value + " " + unit}; the setter always receives an int. */
     public static SliderOption ofInt(String label, IntSupplier getter, IntConsumer setter,
                                      int min, int max, int step, String unit, Runnable onCommit) {
-        return new SliderOption(label, getter::getAsInt, v -> setter.accept((int) Math.round(v)), min, max, step, unit, onCommit);
+        return new SliderOption(label, getter::getAsInt, v -> setter.accept((int) Math.round(v)), min, max, step, unit, 0, onCommit);
+    }
+
+    /**
+     * Decimal slider over {@code [min, max]} that shows the raw value with {@code decimals} places, followed
+     * by {@code unit} when it isn't empty ("293.15 K", "0.050"). Unlike {@link #SliderOption(String,
+     * DoubleSupplier, DoubleConsumer, double, double, double, Runnable) the percent slider}, 1.0 shows as "1.00".
+     */
+    public static SliderOption ofDecimal(String label, DoubleSupplier getter, DoubleConsumer setter,
+                                         double min, double max, double step, int decimals, String unit, Runnable onCommit) {
+        return new SliderOption(label, getter, setter, min, max, step, unit == null ? "" : unit, Math.max(0, decimals), onCommit);
     }
 
     private SliderOption(String label, DoubleSupplier getter, DoubleConsumer setter,
                          double min, double max, double step, String unit, Runnable onCommit) {
+        this(label, getter, setter, min, max, step, unit, 0, onCommit);
+    }
+
+    private SliderOption(String label, DoubleSupplier getter, DoubleConsumer setter,
+                         double min, double max, double step, String unit, int decimals, Runnable onCommit) {
         if (!(max > min) || !(step > 0)) {
             throw new IllegalArgumentException("slider '" + label + "' needs max > min and step > 0");
         }
+        this.decimals = decimals;
         this.label = label;
         this.getter = getter;
         this.setter = setter;
@@ -102,7 +120,7 @@ public final class SliderOption implements OptionRow {
         this.bounds = bounds;
         boolean on = enabled.getAsBoolean();
         double value = dragging ? liveValue : clamp(getter.getAsDouble());
-        OptionStyle.drawLabelAndValue(context, label, unit == null ? Math.round(value * 100) + "%" : Math.round(value) + " " + unit, bounds.x(), bounds.y(), bounds.width(),
+        OptionStyle.drawLabelAndValue(context, label, formatValue(value), bounds.x(), bounds.y(), bounds.width(),
                 OptionStyle.labelColor(context, on), OptionStyle.labelColor(context, on));
         Bounds track = track();
         float fillPct = (float) ((value - min) / (max - min));
@@ -120,6 +138,17 @@ public final class SliderOption implements OptionRow {
         }
         drawArrowButton(context, leftButton(), true, on, edge);
         drawArrowButton(context, rightButton(), false, on, edge);
+    }
+
+    /** The value text drawn right of the label: a percent, a whole number with its unit, or {@code decimals} places with its unit. */
+    String formatValue(double value) {
+        if (unit == null) {
+            return Math.round(value * 100) + "%";
+        }
+        String number = decimals == 0
+                ? Long.toString(Math.round(value))
+                : String.format(java.util.Locale.ROOT, "%." + decimals + "f", value);
+        return unit.isEmpty() ? number : number + " " + unit;
     }
 
     private void drawArrowButton(RenderContext context, Bounds b, boolean left, boolean on, int edge) {
@@ -218,9 +247,10 @@ public final class SliderOption implements OptionRow {
         return clamp(snap(min + pct * (max - min)));
     }
 
-    /** Rounds to the nearest {@code min + n * step}. */
+    /** Rounds to the nearest {@code min + n * step}, dropping floating-point noise (0.15000000000000002) past nine places. */
     private double snap(double value) {
-        return min + Math.round((value - min) / step) * step;
+        double snapped = min + Math.round((value - min) / step) * step;
+        return Math.round(snapped * 1e9) / 1e9;
     }
 
     private double clamp(double value) {

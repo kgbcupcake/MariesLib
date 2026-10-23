@@ -5,13 +5,14 @@ import dev.marie.framework.ui.RenderContext;
 import dev.marie.framework.ui.geometry.Bounds;
 
 import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 
 /** One-shot action row: the label on the left and a "RESET"-style caption on the right; a click runs the action, then {@code onCommit}. */
 @ApiStatus.Internal
 public final class ButtonOption implements OptionRow {
 
     private final String label;
-    private final String caption;
+    private final Supplier<String> caption;
     private final Runnable action;
     private final Runnable onCommit;
     private BooleanSupplier enabled = () -> true;
@@ -19,6 +20,11 @@ public final class ButtonOption implements OptionRow {
     private Bounds bounds = new Bounds(0, 0, 0, 0);
 
     public ButtonOption(String label, String caption, Runnable action, Runnable onCommit) {
+        this(label, () -> caption, action, onCommit);
+    }
+
+    /** Same, with a caption read every frame, for one that tracks a live value ("USE 20.0 °C"). */
+    public ButtonOption(String label, Supplier<String> caption, Runnable action, Runnable onCommit) {
         this.label = label;
         this.caption = caption;
         this.action = action;
@@ -39,7 +45,7 @@ public final class ButtonOption implements OptionRow {
     public void render(RenderContext context, Bounds bounds) {
         this.bounds = bounds;
         boolean on = enabled.getAsBoolean();
-        OptionStyle.drawLabelAndValue(context, label, caption, bounds.x(), bounds.y(), bounds.width(),
+        OptionStyle.drawLabelAndValue(context, label, caption.get(), bounds.x(), bounds.y(), bounds.width(),
                 OptionStyle.labelColor(context, on), OptionStyle.accentColor(on));
     }
 

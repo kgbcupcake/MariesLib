@@ -17,6 +17,7 @@ import java.util.function.DoubleConsumer;
 import java.util.function.DoubleSupplier;
 import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
+import java.util.function.Supplier;
 
 /**
  * Public facade for tabbed option panels: a strip of tabs above stacked sliders, toggles and
@@ -79,8 +80,25 @@ public final class MarieToolbox {
             return this;
         }
 
+        /**
+         * Decimal slider over {@code [min, max]} in {@code step} increments, showing the raw value with {@code decimals}
+         * places plus {@code unit} ("293.15 K"; empty or null: no suffix). Same live-setter and commit-on-release
+         * behavior as {@link #slider}; give its reset value with {@code defaultValue(double)}.
+         */
+        public PanelBuilder decimalSlider(String label, DoubleSupplier getter, DoubleConsumer setter,
+                                          double min, double max, double step, int decimals, String unit, Runnable onCommit) {
+            layout.addRow(SliderOption.ofDecimal(label, getter, setter, min, max, step, decimals, unit, onCommit));
+            return this;
+        }
+
         /** One-shot action row: {@code label} on the left, {@code caption} (e.g. "RESET") on the right; a click runs {@code action}, then {@code onCommit}. */
         public PanelBuilder button(String label, String caption, Runnable action, Runnable onCommit) {
+            layout.addRow(new ButtonOption(label, caption, action, onCommit));
+            return this;
+        }
+
+        /** As {@link #button(String, String, Runnable, Runnable)}, with a caption re-read every frame so it can show a live value. */
+        public PanelBuilder button(String label, Supplier<String> caption, Runnable action, Runnable onCommit) {
             layout.addRow(new ButtonOption(label, caption, action, onCommit));
             return this;
         }

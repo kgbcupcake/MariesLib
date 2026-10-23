@@ -52,4 +52,22 @@ public interface OptionRow {
     boolean mouseReleased(double mouseX, double mouseY);
 
     boolean mouseScrolled(double mouseX, double mouseY, double scrollY);
+
+    /** A printable character was typed; only a focused text-editing row needs this. Default: ignored. */
+    default boolean charTyped(char codePoint, int modifiers) {
+        return false;
+    }
+
+    /** A raw key (e.g. Backspace, arrows) was pressed; only a focused text-editing row needs this. Default: ignored. */
+    default boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        return false;
+    }
+
+    /**
+     * Drops keyboard focus if this row currently holds it. Called on every row by {@link
+     * OptionLayout} before routing a click, so clicking anywhere (including another row, or
+     * nothing at all) reliably un-focuses whichever text row previously had focus — a row that
+     * never takes focus (the common case) leaves this a no-op.
+     */
+    default void blur() {}
 }

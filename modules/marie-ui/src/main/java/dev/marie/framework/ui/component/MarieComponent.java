@@ -44,6 +44,11 @@ public interface MarieComponent {
         return false;
     }
 
+    /** A printable character was typed (e.g. a letter key, routed separately from {@link #keyPressed}'s raw keycodes — see GLFW's char-callback docs). Only a component that owns editable text needs this. */
+    default boolean charTyped(char codePoint, int modifiers) {
+        return false;
+    }
+
     default boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         return false;
     }

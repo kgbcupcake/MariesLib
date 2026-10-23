@@ -327,7 +327,7 @@ Verified against source, not just changelog prose.
 | ---------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
 | Scanner spec           | `data/<modid>/<modid>/scanner/scanner_spec.json`     | `config/<modid>/scanner_spec.json`                                                                | `data/<ns>/<modid>/scanner/scanner_spec.json`        |
 | Excluded items         | `data/<modid>/<modid>/scanner/excluded_items.json`   | `config/<modid>/overrides/Overrides/excluded_items.json`                                          | `data/<ns>/<modid>/scanner/excluded_items.json`      |
-| Source classifications | —                                                    | `config/<modid>/overrides/Overrides/source_classifications.json` (README at `overrides/Read_Me/`) | —                                                    |
+| Source classifications | —                                                    | `config/<modid>/item_editor/source_classifications.json` (id/calories/enabled) + `item_editor/Source Classification/<value key>/source_classifications.json` per value (README at `item_editor/Read_Me/`) | —                                                    |
 | Colors                 | —                                                    | `config/<modid>/colors.json`                                                                      | `data/<modid>/config/colors.json`                    |
 | Locks                  | —                                                    | `config/<modid>/locks.json`                                                                       | `data/<modid>/config/locks.json`                     |
 | Mod compat             | `data/<modid>/config/mod_compat.json` (bundled only) | —                                                                                                 | —                                                    |
@@ -413,6 +413,7 @@ MarieComponent content = MarieModuleSettings.standardPanel("My Module", persiste
 - **Hide Icons:** enforced for any module drawn through `MarieModuleSettings.withDisplaySettings`; read it with `MarieModuleSettings.isIconsHidden(store, panelId)` if you draw icons yourself.
 - **Standalone controls:** `dev.marie.framework.ui.api.MarieWidgets` is the one-file facade for the parts the windows are built from, usable in any screen: `tabBar(id, titles...)` (`.onChange`, `.selected()`), `button(id, caption, action)` (`.enabledWhen`), `slider`/`intSlider` (rounded bar with arrow buttons), `toggle`, `choice` and `section(title, rows...)` (collapsible). Each returns a `MarieComponent`; values stay behind your getters/setters and `onCommit` runs once per finished edit.
 - **Colors:** `PanelBuilder.colorTab(...).color(...)` opens the shared round color picker.
+- **Decimal values:** `PanelBuilder.decimalSlider(label, get, set, min, max, step, decimals, unit, onCommit)` shows the raw value with `decimals` places plus `unit` ("293.15 K"); `slider` stays a percentage and `intSlider` a whole number. `button(label, () -> caption, action, onCommit)` takes a live caption.
 
 ## Versioning
 
