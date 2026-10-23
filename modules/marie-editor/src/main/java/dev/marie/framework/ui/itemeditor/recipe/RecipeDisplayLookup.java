@@ -15,10 +15,15 @@ import net.minecraft.world.item.crafting.ShapedRecipe;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 
 /**
- * Finds the recipe that produces a given item, for {@link RecipeStationPreviewBox} to render.
+ * Finds every way a given item can be crafted, for {@link RecipeStationPreviewBox} and {@link
+ * RecipeStationBlockBox} to render — one item (e.g. a stew) can have a recipe at more than one
+ * station (a plain crafting-table recipe <em>and</em> a mod's automated press, say), and a player
+ * should be able to see all of them, not just whichever one happened to win.
  *
  * <p>Scans every recipe once per call rather than maintaining a cache (unlike {@link
  * dev.marie.framework.scanner.RecipeInheritanceResolver}'s index): this only runs when the item
@@ -32,38 +37,40 @@ public final class RecipeDisplayLookup {
     }
 
     /**
-     * @return the first recognized recipe (see {@link RecipeStationType}) whose output is {@code
-     * target}, preferring a crafting-table recipe when more than one station can produce it
-     * (enum declaration order), or {@code null} if none is found or {@code recipeManager} is
-     * {@code null}.
+     * @return every recognized recipe (see {@link RecipeStationType}) whose output is {@code
+     * target}, one per distinct station (the first recipe found at a given station wins; a second
+     * recipe for the same output at the <em>same</em> station adds nothing a player can't already
+     * see from that one recipe's own ingredient-alternatives cycling), ordered by {@link
+     * RecipeStationType}'s own declared priority — every "special" station outranks a plain
+     * crafting-table recipe, see that enum's own doc for why. Empty if none is found or {@code
+     * recipeManager} is {@code null}.
      */
-    @Nullable
-    public static RecipeDisplay find(@Nullable ItemStack target, @Nullable RecipeManager recipeManager) {
+    public static List<RecipeDisplay> findAll(@Nullable ItemStack target, @Nullable RecipeManager recipeManager) {
         if (recipeManager == null || target == null || target.isEmpty()) {
-            return null;
+            return List.of();
         }
         ResourceLocation targetId = MarieRegistryUtils.itemKey(target);
         if (targetId == null) {
-            return null;
+            return List.of();
         }
 
         HolderLookup.Provider registries = registryAccess();
-        RecipeDisplay best = null;
-        int bestPriority = Integer.MAX_VALUE;
+        Map<RecipeStationType, RecipeDisplay> byStation = new EnumMap<>(RecipeStationType.class);
         for (RecipeHolder<?> holder : recipeManager.getRecipes()) {
             Recipe<?> recipe = holder.value();
             RecipeStationType station = stationOf(recipe);
-            if (station == null || station.ordinal() >= bestPriority) {
+            if (station == null || byStation.containsKey(station)) {
                 continue;
             }
             ItemStack result = resultOf(recipe, registries);
             if (result == null || result.isEmpty() || !targetId.equals(MarieRegistryUtils.itemKey(result))) {
                 continue;
             }
-            best = build(station, recipe, result);
-            bestPriority = station.ordinal();
+            byStation.put(station, build(station, recipe, result));
         }
-        return best;
+        List<RecipeDisplay> all = new ArrayList<>(byStation.values());
+        all.sort((a, b) -> a.stationType().ordinal() - b.stationType().ordinal());
+        return all;
     }
 
     @Nullable

@@ -182,9 +182,15 @@ final class ItemEditorValuesModel {
                 layout.addRow(row);
             }
         }
-        layout.addRow(SliderOption.ofInt("Calories", () -> editedCalories, v -> editedCalories = v,
-                CALORIES_MIN, CALORIES_MAX, CALORIES_STEP, "cal", () -> {}));
-        layout.addRow(new ToggleOption("Enabled", () -> editedEnabled, v -> editedEnabled = v, () -> {}));
+        // Calories/Enabled are food-classification concepts (persisted alongside editedValues in
+        // SourceClassificationRegistry), not generic editor fields — only show them for a modId
+        // that actually owns ValueDefinitions (e.g. Nourished's nutrients). A consuming mod with no
+        // ValueDefinitions of its own (e.g. an EMC editor) has no use for them.
+        if (!owned.isEmpty()) {
+            layout.addRow(SliderOption.ofInt("Calories", () -> editedCalories, v -> editedCalories = v,
+                    CALORIES_MIN, CALORIES_MAX, CALORIES_STEP, "cal", () -> {}));
+            layout.addRow(new ToggleOption("Enabled", () -> editedEnabled, v -> editedEnabled = v, () -> {}));
+        }
         valuesLayout = layout;
     }
 

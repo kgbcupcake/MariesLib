@@ -50,9 +50,8 @@ public final class ItemEditorPanel implements MarieComponent, ItemEditorMenuBar.
     private final ItemEditorMenuBar menuBar = new ItemEditorMenuBar();
     private final ItemEditorValuesModel valuesModel;
 
-    /** The recipe (if any) that produces the targeted item, shown in {@link ItemEditorPreviewColumn}. Recomputed by {@link #retarget} alongside everything else that depends on the current item. */
-    @Nullable
-    private RecipeDisplay currentRecipe;
+    /** Every known way to craft the targeted item, shown (cycling between them when there's more than one) by {@link ItemEditorPreviewColumn}. Recomputed by {@link #retarget} alongside everything else that depends on the current item. */
+    private List<RecipeDisplay> currentRecipes = List.of();
 
     /** Whatever's currently rendered below the header — the value rows, the trace, or a mod's own {@link #activeScreen} — all share this one hit-test region. */
     private Bounds bodyBounds = new Bounds(0, 0, 0, 0);
@@ -90,7 +89,7 @@ public final class ItemEditorPanel implements MarieComponent, ItemEditorMenuBar.
         activeScreen = null;
         activeScreenProvider = null;
         valuesModel.retarget();
-        currentRecipe = RecipeDisplayLookup.find(slot.item(), recipeManager);
+        currentRecipes = RecipeDisplayLookup.findAll(slot.item(), recipeManager);
     }
 
     @Nullable
@@ -110,7 +109,7 @@ public final class ItemEditorPanel implements MarieComponent, ItemEditorMenuBar.
         int bodyHeight = Math.max(Math.max(valuesHeight, TRACE_MIN_HEIGHT), screenHeight);
         // The preview column and the body sit side by side, not stacked, so the panel's height is
         // whichever is taller, not their sum.
-        int height = Math.max(ItemEditorPreviewColumn.totalHeight(sourceId(), currentRecipe), bodyHeight);
+        int height = Math.max(ItemEditorPreviewColumn.totalHeight(sourceId(), currentRecipes), bodyHeight);
         int width = ItemEditorPreviewColumn.WIDTH + COLUMN_GAP + OptionStyle.PREFERRED_WIDTH;
         return Constraint.preferred(width, height);
     }
@@ -144,7 +143,7 @@ public final class ItemEditorPanel implements MarieComponent, ItemEditorMenuBar.
             return;
         }
 
-        ItemEditorPreviewColumn.render(context, bounds, slot, sourceId(), currentRecipe);
+        ItemEditorPreviewColumn.render(context, bounds, slot, sourceId(), currentRecipes);
         if (!hasItem) {
             bodyBounds = new Bounds(0, 0, 0, 0);
             return;
@@ -279,12 +278,18 @@ public final class ItemEditorPanel implements MarieComponent, ItemEditorMenuBar.
 
     @Override
     public boolean charTyped(char codePoint, int modifiers) {
-        return activeScreen != null && activeScreen.charTyped(codePoint, modifiers);
+        if (activeScreen != null) {
+            return activeScreen.charTyped(codePoint, modifiers);
+        }
+        return !infoSelected && valuesModel.layout().charTyped(codePoint, modifiers);
     }
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        return activeScreen != null && activeScreen.keyPressed(keyCode, scanCode, modifiers);
+        if (activeScreen != null) {
+            return activeScreen.keyPressed(keyCode, scanCode, modifiers);
+        }
+        return !infoSelected && valuesModel.layout().keyPressed(keyCode, scanCode, modifiers);
     }
 
     /** {@link ItemEditorPage#renderOverlay} for whichever page is active, e.g. for a host ({@code ItemEditorWindow}) to call after its own clip around {@link #render}'s body is popped. No-op while the built-in Values/Info views are showing (neither currently defines an overlay). */
