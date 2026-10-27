@@ -60,7 +60,7 @@ public final class ScreenAnchoredPlacement implements PlacementStrategy {
 
     @Override
     public Bounds toBounds(ComponentState state, Bounds natural) {
-        if (state == null) {
+        if (!isPlaced(state)) {
             return keepOnScreen(natural);
         }
         Bounds sc = screen.get();
@@ -81,9 +81,21 @@ public final class ScreenAnchoredPlacement implements PlacementStrategy {
             return b;
         }
         Bounds sc = screen.get();
-        int x = Math.max(sc.x(), Math.min(b.x(), sc.x() + sc.width() - b.width()));
-        int y = Math.max(sc.y(), Math.min(b.y(), sc.y() + sc.height() - b.height()));
-        return new Bounds(x, y, b.width(), b.height());
+        // Shrink a box bigger than the screen first, so all of it (and its resize handles) stays reachable.
+        int w = Math.min(b.width(), sc.width());
+        int h = Math.min(b.height(), sc.height());
+        int x = Math.max(sc.x(), Math.min(b.x(), sc.x() + sc.width() - w));
+        int y = Math.max(sc.y(), Math.min(b.y(), sc.y() + sc.height() - h));
+        return new Bounds(x, y, w, h);
+    }
+
+    /**
+     * Whether {@code state} holds a box position at all. Every commit saves the box's size, so a state
+     * with none was only written by a style setting (e.g. {@code ModuleScales} saving a text size
+     * before the box was ever moved) and must not pin the box to the origin.
+     */
+    private static boolean isPlaced(ComponentState state) {
+        return state != null && (state.width() > 0 || state.height() > 0);
     }
 
     private double fx() {

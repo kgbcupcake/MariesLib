@@ -229,11 +229,13 @@ public final class EditHostCore {
         config.afterCommit().accept(id, committed);
     }
 
-    /** Sibling edges (same snap group) and host snap targets for position; same-size-group siblings for size. */
+    /**
+     * Sibling edges (same snap group) and host snap targets for position; same-size-group siblings for
+     * size. With the shared {@link SnapRegistry} on, it supplies the sibling edges itself, so only the
+     * host targets (kept alongside it) and the size targets are set here.
+     */
     private void applySnapTargets(EditableModule module) {
-        if (config.snapRegistry()) {
-            return;
-        }
+        boolean shared = config.snapRegistry();
         String group = module.snapGroup();
         String sizeGroup = module.sizeSnapGroup();
         List<Integer> xs = new ArrayList<>();
@@ -244,7 +246,7 @@ public final class EditHostCore {
             if (e.module().id().equals(module.id())) {
                 continue;
             }
-            if (e.module().snapGroup().equals(group)) {
+            if (!shared && e.module().snapGroup().equals(group)) {
                 addEdges(xs, ys, e.bounds());
             }
             if (e.module().sizeSnapGroup().equals(sizeGroup)) {
@@ -258,7 +260,11 @@ public final class EditHostCore {
             }
         }
         DraggableResizable drag = gestures.dragFor(module);
-        drag.setSnapTargets(xs, ys);
+        if (shared) {
+            drag.setExtraSnapTargets(xs, ys);
+        } else {
+            drag.setSnapTargets(xs, ys);
+        }
         drag.setSizeSnapTargets(widths, heights);
     }
 

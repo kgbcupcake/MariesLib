@@ -470,14 +470,18 @@ public final class HubPanel {
         return false;
     }
 
-    /** Forwards a key press to the open child popup's content, else the selected leaf's content. */
+    /**
+     * Forwards a key press to the open child popup's content, else the selected leaf's content. An open
+     * popup holds the keyboard: a key it doesn't use is left unhandled (so the screen still sees e.g.
+     * Escape), never passed to the leaf hidden behind it.
+     */
     @ApiStatus.Experimental
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (collapsed) {
             return false;
         }
-        if (popup.keyPressed(keyCode, scanCode, modifiers)) {
-            return true;
+        if (popup.isLive()) {
+            return popup.keyPressed(keyCode, scanCode, modifiers);
         }
         return findSelected() instanceof HubEntry leaf && leaf.content().keyPressed(keyCode, scanCode, modifiers);
     }
@@ -488,8 +492,8 @@ public final class HubPanel {
         if (collapsed) {
             return false;
         }
-        if (popup.charTyped(codePoint, modifiers)) {
-            return true;
+        if (popup.isLive()) {
+            return popup.charTyped(codePoint, modifiers);
         }
         return findSelected() instanceof HubEntry leaf && leaf.content().charTyped(codePoint, modifiers);
     }

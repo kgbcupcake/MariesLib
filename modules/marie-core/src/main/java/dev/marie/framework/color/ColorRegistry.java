@@ -26,11 +26,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Per-value HUD/UI colors from {@code config/<modid>/colors.json}, with optional datapack override
@@ -65,6 +67,13 @@ public final class ColorRegistry {
     /** The attached mod whose {@code colors.json} each key was read from or first set under; see {@link #ownerOf}. */
     private static final Map<String, String> OWNERS = new HashMap<>();
 
+    /**
+     * Mods whose colors were set or removed since the last load/save. {@link #save()} rewrites only
+     * these files, so editing one mod's color never rewrites another mod's file (which could bake that
+     * mod's datapack-override colors into its config for good).
+     */
+    private static final Set<String> DIRTY = new HashSet<>();
+
     private ColorRegistry() {}
 
     public static Optional<Integer> getArgb(String key) {
@@ -78,6 +87,7 @@ public final class ColorRegistry {
         int opaque = (argb & 0x00_FF_FF_FF) | 0xFF00_0000;
         LinkedHashMap<String, Integer> next = new LinkedHashMap<>(INSTANCE.entries());
         next.put(key, opaque);
+        markDirty(key);
         OWNERS.putIfAbsent(key, ownerOf(key));
         INSTANCE.reset();
         for (Map.Entry<String, Integer> e : next.entrySet()) {
@@ -91,6 +101,7 @@ public final class ColorRegistry {
         Objects.requireNonNull(key, "key");
         LinkedHashMap<String, Integer> next = new LinkedHashMap<>(INSTANCE.entries());
         next.remove(key);
+        markDirty(key);
         OWNERS.remove(key);
         INSTANCE.reset();
         for (Map.Entry<String, Integer> e : next.entrySet()) {
@@ -156,16 +167,29 @@ public final class ColorRegistry {
 
     public static void save() {
         Map<String, Map<String, Integer>> byMod = new LinkedHashMap<>();
-        for (String modId : modIds()) {
+        for (String modId : DIRTY) {
             byMod.put(modId, new LinkedHashMap<>());
         }
         // Persist every key currently held, not just ones matching a registered value id —
         // ColorKey-based overrides (value/activity/panel/etc., keyed by full ResourceLocation
         // string) are never value ids, so filtering to ValueRegistry would silently drop them.
         for (Map.Entry<String, Integer> e : INSTANCE.entries().entrySet()) {
-            byMod.computeIfAbsent(ownerOf(e.getKey()), k -> new LinkedHashMap<>()).put(e.getKey(), e.getValue());
+            Map<String, Integer> file = byMod.get(ownerOf(e.getKey()));
+            if (file != null) {
+                file.put(e.getKey(), e.getValue());
+            }
         }
         byMod.forEach(ColorRegistry::writeModFile);
+        DIRTY.clear();
+    }
+
+    /** Marks the file {@code key} is saved to, and the file it was read from if that differs, as needing a rewrite. */
+    private static void markDirty(String key) {
+        DIRTY.add(ownerOf(key));
+        String recorded = OWNERS.get(key);
+        if (recorded != null) {
+            DIRTY.add(recorded);
+        }
     }
 
     private static void writeModFile(String modId, Map<String, Integer> entries) {
@@ -234,6 +258,7 @@ public final class ColorRegistry {
         INSTANCE.freeze();
         OWNERS.clear();
         OWNERS.putAll(owners);
+        DIRTY.clear();
     }
 
     /**
@@ -278,7 +303,7 @@ public final class ColorRegistry {
                 if (!obj.has("key")) {
                     continue;
                 }
-                int argb = parseArgbElement(obj.get("argb"));
+                int argb = ColorArgbParser.parse(obj.get("argb"));
                 parsed.put(obj.get("key").getAsString(), (argb & 0x00_FF_FF_FF) | 0xFF00_0000);
             }
         }
@@ -288,43 +313,4 @@ public final class ColorRegistry {
         });
         return parsed.size();
     }
-
-    private static int parseArgbElement(JsonElement el) {
-        if (el == null || el.isJsonNull()) {
-            return 0xFF_FF_FF_FF;
-        }
-        if (el.isJsonPrimitive()) {
-            if (el.getAsJsonPrimitive().isNumber()) {
-                int n = el.getAsInt();
-                return n | 0xFF00_0000;
-            }
-            return parseArgbString(el.getAsString());
-        }
-        return 0xFF_FF_FF_FF;
-    }
-
-    private static int parseArgbString(String raw) {
-        if (raw == null) {
-            return 0xFF_FF_FF_FF;
-        }
-        String s = raw.trim();
-        try {
-            if (s.startsWith("0x") || s.startsWith("0X")) {
-                String hex = s.substring(2);
-                return (int) (Long.parseLong(hex, 16) & 0xFF_FF_FF_FF);
-            }
-            if (s.startsWith("#")) {
-                s = s.substring(1);
-            }
-            if (s.length() == 6) {
-                return (int) (Long.parseLong(s, 16) & 0xFF_FF_FF) | 0xFF00_0000;
-            }
-            if (s.length() == 8) {
-                return (int) (Long.parseLong(s, 16) & 0xFF_FF_FF_FF);
-            }
-        } catch (NumberFormatException ignored) {
-        }
-        return 0xFF_FF_FF_FF;
-    }
-
 }

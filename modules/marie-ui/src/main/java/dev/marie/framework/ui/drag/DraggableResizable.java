@@ -7,6 +7,7 @@ import dev.marie.framework.ui.component.MarieComponent;
 import dev.marie.framework.ui.geometry.Bounds;
 import dev.marie.framework.ui.geometry.Size;
 
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
@@ -59,6 +60,8 @@ public final class DraggableResizable {
     private List<Integer> snapYLines = List.of();
     private List<Integer> snapWidths = List.of();
     private List<Integer> snapHeights = List.of();
+    private List<Integer> extraXLines = List.of();
+    private List<Integer> extraYLines = List.of();
     private Bounds parentBounds;
     private String snapRegistryId;
 
@@ -163,6 +166,16 @@ public final class DraggableResizable {
      */
     public void setSnapRegistryId(String snapRegistryId) {
         this.snapRegistryId = snapRegistryId;
+    }
+
+    /**
+     * Lines (e.g. a panel's own edges) kept alongside {@link SnapRegistry}'s on every registry-driven
+     * refresh, which would otherwise replace them. Without a registry id this does nothing; pass
+     * everything to {@link #setSnapTargets} instead.
+     */
+    public void setExtraSnapTargets(List<Integer> xLines, List<Integer> yLines) {
+        this.extraXLines = xLines;
+        this.extraYLines = yLines;
     }
 
     public boolean isDragging() {
@@ -424,7 +437,11 @@ public final class DraggableResizable {
     private void refreshRegistrySnapTargets(Bounds near) {
         if (snapRegistryId != null) {
             SnapRegistry.SnapLines lines = SnapRegistry.computeSnapLines(snapRegistryId, near, snapProximityPx);
-            setSnapTargets(lines.xLines(), lines.yLines());
+            List<Integer> xs = new ArrayList<>(lines.xLines());
+            List<Integer> ys = new ArrayList<>(lines.yLines());
+            xs.addAll(extraXLines);
+            ys.addAll(extraYLines);
+            setSnapTargets(xs, ys);
         }
     }
 

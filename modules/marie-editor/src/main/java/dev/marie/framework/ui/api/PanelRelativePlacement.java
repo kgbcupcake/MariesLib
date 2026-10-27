@@ -61,7 +61,7 @@ public final class PanelRelativePlacement implements PlacementStrategy {
 
     @Override
     public Bounds toBounds(ComponentState state, Bounds natural) {
-        if (state == null) {
+        if (!isPlaced(state)) {
             return clamp(natural, region.get());
         }
         double s = safeScale();
@@ -92,5 +92,14 @@ public final class PanelRelativePlacement implements PlacementStrategy {
         int x = Math.max(area.x(), Math.min(b.x(), area.x() + area.width() - w));
         int y = Math.max(area.y(), Math.min(b.y(), area.y() + area.height() - h));
         return new Bounds(x, y, w, h);
+    }
+
+    /**
+     * Whether {@code state} holds a box position at all. Every commit saves the box's size, so a state
+     * with none was only written by a style setting (e.g. {@code ModuleScales} saving a text size
+     * before the box was ever moved) and must not pin the box to the origin.
+     */
+    private static boolean isPlaced(ComponentState state) {
+        return state != null && (state.width() > 0 || state.height() > 0);
     }
 }
