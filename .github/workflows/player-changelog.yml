@@ -37,8 +37,9 @@ jobs:
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          # Nearest v* tag reachable from dev, not the newest-created one (which may sit on a branch dev never merged).
-          TAG=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)
+          # Newest-created v* tag. Releases are tagged on main's merge commit, which dev never reaches, so
+          # git describe would fall back to an older tag; TAG..HEAD still drops every dev commit merged into it.
+          TAG=$(git tag -l 'v*' --sort=-creatordate | head -n1)
           echo "range=${TAG:+$TAG..HEAD}" >> "$GITHUB_OUTPUT"
           echo "Commits since ${TAG:-the beginning}."
 
@@ -55,11 +56,6 @@ jobs:
         id: write
         if: steps.check.outputs.skip != 'true'
         run: |
-          if [ -z "$(tr -d '[:space:]' < cliff-output.md)" ]; then
-            echo "Nothing changelog-worthy since the last tag, leaving the file as it is."
-            rm -f cliff-output.md
-            exit 0
-          fi
           VERSION=$(grep '^mod_version=' gradle.properties | cut -d'=' -f2 | tr -d '\r')
           NAME=$(grep '^mod_name=' gradle.properties | cut -d'=' -f2- | tr -d '\r')
           {
@@ -67,7 +63,12 @@ jobs:
             echo
             echo "<!-- generated-by: player-changelog (commits since the last tag, rewritten on every push to dev). Delete this line to edit the file by hand. -->"
             echo
-            sed '/./,$!d' cliff-output.md
+            # Right after a release nothing is changelog-worthy yet; say so instead of keeping the released notes.
+            if [ -z "$(tr -d '[:space:]' < cliff-output.md)" ]; then
+              echo "Nothing new since the last release yet."
+            else
+              sed '/./,$!d' cliff-output.md
+            fi
           } > MODRINTH_CHANGELOG.md
           rm -f cliff-output.md
           echo "written=true" >> "$GITHUB_OUTPUT"

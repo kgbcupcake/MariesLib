@@ -25,15 +25,15 @@ public final class ColorKeySlots {
                 () -> MarieColors.resolveColor(key, active),
                 rgb -> ColorPreviewOverrides.setOverride(target, 0xFF000000 | rgb),
                 defaultRgb,
-                () -> commit(target, defaultRgb),
+                () -> commit(key, active, target),
                 () -> ColorPreviewOverrides.setOverride(target, null));
     }
 
-    private static void commit(ColorKey target, int defaultRgb) {
+    private static void commit(ColorKey key, ColorScope scope, ColorKey target) {
         Integer preview = ColorPreviewOverrides.getOverride(target);
         if (preview != null) {
             String registryKey = target.id().toString();
-            if ((preview & 0xFFFFFF) == defaultRgb) {
+            if ((preview & 0xFFFFFF) == (withoutOverride(key, scope, target) & 0xFFFFFF)) {
                 ColorRegistry.remove(registryKey);
             } else {
                 ColorRegistry.setArgb(registryKey, 0xFF000000 | (preview & 0xFFFFFF));
@@ -41,5 +41,17 @@ public final class ColorKeySlots {
             ColorRegistry.save();
         }
         ColorPreviewOverrides.setOverride(target, null);
+    }
+
+    /**
+     * What {@code target} resolves to once its stored value is removed: the definition's default, or
+     * for a scope that inherits, the base key's (possibly customized) color. Dropping the override is
+     * only right when that already matches the picked color; otherwise it's saved explicitly.
+     */
+    private static int withoutOverride(ColorKey key, ColorScope scope, ColorKey target) {
+        if (!target.equals(key) && scope.inheritsBaseValue()) {
+            return MarieColors.resolveColor(key, ColorScope.NONE);
+        }
+        return MarieColors.defaultArgb(key);
     }
 }

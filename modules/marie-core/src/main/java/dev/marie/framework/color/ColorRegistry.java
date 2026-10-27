@@ -9,7 +9,9 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import dev.marie.framework.core.IMarieConfig;
+import dev.marie.framework.core.MarieContext;
 import dev.marie.framework.core.MarieCore;
+import dev.marie.framework.core.MarieModRegistry;
 import dev.marie.framework.data.DatapackSchema;
 import dev.marie.framework.registry.AbstractRegistry;
 import dev.marie.framework.util.MarieResourceLoader;
@@ -22,7 +24,10 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -38,6 +43,11 @@ import java.util.Optional;
  * ]
  * }</pre>
  * Call {@link #load()} after effect registry initialization.
+ *
+ * <p>With several mods attached, every mod's {@code colors.json} is read into one shared map, and
+ * {@link #save()} writes each color back to its own mod's file: a {@code namespace:path} key goes to
+ * the attached mod named by its namespace, any other key to the file it was read from (or the
+ * current mod for a new one). Saving never moves one mod's colors into another mod's directory.
  */
 @ApiStatus.Internal
 public final class ColorRegistry {
@@ -52,6 +62,9 @@ public final class ColorRegistry {
 
     private static final Core INSTANCE = new Core();
 
+    /** The attached mod whose {@code colors.json} each key was read from or first set under; see {@link #ownerOf}. */
+    private static final Map<String, String> OWNERS = new HashMap<>();
+
     private ColorRegistry() {}
 
     public static Optional<Integer> getArgb(String key) {
@@ -65,6 +78,7 @@ public final class ColorRegistry {
         int opaque = (argb & 0x00_FF_FF_FF) | 0xFF00_0000;
         LinkedHashMap<String, Integer> next = new LinkedHashMap<>(INSTANCE.entries());
         next.put(key, opaque);
+        OWNERS.putIfAbsent(key, ownerOf(key));
         INSTANCE.reset();
         for (Map.Entry<String, Integer> e : next.entrySet()) {
             INSTANCE.register(e.getKey(), e.getValue());
@@ -77,6 +91,7 @@ public final class ColorRegistry {
         Objects.requireNonNull(key, "key");
         LinkedHashMap<String, Integer> next = new LinkedHashMap<>(INSTANCE.entries());
         next.remove(key);
+        OWNERS.remove(key);
         INSTANCE.reset();
         for (Map.Entry<String, Integer> e : next.entrySet()) {
             INSTANCE.register(e.getKey(), e.getValue());
@@ -85,7 +100,16 @@ public final class ColorRegistry {
     }
 
     public static void load() {
-        Path configDir = FMLPaths.CONFIGDIR.get().resolve(IMarieConfig.get().modId());
+        Map<String, Integer> merged = new LinkedHashMap<>();
+        Map<String, String> owners = new HashMap<>();
+        for (String modId : modIds()) {
+            runAsMod(modId, () -> loadModFile(modId, merged, owners));
+        }
+        apply(merged, owners);
+    }
+
+    private static void loadModFile(String modId, Map<String, Integer> merged, Map<String, String> owners) {
+        Path configDir = configDir(modId);
         Path file = configDir.resolve("colors.json");
         try {
             Files.createDirectories(configDir);
@@ -93,12 +117,12 @@ public final class ColorRegistry {
                 writeEmpty(file);
                 MarieCore.LOGGER.info("[ColorRegistry] Wrote default colors.json");
             }
-            parseFile(file);
-            MarieCore.LOGGER.info("[ColorRegistry] Loaded {} custom colors from {}", INSTANCE.size(), file);
+            try (Reader r = Files.newBufferedReader(file)) {
+                int added = mergeFrom(r, modId, merged, owners);
+                MarieCore.LOGGER.info("[ColorRegistry] Loaded {} custom colors from {}", added, file);
+            }
         } catch (IOException e) {
             MarieCore.LOGGER.error("[ColorRegistry] Failed to load colors.json", e);
-            INSTANCE.reset();
-            INSTANCE.freeze();
         }
 
         try {
@@ -131,15 +155,26 @@ public final class ColorRegistry {
     }
 
     public static void save() {
-        Path configDir = FMLPaths.CONFIGDIR.get().resolve(IMarieConfig.get().modId());
+        Map<String, Map<String, Integer>> byMod = new LinkedHashMap<>();
+        for (String modId : modIds()) {
+            byMod.put(modId, new LinkedHashMap<>());
+        }
+        // Persist every key currently held, not just ones matching a registered value id —
+        // ColorKey-based overrides (value/activity/panel/etc., keyed by full ResourceLocation
+        // string) are never value ids, so filtering to ValueRegistry would silently drop them.
+        for (Map.Entry<String, Integer> e : INSTANCE.entries().entrySet()) {
+            byMod.computeIfAbsent(ownerOf(e.getKey()), k -> new LinkedHashMap<>()).put(e.getKey(), e.getValue());
+        }
+        byMod.forEach(ColorRegistry::writeModFile);
+    }
+
+    private static void writeModFile(String modId, Map<String, Integer> entries) {
+        Path configDir = configDir(modId);
         Path file = configDir.resolve("colors.json");
         try {
             Files.createDirectories(configDir);
             JsonArray arr = new JsonArray();
-            // Persist every key currently held, not just ones matching a registered value id —
-            // ColorKey-based overrides (value/activity/panel/etc., keyed by full ResourceLocation
-            // string) are never value ids, so filtering to ValueRegistry would silently drop them.
-            for (Map.Entry<String, Integer> e : INSTANCE.entries().entrySet()) {
+            for (Map.Entry<String, Integer> e : entries.entrySet()) {
                 JsonObject obj = new JsonObject();
                 obj.addProperty("key", e.getKey());
                 obj.addProperty("argb", String.format("0x%08X", e.getValue()));
@@ -154,20 +189,74 @@ public final class ColorRegistry {
         }
     }
 
+    /** The attached mod named by {@code key}'s namespace, else the file it came from, else the current mod. */
+    private static String ownerOf(String key) {
+        int colon = key.indexOf(':');
+        if (colon > 0) {
+            String namespace = key.substring(0, colon);
+            if (MarieModRegistry.isRegistered(namespace)) {
+                return namespace;
+            }
+        }
+        String recorded = OWNERS.get(key);
+        return recorded != null ? recorded : IMarieConfig.get().modId();
+    }
+
+    /** Every attached mod's id, or just the current config's when none has attached yet. */
+    private static List<String> modIds() {
+        List<String> ids = new ArrayList<>();
+        for (MarieContext ctx : MarieModRegistry.getAll()) {
+            ids.add(ctx.modId());
+        }
+        if (ids.isEmpty()) {
+            ids.add(IMarieConfig.get().modId());
+        }
+        return ids;
+    }
+
+    /** Runs {@code action} as {@code modId}, so per-mod lookups inside it (README, datapack path) resolve to that mod. */
+    private static void runAsMod(String modId, Runnable action) {
+        MarieContext ctx = MarieModRegistry.get(modId);
+        if (ctx == null) {
+            action.run();
+        } else {
+            MarieContext.runAs(ctx, action);
+        }
+    }
+
+    private static Path configDir(String modId) {
+        return FMLPaths.CONFIGDIR.get().resolve(modId);
+    }
+
+    private static void apply(Map<String, Integer> merged, Map<String, String> owners) {
+        INSTANCE.reset();
+        merged.forEach(INSTANCE::register);
+        INSTANCE.freeze();
+        OWNERS.clear();
+        OWNERS.putAll(owners);
+    }
+
     /**
      * Datapack path {@code <modid>:config/colors.json} ({@code data/<modid>/config/colors.json}).
      * If absent, falls back to {@link #load()}.
      */
     public static void loadFromDatapack(ResourceManager resourceManager) {
-        MarieResourceLoader.loadFromModConfig(
-                resourceManager,
-                DatapackSchema.CONFIG_COLORS,
-                ColorRegistry::parseFromReader,
-                ColorRegistry::load,
-                "[ColorRegistry] Loaded from datapack override",
-                "[ColorRegistry] Failed to load datapack colors, falling back to config folder",
-                "[ColorRegistry] Loaded from config folder"
-        );
+        Map<String, Integer> merged = new LinkedHashMap<>();
+        Map<String, String> owners = new HashMap<>();
+        for (String modId : modIds()) {
+            runAsMod(modId, () -> MarieResourceLoader.loadFromModConfig(
+                    resourceManager,
+                    DatapackSchema.CONFIG_COLORS,
+                    reader -> {
+                        mergeFrom(reader, modId, merged, owners);
+                    },
+                    () -> loadModFile(modId, merged, owners),
+                    "[ColorRegistry] Loaded from datapack override",
+                    "[ColorRegistry] Failed to load datapack colors, falling back to config folder",
+                    "[ColorRegistry] Loaded from config folder"
+            ));
+        }
+        apply(merged, owners);
     }
 
     private static void writeEmpty(Path file) throws IOException {
@@ -176,33 +265,28 @@ public final class ColorRegistry {
         }
     }
 
-    private static void parseFile(Path file) throws IOException {
-        try (Reader r = Files.newBufferedReader(file)) {
-            parseFromReader(r);
-        }
-    }
-
-    private static void parseFromReader(Reader reader) {
-        INSTANCE.reset();
+    /** Parses one colors.json in full, then adds it to {@code merged} as {@code modId}'s; returns how many entries it had. */
+    private static int mergeFrom(Reader reader, String modId, Map<String, Integer> merged, Map<String, String> owners) {
+        Map<String, Integer> parsed = new LinkedHashMap<>();
         JsonArray arr = GSON.fromJson(reader, JsonArray.class);
-        if (arr == null || arr.isEmpty()) {
-            INSTANCE.freeze();
-            return;
-        }
-        for (JsonElement el : arr) {
-            if (!el.isJsonObject()) {
-                continue;
+        if (arr != null) {
+            for (JsonElement el : arr) {
+                if (!el.isJsonObject()) {
+                    continue;
+                }
+                JsonObject obj = el.getAsJsonObject();
+                if (!obj.has("key")) {
+                    continue;
+                }
+                int argb = parseArgbElement(obj.get("argb"));
+                parsed.put(obj.get("key").getAsString(), (argb & 0x00_FF_FF_FF) | 0xFF00_0000);
             }
-            JsonObject obj = el.getAsJsonObject();
-            if (!obj.has("key")) {
-                continue;
-            }
-            String key = obj.get("key").getAsString();
-            int argb = parseArgbElement(obj.get("argb"));
-            int opaque = (argb & 0x00_FF_FF_FF) | 0xFF00_0000;
-            INSTANCE.register(key, opaque);
         }
-        INSTANCE.freeze();
+        parsed.forEach((key, argb) -> {
+            merged.put(key, argb);
+            owners.put(key, modId);
+        });
+        return parsed.size();
     }
 
     private static int parseArgbElement(JsonElement el) {

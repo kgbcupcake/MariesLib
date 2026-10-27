@@ -47,7 +47,8 @@ public final class SnapRegistry {
      *
      * @param id globally unique id for this registrant
      * @param boundsSupplier resolves the target's current {@link Bounds}; invoked fresh on every
-     *     {@link #computeSnapLines} call, never cached
+     *     {@link #computeSnapLines} call, never cached; may return {@code null} while the target isn't on
+     *     screen, to be skipped
      */
     public static void register(String id, Supplier<Bounds> boundsSupplier) {
         ENTRIES.put(id, boundsSupplier);
@@ -75,6 +76,9 @@ public final class SnapRegistry {
                 continue;
             }
             Bounds bounds = entry.getValue().get();
+            if (bounds == null) {
+                continue;
+            }
             xLines.add(bounds.x());
             xLines.add(bounds.x() + bounds.width());
             yLines.add(bounds.y());
@@ -105,6 +109,9 @@ public final class SnapRegistry {
                 continue;
             }
             Bounds bounds = entry.getValue().get();
+            if (bounds == null) {
+                continue;
+            }
             if (spanGap(near.y(), near.height(), bounds.y(), bounds.height()) <= proximityPx) {
                 xLines.add(bounds.x());
                 xLines.add(bounds.x() + bounds.width());

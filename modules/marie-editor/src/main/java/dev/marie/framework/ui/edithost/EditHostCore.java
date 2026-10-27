@@ -19,10 +19,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * The state behind one {@code ModuleEditHost}: the modules tracked this frame and where they were
- * drawn, input routing (move-mode drags first, then box gestures, topmost module first), commits
+ * drawn, input routing (one topmost-first pass over content drags and box gestures), commits
  * through each module's placement strategy, and the overlay.
  */
 @ApiStatus.Internal
@@ -40,6 +42,15 @@ public final class EditHostCore {
     private final List<SnapTarget> snapTargets = new ArrayList<>();
     private final Map<String, Bounds> lastBounds = new HashMap<>();
 
+    /** How long a host can go without drawing before its boxes stop counting as snap targets (a hidden tab, a closed screen). */
+    private static final long SNAP_STALE_NANOS = TimeUnit.MILLISECONDS.toNanos(250);
+    private static final AtomicInteger HOST_SEQ = new AtomicInteger();
+
+    // Per-host prefix for SnapRegistry ids, so two hosts tracking the same module id (e.g. two scoped
+    // profiles of one screen) never replace, or on dispose remove, each other's entries.
+    private final String snapIdPrefix = "marieslib.edithost." + HOST_SEQ.incrementAndGet() + "/";
+    private long lastFrameNanos;
+
     public EditHostCore(EditHostConfig config) {
         this.config = config;
         this.painter = new EditOverlayPainter(config);
@@ -54,6 +65,7 @@ public final class EditHostCore {
     }
 
     public void beginFrame() {
+        lastFrameNanos = System.nanoTime();
         // A module tracked before but not last frame has stopped rendering: stop offering its old spot as a snap target.
         Set<String> tracked = new HashSet<>();
         for (Entry e : frame) {
@@ -64,7 +76,7 @@ public final class EditHostCore {
                 return false;
             }
             if (config.snapRegistry()) {
-                SnapRegistry.unregister(id);
+                SnapRegistry.unregister(snapId(id));
             }
             return true;
         });
@@ -78,9 +90,10 @@ public final class EditHostCore {
         drag.setParentBounds(config.placementFor(module).clampRegion());
         drag.setSnapThresholdPx(config.snapThreshold());
         if (config.snapRegistry()) {
-            drag.setSnapRegistryId(module.id());
-            if (!lastBounds.containsKey(module.id())) {
-                SnapRegistry.register(module.id(), () -> lastBounds.getOrDefault(module.id(), new Bounds(0, 0, 0, 0)));
+            String id = module.id();
+            drag.setSnapRegistryId(snapId(id));
+            if (!lastBounds.containsKey(id)) {
+                SnapRegistry.register(snapId(id), () -> isDrawing() ? lastBounds.get(id) : null);
             }
         }
         Bounds preview = gestures.preview(module.id());
@@ -182,10 +195,19 @@ public final class EditHostCore {
     public void dispose() {
         for (String id : lastBounds.keySet()) {
             if (config.snapRegistry()) {
-                SnapRegistry.unregister(id);
+                SnapRegistry.unregister(snapId(id));
             }
         }
         lastBounds.clear();
+    }
+
+    private String snapId(String moduleId) {
+        return snapIdPrefix + moduleId;
+    }
+
+    /** Whether this host drew a frame recently; a host that stopped (hidden hub tab) offers no snap targets. */
+    private boolean isDrawing() {
+        return System.nanoTime() - lastFrameNanos < SNAP_STALE_NANOS;
     }
 
     /** The move mode switched on for {@code module}, if it's one the module supports. */
