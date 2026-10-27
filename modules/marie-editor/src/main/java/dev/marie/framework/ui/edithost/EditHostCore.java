@@ -15,8 +15,10 @@ import dev.marie.framework.ui.geometry.Bounds;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * The state behind one {@code ModuleEditHost}: the modules tracked this frame and where they were
@@ -52,6 +54,20 @@ public final class EditHostCore {
     }
 
     public void beginFrame() {
+        // A module tracked before but not last frame has stopped rendering: stop offering its old spot as a snap target.
+        Set<String> tracked = new HashSet<>();
+        for (Entry e : frame) {
+            tracked.add(e.module().id());
+        }
+        lastBounds.keySet().removeIf(id -> {
+            if (tracked.contains(id)) {
+                return false;
+            }
+            if (config.snapRegistry()) {
+                SnapRegistry.unregister(id);
+            }
+            return true;
+        });
         frame.clear();
         snapTargets.clear();
     }
@@ -99,17 +115,18 @@ public final class EditHostCore {
         }
         int mx = (int) mouseX;
         int my = (int) mouseY;
+        // One topmost-first pass, so a box always shields whatever sits under it, whichever kind of drag either one does.
         for (int i = frame.size() - 1; i >= 0; i--) {
             Entry e = frame.get(i);
-            MoveDrag.Mode mode = e.module().isEditable() ? moveMode(e.module()) : null;
-            if (mode != null && e.bounds().contains(mx, my)) {
-                moves.start(store(), e.module(), e.bounds(), mode, mouseX, mouseY);
-                return true;
+            if (!e.module().isEditable()) {
+                continue;
             }
-        }
-        for (int i = frame.size() - 1; i >= 0; i--) {
-            Entry e = frame.get(i);
-            if (!e.module().isEditable() || moveMode(e.module()) != null) {
+            MoveDrag.Mode mode = moveMode(e.module());
+            if (mode != null) {
+                if (e.bounds().contains(mx, my)) {
+                    moves.start(store(), e.module(), e.bounds(), mode, mouseX, mouseY);
+                    return true;
+                }
                 continue;
             }
             applySnapTargets(e.module());
@@ -183,7 +200,7 @@ public final class EditHostCore {
         config.beforeCommit().accept(id, committed);
         PlacementStrategy placement = config.placementFor(module);
         ComponentState existing = store().load(id).orElse(null);
-        ComponentState state = placement.toState(committed, gesture.toCommit(), existing);
+        ComponentState state = placement.toState(committed, gesture.toCommit(gestures.keepsContentInPlace()), existing);
         if (state != null) {
             store().save(id, state);
         }

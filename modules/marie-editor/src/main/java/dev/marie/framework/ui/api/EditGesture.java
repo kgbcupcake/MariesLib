@@ -23,6 +23,11 @@ public record EditGesture(String moduleId, Kind kind, Bounds start, MoveDrag.Mod
 
     /** As an {@link EditCommit} for the box ending at its current position. */
     public EditCommit toCommit() {
-        return new EditCommit(start, kind == Kind.RESIZE, leftEdge, rightEdge, topEdge, bottomEdge);
+        return toCommit(false);
+    }
+
+    /** As {@link #toCommit()}, noting whether the host already kept the content in place (see {@link EditCommit}). */
+    public EditCommit toCommit(boolean contentKeptInPlace) {
+        return new EditCommit(start, kind == Kind.RESIZE, leftEdge, rightEdge, topEdge, bottomEdge, contentKeptInPlace);
     }
 }

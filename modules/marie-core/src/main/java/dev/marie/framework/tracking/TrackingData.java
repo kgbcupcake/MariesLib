@@ -487,6 +487,11 @@ public class TrackingData {
     @ApiStatus.Experimental
     public float recordSource(String sourceKey, String dominantCategory, String familyKey, long gameTimeMs) {
         if (!configuredDiminishingReturnsEnabled()) {
+            // Drop memory built up before the switch, so re-enabling starts fresh instead of
+            // resurrecting old penalties for sources consumed while it was off.
+            sourceMemory.clear();
+            categoryMemory.clear();
+            familyMemory.clear();
             this.lastTickTime = resolveCurrentTime(gameTimeMs);
             return 1.0f;
         }

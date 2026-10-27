@@ -4,6 +4,7 @@ import dev.marie.framework.api.ApiStatus;
 import dev.marie.framework.ui.PersistenceProvider;
 import dev.marie.framework.ui.component.ComponentState;
 
+import java.lang.ref.WeakReference;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -13,7 +14,9 @@ import java.util.WeakHashMap;
 @ApiStatus.Internal
 public final class ScopedPersistenceProvider implements PersistenceProvider {
 
-    private static final Map<PersistenceProvider, Map<String, ScopedPersistenceProvider>> CACHE = new WeakHashMap<>();
+    // Views are held weakly too: each one references its base strongly, so a strong value would keep
+    // the weak key reachable forever and no base (or its views) could ever be collected.
+    private static final Map<PersistenceProvider, Map<String, WeakReference<ScopedPersistenceProvider>>> CACHE = new WeakHashMap<>();
 
     private final PersistenceProvider base;
     private final String prefix;
@@ -31,8 +34,14 @@ public final class ScopedPersistenceProvider implements PersistenceProvider {
         if (base instanceof ScopedPersistenceProvider scoped) {
             return of(scoped.base, scoped.prefix + prefix);
         }
-        return CACHE.computeIfAbsent(base, b -> new HashMap<>())
-                .computeIfAbsent(prefix, p -> new ScopedPersistenceProvider(base, p));
+        Map<String, WeakReference<ScopedPersistenceProvider>> views = CACHE.computeIfAbsent(base, b -> new HashMap<>());
+        WeakReference<ScopedPersistenceProvider> ref = views.get(prefix);
+        ScopedPersistenceProvider view = ref != null ? ref.get() : null;
+        if (view == null) {
+            view = new ScopedPersistenceProvider(base, prefix);
+            views.put(prefix, new WeakReference<>(view));
+        }
+        return view;
     }
 
     public String prefix() {

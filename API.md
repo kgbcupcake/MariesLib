@@ -501,14 +501,18 @@ public final class ExampleEditableScreen extends Screen {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         RenderContext context = RenderContexts.of(graphics, partialTick);
-        context.drawRoundedRect(panel.x(), panel.y(), panel.width(), panel.height(), 1, 0xCC101010, 0xFF505050);
-        host.beginFrame();
-        host.addSnapTarget("", panel);
-        for (LabelBox box : boxes) {
-            box.render(context, host.track(box));
+        try {
+            context.drawRoundedRect(panel.x(), panel.y(), panel.width(), panel.height(), 1, 0xCC101010, 0xFF505050);
+            host.beginFrame();
+            host.addSnapTarget("", panel);
+            for (LabelBox box : boxes) {
+                box.render(context, host.track(box));
+            }
+            host.renderOverlay(context, mouseX, mouseY);
+            toggle.render(context, mouseX, mouseY);
+        } finally {
+            RenderContexts.resetClip(context);
         }
-        host.renderOverlay(context, mouseX, mouseY);
-        toggle.render(context, mouseX, mouseY);
     }
 
     @Override

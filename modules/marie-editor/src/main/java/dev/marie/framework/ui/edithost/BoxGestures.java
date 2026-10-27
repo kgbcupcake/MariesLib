@@ -91,6 +91,11 @@ final class BoxGestures {
         return true;
     }
 
+    /** Whether the running resize is shifting content offsets to keep the content where it was on screen. */
+    boolean keepsContentInPlace() {
+        return anchor != null;
+    }
+
     void drag(int mx, int my, PersistenceProvider st) {
         Bounds preview = activeDrag.mouseDragged(mx, my);
         if (preview == null) {

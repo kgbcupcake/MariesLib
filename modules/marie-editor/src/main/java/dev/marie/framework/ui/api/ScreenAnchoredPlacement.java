@@ -13,7 +13,8 @@ import java.util.function.Supplier;
  * screen pixels. With {@link Anchor#TOP_LEFT} that's simply its absolute position; with e.g. {@link
  * Anchor#BOTTOM_RIGHT} the box keeps its distance from that corner when the window is resized. An axis
  * the player never resized follows the module's natural size, and a left-edge resize grows the
- * record's {@code leftMargin} so content can stay put (see {@link AutoGrowPanelContainer#leftMarginAfterResize}).
+ * record's {@code leftMargin} so content can stay put (see {@link AutoGrowPanelContainer#leftMarginAfterResize}),
+ * unless the host already kept the content in place itself ({@link EditCommit#contentKeptInPlace}).
  *
  * <pre>{@code
  * PlacementStrategy hud = ScreenAnchoredPlacement.of(() -> new Bounds(0, 0, screenW, screenH), Anchor.TOP_LEFT);
@@ -48,7 +49,7 @@ public final class ScreenAnchoredPlacement implements PlacementStrategy {
         Bounds sc = screen.get();
         ComponentState base = existing != null ? existing : BLANK;
         int leftMargin = AutoGrowPanelContainer.leftMarginAfterResize(base.leftMargin(), commit.start().width(),
-                committed.width(), commit.resized() && commit.leftEdge());
+                committed.width(), commit.resized() && commit.leftEdge() && !commit.contentKeptInPlace());
         return new ComponentState(
                 (int) Math.round(committed.x() + fx() * committed.width() - (sc.x() + fx() * sc.width())),
                 (int) Math.round(committed.y() + fy() * committed.height() - (sc.y() + fy() * sc.height())),

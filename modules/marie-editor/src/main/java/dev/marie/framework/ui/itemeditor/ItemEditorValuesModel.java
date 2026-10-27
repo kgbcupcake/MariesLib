@@ -62,6 +62,8 @@ final class ItemEditorValuesModel {
     private final Map<String, Float> editedValues = new LinkedHashMap<>();
     private int editedCalories;
     private boolean editedEnabled = true;
+    /** Whether the user changed a Values/Calories/Enabled row since the last load or save. */
+    private boolean edited;
 
     ItemEditorValuesModel(String id, String modId, @Nullable RecipeManager recipeManager, ItemSlotComponent slot) {
         this.id = id;
@@ -101,9 +103,16 @@ final class ItemEditorValuesModel {
             return;
         }
         MarieContext.runAs(MarieContext.forMod(modId), () -> {
+            // An untouched item with no saved override is only showing the live scanner/API/inferred
+            // values; persisting them would turn that snapshot into an authoritative override that
+            // later scanner updates can never replace.
+            if (!edited && SourceClassificationRegistry.get(sourceId) == null) {
+                return;
+            }
             SourceClassificationRegistry.setOverride(sourceId, new LinkedHashMap<>(editedValues), editedCalories, editedEnabled);
             SourceClassificationRegistry.save();
         });
+        edited = false;
         refreshTrace();
     }
 
@@ -125,6 +134,7 @@ final class ItemEditorValuesModel {
         editedValues.clear();
         editedCalories = 0;
         editedEnabled = true;
+        edited = false;
         String sourceId = sourceId();
         if (sourceId == null) {
             return;
@@ -173,7 +183,10 @@ final class ItemEditorValuesModel {
         for (ValueDefinition def : owned) {
             layout.addRow(new SliderOption(def.getDisplayName(),
                     () -> editedValues.getOrDefault(def.getId(), 0f),
-                    v -> editedValues.put(def.getId(), (float) v),
+                    v -> {
+                        editedValues.put(def.getId(), (float) v);
+                        edited = true;
+                    },
                     VALUE_MIN, VALUE_MAX, VALUE_STEP, () -> {}));
         }
         String sourceId = sourceId();
@@ -187,9 +200,15 @@ final class ItemEditorValuesModel {
         // that actually owns ValueDefinitions (e.g. Nourished's nutrients). A consuming mod with no
         // ValueDefinitions of its own (e.g. an EMC editor) has no use for them.
         if (!owned.isEmpty()) {
-            layout.addRow(SliderOption.ofInt("Calories", () -> editedCalories, v -> editedCalories = v,
+            layout.addRow(SliderOption.ofInt("Calories", () -> editedCalories, v -> {
+                        editedCalories = v;
+                        edited = true;
+                    },
                     CALORIES_MIN, CALORIES_MAX, CALORIES_STEP, "cal", () -> {}));
-            layout.addRow(new ToggleOption("Enabled", () -> editedEnabled, v -> editedEnabled = v, () -> {}));
+            layout.addRow(new ToggleOption("Enabled", () -> editedEnabled, v -> {
+                editedEnabled = v;
+                edited = true;
+            }, () -> {}));
         }
         valuesLayout = layout;
     }
