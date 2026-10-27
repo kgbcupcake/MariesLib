@@ -47,9 +47,14 @@ public interface ModuleProfile {
         return () -> store;
     }
 
-    /** A profile whose settings live under {@code prefix} in {@code base} and whose colors use {@link ColorScope#prefixed}. */
+    /**
+     * A profile whose settings live under {@code prefix} in {@code base} and whose colors use {@link
+     * ColorScope#prefixed}. Both use {@link ColorScope#normalizePrefix}, so e.g. {@code "Compact/"} and
+     * {@code "compact/"} are the same profile rather than separate settings sharing one set of colors.
+     */
     static ModuleProfile scoped(PersistenceProvider base, String prefix) {
-        return of(base.scoped(prefix), ColorScope.prefixed(prefix));
+        String normalized = ColorScope.normalizePrefix(prefix);
+        return of(base.scoped(normalized), ColorScope.prefixed(normalized));
     }
 
     static ModuleProfile of(PersistenceProvider store, ColorScope colors) {

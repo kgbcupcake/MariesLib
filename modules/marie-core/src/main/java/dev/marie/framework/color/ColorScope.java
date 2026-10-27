@@ -32,11 +32,20 @@ public interface ColorScope {
 
     /** A profile that prefixes every key's path, e.g. {@code mymod:panel.bg} becomes {@code mymod:compact/panel.bg}. */
     static ColorScope prefixed(String pathPrefix) {
-        String prefix = sanitize(pathPrefix);
+        String prefix = normalizePrefix(pathPrefix);
         if (prefix.isEmpty()) {
             return NONE;
         }
         return key -> ColorKey.of(ResourceLocation.fromNamespaceAndPath(key.id().getNamespace(), prefix + key.id().getPath()));
+    }
+
+    /**
+     * {@code pathPrefix} as {@link #prefixed} uses it: lowercased, with any character not allowed in a
+     * resource path replaced by {@code _}. Use the same form anywhere else the profile is keyed (e.g.
+     * its settings store), so two prefixes never share colors while keeping separate settings.
+     */
+    static String normalizePrefix(String pathPrefix) {
+        return sanitize(pathPrefix);
     }
 
     private static String sanitize(String raw) {

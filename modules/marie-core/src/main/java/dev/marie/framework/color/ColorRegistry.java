@@ -74,6 +74,20 @@ public final class ColorRegistry {
      */
     private static final Set<String> DIRTY = new HashSet<>();
 
+    /**
+     * Per mod, entries of its own {@code colors.json} whose plain key (e.g. {@code accent}) a later mod's
+     * file also defines. The shared map keeps only the later value, so these are written back when the
+     * earlier mod's file is rewritten instead of being dropped from it.
+     */
+    private static final Map<String, Map<String, Integer>> SHADOWED = new HashMap<>();
+
+    /** What one load pass reads across every mod's file before {@link #apply} swaps it in. */
+    private static final class LoadPass {
+        final Map<String, Integer> merged = new LinkedHashMap<>();
+        final Map<String, String> owners = new HashMap<>();
+        final Map<String, Map<String, Integer>> shadowed = new HashMap<>();
+    }
+
     private ColorRegistry() {}
 
     public static Optional<Integer> getArgb(String key) {
@@ -111,15 +125,14 @@ public final class ColorRegistry {
     }
 
     public static void load() {
-        Map<String, Integer> merged = new LinkedHashMap<>();
-        Map<String, String> owners = new HashMap<>();
+        LoadPass pass = new LoadPass();
         for (String modId : modIds()) {
-            runAsMod(modId, () -> loadModFile(modId, merged, owners));
+            runAsMod(modId, () -> loadModFile(modId, pass));
         }
-        apply(merged, owners);
+        apply(pass);
     }
 
-    private static void loadModFile(String modId, Map<String, Integer> merged, Map<String, String> owners) {
+    private static void loadModFile(String modId, LoadPass pass) {
         Path configDir = configDir(modId);
         Path file = configDir.resolve("colors.json");
         try {
@@ -129,7 +142,7 @@ public final class ColorRegistry {
                 MarieCore.LOGGER.info("[ColorRegistry] Wrote default colors.json");
             }
             try (Reader r = Files.newBufferedReader(file)) {
-                int added = mergeFrom(r, modId, merged, owners);
+                int added = mergeFrom(r, modId, pass);
                 MarieCore.LOGGER.info("[ColorRegistry] Loaded {} custom colors from {}", added, file);
             }
         } catch (IOException e) {
@@ -179,8 +192,13 @@ public final class ColorRegistry {
                 file.put(e.getKey(), e.getValue());
             }
         }
-        byMod.forEach(ColorRegistry::writeModFile);
-        DIRTY.clear();
+        byMod.forEach((modId, entries) -> {
+            SHADOWED.getOrDefault(modId, Map.of()).forEach(entries::putIfAbsent);
+            // A file that failed to write stays dirty, so the next save retries it.
+            if (writeModFile(modId, entries)) {
+                DIRTY.remove(modId);
+            }
+        });
     }
 
     /** Marks the file {@code key} is saved to, and the file it was read from if that differs, as needing a rewrite. */
@@ -192,7 +210,7 @@ public final class ColorRegistry {
         }
     }
 
-    private static void writeModFile(String modId, Map<String, Integer> entries) {
+    private static boolean writeModFile(String modId, Map<String, Integer> entries) {
         Path configDir = configDir(modId);
         Path file = configDir.resolve("colors.json");
         try {
@@ -208,13 +226,25 @@ public final class ColorRegistry {
                 GSON.toJson(arr, w);
             }
             MarieCore.LOGGER.info("[ColorRegistry] Saved {} entries to {}", arr.size(), file);
+            return true;
         } catch (IOException e) {
             MarieCore.LOGGER.error("[ColorRegistry] Failed to save colors.json", e);
+            return false;
         }
     }
 
     /** The attached mod named by {@code key}'s namespace, else the file it came from, else the current mod. */
     private static String ownerOf(String key) {
+        String namespace = attachedNamespace(key);
+        if (namespace != null) {
+            return namespace;
+        }
+        String recorded = OWNERS.get(key);
+        return recorded != null ? recorded : IMarieConfig.get().modId();
+    }
+
+    /** {@code key}'s namespace when it names an attached mod, else {@code null}. */
+    private static String attachedNamespace(String key) {
         int colon = key.indexOf(':');
         if (colon > 0) {
             String namespace = key.substring(0, colon);
@@ -222,8 +252,7 @@ public final class ColorRegistry {
                 return namespace;
             }
         }
-        String recorded = OWNERS.get(key);
-        return recorded != null ? recorded : IMarieConfig.get().modId();
+        return null;
     }
 
     /** Every attached mod's id, or just the current config's when none has attached yet. */
@@ -252,12 +281,14 @@ public final class ColorRegistry {
         return FMLPaths.CONFIGDIR.get().resolve(modId);
     }
 
-    private static void apply(Map<String, Integer> merged, Map<String, String> owners) {
+    private static void apply(LoadPass pass) {
         INSTANCE.reset();
-        merged.forEach(INSTANCE::register);
+        pass.merged.forEach(INSTANCE::register);
         INSTANCE.freeze();
         OWNERS.clear();
-        OWNERS.putAll(owners);
+        OWNERS.putAll(pass.owners);
+        SHADOWED.clear();
+        SHADOWED.putAll(pass.shadowed);
         DIRTY.clear();
     }
 
@@ -266,22 +297,21 @@ public final class ColorRegistry {
      * If absent, falls back to {@link #load()}.
      */
     public static void loadFromDatapack(ResourceManager resourceManager) {
-        Map<String, Integer> merged = new LinkedHashMap<>();
-        Map<String, String> owners = new HashMap<>();
+        LoadPass pass = new LoadPass();
         for (String modId : modIds()) {
             runAsMod(modId, () -> MarieResourceLoader.loadFromModConfig(
                     resourceManager,
                     DatapackSchema.CONFIG_COLORS,
                     reader -> {
-                        mergeFrom(reader, modId, merged, owners);
+                        mergeFrom(reader, modId, pass);
                     },
-                    () -> loadModFile(modId, merged, owners),
+                    () -> loadModFile(modId, pass),
                     "[ColorRegistry] Loaded from datapack override",
                     "[ColorRegistry] Failed to load datapack colors, falling back to config folder",
                     "[ColorRegistry] Loaded from config folder"
             ));
         }
-        apply(merged, owners);
+        apply(pass);
     }
 
     private static void writeEmpty(Path file) throws IOException {
@@ -290,8 +320,8 @@ public final class ColorRegistry {
         }
     }
 
-    /** Parses one colors.json in full, then adds it to {@code merged} as {@code modId}'s; returns how many entries it had. */
-    private static int mergeFrom(Reader reader, String modId, Map<String, Integer> merged, Map<String, String> owners) {
+    /** Parses one colors.json in full, then adds it to {@code pass} as {@code modId}'s; returns how many entries it had. */
+    private static int mergeFrom(Reader reader, String modId, LoadPass pass) {
         Map<String, Integer> parsed = new LinkedHashMap<>();
         JsonArray arr = GSON.fromJson(reader, JsonArray.class);
         if (arr != null) {
@@ -308,8 +338,13 @@ public final class ColorRegistry {
             }
         }
         parsed.forEach((key, argb) -> {
-            merged.put(key, argb);
-            owners.put(key, modId);
+            String previousOwner = pass.owners.get(key);
+            // Namespaced keys are routed to their own mod's file instead, so only plain keys shadow.
+            if (previousOwner != null && !previousOwner.equals(modId) && attachedNamespace(key) == null) {
+                pass.shadowed.computeIfAbsent(previousOwner, k -> new LinkedHashMap<>()).put(key, pass.merged.get(key));
+            }
+            pass.merged.put(key, argb);
+            pass.owners.put(key, modId);
         });
         return parsed.size();
     }

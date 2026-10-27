@@ -11,6 +11,7 @@ public final class FeatureFlagCache {
 
     private static volatile MarieModFeatureFlags current = MarieModFeatureFlags.disabled();
     private static volatile boolean initialized;
+    private static volatile int diminishingReturnsOffCount;
 
     private FeatureFlagCache() {}
 
@@ -19,8 +20,19 @@ public final class FeatureFlagCache {
     }
 
     public static void sync(MarieModFeatureFlags flags) {
+        if (current.enableDiminishingReturns() && !flags.enableDiminishingReturns()) {
+            diminishingReturnsOffCount++;
+        }
         current = flags;
         initialized = true;
+    }
+
+    /**
+     * How many times {@link #sync} has switched diminishing returns off. Tracking data compares it to
+     * the value it last saw to notice an off period even when nothing was eaten during it.
+     */
+    public static int diminishingReturnsOffCount() {
+        return diminishingReturnsOffCount;
     }
 
     public static MarieModFeatureFlags get() {
