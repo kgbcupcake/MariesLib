@@ -135,12 +135,16 @@ public class TrackingData {
             map.add(getValueCodecKey(key), Codec.FLOAT.encodeStart(ops, data.values.getOrDefault(key, 0f)));
             map.add("last_" + key, Codec.FLOAT.encodeStart(ops, data.lastValues.getOrDefault(key, 0f)));
         }
+        // Memory left over while diminishing returns is off is already obsolete (it's cleared on the next
+        // check), so it isn't saved; saved memory is stamped with when it was written, for decodeData.
+        boolean memoryValid = configuredDiminishingReturnsEnabled();
         map.add("source_memory", Codec.unboundedMap(Codec.STRING, SourceMemoryEntry.CODEC)
-                .encodeStart(ops, data.sourceMemory));
+                .encodeStart(ops, memoryValid ? data.sourceMemory : Map.of()));
         map.add("category_memory", Codec.unboundedMap(Codec.STRING, SourceMemoryEntry.CODEC)
-                .encodeStart(ops, data.categoryMemory));
+                .encodeStart(ops, memoryValid ? data.categoryMemory : Map.of()));
         map.add("family_memory", Codec.unboundedMap(Codec.STRING, SourceMemoryEntry.CODEC)
-                .encodeStart(ops, data.familyMemory));
+                .encodeStart(ops, memoryValid ? data.familyMemory : Map.of()));
+        map.add("memory_saved_at", Codec.LONG.encodeStart(ops, System.currentTimeMillis()));
         map.add("recent_ids", Codec.list(Codec.STRING).encodeStart(ops, data.recentIds));
         map.add("last_tick_time", Codec.LONG.encodeStart(ops, data.lastTickTime));
         map.add("tracker_accumulators", Codec.unboundedMap(ResourceLocation.CODEC, Codec.FLOAT)
@@ -216,6 +220,13 @@ public class TrackingData {
         }
 
         data.lastTickTime = decodeLong(ops, map, "last_tick_time", 0L);
+
+        // Memory saved before diminishing returns was last switched off (e.g. the player was offline
+        // through an off/on toggle) is from before that off period, so it starts fresh too.
+        long lastOff = FeatureFlagCache.diminishingReturnsLastOffMillis();
+        if (lastOff > 0L && decodeLong(ops, map, "memory_saved_at", 0L) <= lastOff) {
+            data.clearSourceMemories();
+        }
 
         T trackerAccumulatorsVal = map.get("tracker_accumulators");
         if (trackerAccumulatorsVal != null) {

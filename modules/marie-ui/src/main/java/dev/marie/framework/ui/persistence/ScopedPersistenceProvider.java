@@ -35,6 +35,8 @@ public final class ScopedPersistenceProvider implements PersistenceProvider {
             return of(scoped.base, scoped.prefix + prefix);
         }
         Map<String, WeakReference<ScopedPersistenceProvider>> views = CACHE.computeIfAbsent(base, b -> new HashMap<>());
+        // Drop prefixes whose views were collected, so short-lived profiles don't pile up under a long-lived base.
+        views.values().removeIf(r -> r.get() == null);
         WeakReference<ScopedPersistenceProvider> ref = views.get(prefix);
         ScopedPersistenceProvider view = ref != null ? ref.get() : null;
         if (view == null) {

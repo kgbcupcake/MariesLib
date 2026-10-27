@@ -1,11 +1,14 @@
 package dev.marie.framework.tracking;
 
+import com.google.gson.JsonElement;
+import com.mojang.serialization.JsonOps;
 import dev.marie.framework.config.FeatureFlagCache;
 import dev.marie.framework.config.MarieModFeatureFlags;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 /** Turning diminishing returns off and back on must start fresh, even if nothing was eaten while it was off. */
 class DiminishingReturnsOffPeriodTest {
@@ -59,5 +62,50 @@ class DiminishingReturnsOffPeriodTest {
         eat();
 
         assertEquals(3.0f, data.getMemoryEntry(ITEM).applicationCount(), 1e-4f);
+    }
+
+    private static JsonElement save(TrackingData d) {
+        return TrackingData.CODEC.encodeStart(JsonOps.INSTANCE, d).getOrThrow();
+    }
+
+    private static TrackingData load(JsonElement saved) {
+        return TrackingData.CODEC.parse(JsonOps.INSTANCE, saved).getOrThrow();
+    }
+
+    @Test
+    void offlineThroughOffPeriodStartsFresh() throws InterruptedException {
+        eat();
+        eat();
+        JsonElement saved = save(data);
+        Thread.sleep(2);
+
+        syncDiminishingReturns(false);
+        syncDiminishingReturns(true);
+
+        assertNull(load(saved).getMemoryEntry(ITEM));
+    }
+
+    @Test
+    void savedWhileOffDropsMemory() {
+        eat();
+        eat();
+        syncDiminishingReturns(false);
+        JsonElement saved = save(data);
+        syncDiminishingReturns(true);
+
+        assertNull(load(saved).getMemoryEntry(ITEM));
+    }
+
+    @Test
+    void savedAfterOffPeriodKeepsMemory() throws InterruptedException {
+        syncDiminishingReturns(false);
+        syncDiminishingReturns(true);
+        Thread.sleep(2);
+        eat();
+        eat();
+
+        TrackingData restored = load(save(data));
+
+        assertEquals(2.0f, restored.getMemoryEntry(ITEM).applicationCount(), 1e-4f);
     }
 }

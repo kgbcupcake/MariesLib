@@ -13,6 +13,7 @@ import dev.marie.framework.ui.drag.DraggableResizable;
 import dev.marie.framework.ui.drag.SnapRegistry;
 import dev.marie.framework.ui.geometry.Bounds;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -93,7 +94,7 @@ public final class EditHostCore {
             String id = module.id();
             drag.setSnapRegistryId(snapId(id));
             if (!lastBounds.containsKey(id)) {
-                SnapRegistry.register(snapId(id), () -> isDrawing() ? lastBounds.get(id) : null);
+                SnapRegistry.register(snapId(id), new HostSnapSource(this, id));
             }
         }
         Bounds preview = gestures.preview(module.id());
@@ -208,6 +209,31 @@ public final class EditHostCore {
     /** Whether this host drew a frame recently; a host that stopped (hidden hub tab) offers no snap targets. */
     private boolean isDrawing() {
         return System.nanoTime() - lastFrameNanos < SNAP_STALE_NANOS;
+    }
+
+    /**
+     * A module's entry in the static {@link SnapRegistry}. Holds its host weakly, so a host whose screen
+     * closed without {@link #dispose()} can still be collected, after which the registry drops the entry.
+     */
+    private static final class HostSnapSource implements SnapRegistry.ExpiringSource {
+        private final WeakReference<EditHostCore> host;
+        private final String moduleId;
+
+        HostSnapSource(EditHostCore host, String moduleId) {
+            this.host = new WeakReference<>(host);
+            this.moduleId = moduleId;
+        }
+
+        @Override
+        public Bounds get() {
+            EditHostCore core = host.get();
+            return core != null && core.isDrawing() ? core.lastBounds.get(moduleId) : null;
+        }
+
+        @Override
+        public boolean isExpired() {
+            return host.get() == null;
+        }
     }
 
     /** The move mode switched on for {@code module}, if it's one the module supports. */

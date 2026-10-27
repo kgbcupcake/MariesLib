@@ -117,6 +117,7 @@ public final class ColorRegistry {
         next.remove(key);
         markDirty(key);
         OWNERS.remove(key);
+        forgetShadowed(key);
         INSTANCE.reset();
         for (Map.Entry<String, Integer> e : next.entrySet()) {
             INSTANCE.register(e.getKey(), e.getValue());
@@ -207,6 +208,19 @@ public final class ColorRegistry {
         String recorded = OWNERS.get(key);
         if (recorded != null) {
             DIRTY.add(recorded);
+        }
+    }
+
+    /**
+     * Drops every earlier mod's shadowed copy of {@code key} and marks those files dirty, so removing a
+     * plain key shared by several mods really falls back to the default instead of the earlier copy
+     * coming back on the next load.
+     */
+    private static void forgetShadowed(String key) {
+        for (Map.Entry<String, Map<String, Integer>> e : SHADOWED.entrySet()) {
+            if (e.getValue().remove(key) != null) {
+                DIRTY.add(e.getKey());
+            }
         }
     }
 

@@ -12,6 +12,7 @@ public final class FeatureFlagCache {
     private static volatile MarieModFeatureFlags current = MarieModFeatureFlags.disabled();
     private static volatile boolean initialized;
     private static volatile int diminishingReturnsOffCount;
+    private static volatile long diminishingReturnsLastOffMillis;
 
     private FeatureFlagCache() {}
 
@@ -22,6 +23,7 @@ public final class FeatureFlagCache {
     public static void sync(MarieModFeatureFlags flags) {
         if (current.enableDiminishingReturns() && !flags.enableDiminishingReturns()) {
             diminishingReturnsOffCount++;
+            diminishingReturnsLastOffMillis = System.currentTimeMillis();
         }
         current = flags;
         initialized = true;
@@ -33,6 +35,15 @@ public final class FeatureFlagCache {
      */
     public static int diminishingReturnsOffCount() {
         return diminishingReturnsOffCount;
+    }
+
+    /**
+     * Wall-clock time ({@link System#currentTimeMillis()}) of the latest {@link #sync} that switched
+     * diminishing returns off, or 0 if none has. Saved tracking data compares it to when its memory was
+     * written, so a player who was offline through an off period still starts fresh.
+     */
+    public static long diminishingReturnsLastOffMillis() {
+        return diminishingReturnsLastOffMillis;
     }
 
     public static MarieModFeatureFlags get() {
