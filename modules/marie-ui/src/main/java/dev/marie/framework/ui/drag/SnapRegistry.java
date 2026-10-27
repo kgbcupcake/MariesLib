@@ -5,6 +5,7 @@ import dev.marie.framework.ui.drag.DraggableResizable;
 import dev.marie.framework.ui.geometry.Bounds;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,10 +48,20 @@ public final class SnapRegistry {
      *
      * @param id globally unique id for this registrant
      * @param boundsSupplier resolves the target's current {@link Bounds}; invoked fresh on every
-     *     {@link #computeSnapLines} call, never cached
+     *     {@link #computeSnapLines} call, never cached; may return {@code null} while the target isn't on
+     *     screen, to be skipped
      */
     public static void register(String id, Supplier<Bounds> boundsSupplier) {
         ENTRIES.put(id, boundsSupplier);
+    }
+
+    /**
+     * A bounds source that can tell the registry it's gone for good (e.g. its owner was garbage
+     * collected without unregistering). Expired entries are dropped the next time snap lines are computed.
+     */
+    @ApiStatus.Experimental
+    public interface ExpiringSource extends Supplier<Bounds> {
+        boolean isExpired();
     }
 
     /** Unregisters {@code id}. No-op if not registered. */
@@ -70,11 +81,19 @@ public final class SnapRegistry {
     public static SnapLines computeSnapLines(String excludeId) {
         List<Integer> xLines = new ArrayList<>();
         List<Integer> yLines = new ArrayList<>();
-        for (Map.Entry<String, Supplier<Bounds>> entry : ENTRIES.entrySet()) {
+        for (Iterator<Map.Entry<String, Supplier<Bounds>>> it = ENTRIES.entrySet().iterator(); it.hasNext(); ) {
+            Map.Entry<String, Supplier<Bounds>> entry = it.next();
+            if (isExpired(entry.getValue())) {
+                it.remove();
+                continue;
+            }
             if (entry.getKey().equals(excludeId)) {
                 continue;
             }
             Bounds bounds = entry.getValue().get();
+            if (bounds == null) {
+                continue;
+            }
             xLines.add(bounds.x());
             xLines.add(bounds.x() + bounds.width());
             yLines.add(bounds.y());
@@ -100,11 +119,19 @@ public final class SnapRegistry {
     public static SnapLines computeSnapLines(String excludeId, Bounds near, int proximityPx) {
         List<Integer> xLines = new ArrayList<>();
         List<Integer> yLines = new ArrayList<>();
-        for (Map.Entry<String, Supplier<Bounds>> entry : ENTRIES.entrySet()) {
+        for (Iterator<Map.Entry<String, Supplier<Bounds>>> it = ENTRIES.entrySet().iterator(); it.hasNext(); ) {
+            Map.Entry<String, Supplier<Bounds>> entry = it.next();
+            if (isExpired(entry.getValue())) {
+                it.remove();
+                continue;
+            }
             if (entry.getKey().equals(excludeId)) {
                 continue;
             }
             Bounds bounds = entry.getValue().get();
+            if (bounds == null) {
+                continue;
+            }
             if (spanGap(near.y(), near.height(), bounds.y(), bounds.height()) <= proximityPx) {
                 xLines.add(bounds.x());
                 xLines.add(bounds.x() + bounds.width());
@@ -115,6 +142,10 @@ public final class SnapRegistry {
             }
         }
         return new SnapLines(xLines, yLines);
+    }
+
+    private static boolean isExpired(Supplier<Bounds> source) {
+        return source instanceof ExpiringSource expiring && expiring.isExpired();
     }
 
     /** Gap between two 1D spans; 0 when they overlap or touch. */

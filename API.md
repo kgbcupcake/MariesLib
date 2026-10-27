@@ -415,6 +415,179 @@ MarieComponent content = MarieModuleSettings.standardPanel("My Module", persiste
 - **Colors:** `PanelBuilder.colorTab(...).color(...)` opens the shared round color picker.
 - **Decimal values:** `PanelBuilder.decimalSlider(label, get, set, min, max, step, decimals, unit, onCommit)` shows the raw value with `decimals` places plus `unit` ("293.15 K"); `slider` stays a percentage and `intSlider` a whole number. `button(label, () -> caption, action, onCommit)` takes a live caption.
 
+## Module edit host (marie-editor) — `@Experimental`
+
+`dev.marie.framework.ui.api.ModuleEditHost` makes a set of modules editable on any screen, HUD layer or hub tab: whole-box move, edge/corner resize with sibling and size snapping, Move Text/Icons/Bars/Header/All content drags, resize handles, dashed move outlines and live size labels. You build modules, pick a placement strategy, and hand them to the host — no hand-rolled `DraggableResizable` wiring.
+
+- **`EditableModule`** (extends `SelfPositioningModule`): add `naturalSize()`; optionally override `editCapabilities()`, `resizeLimits()`, `snapGroup()`, `placementStrategy()`, `extraOutlineParts(mode)`, `clampMoveOffsetX/Y`. The module's `id()` is its persistence key **and** its `MarieModuleSettings` panel id. Wrap an existing module with `EditableModule.of(module, naturalSize, capabilities)`.
+- **`EditCapabilities`**: `full()`, `sizeOnly()` (pinned top-left: right/bottom edges + corner), `contentOnly()`, then `withBoxMove`, `withResizeEdges`, `withCorners`, `withMoveModes`, `keepContentOnEdgeResize`.
+- **`PlacementStrategy`**: converts committed screen bounds to the saved `ComponentState` and back (`toState`/`toBounds`/`resolve`, plus an optional `clampRegion`). Built-ins: `PanelRelativePlacement` (local units inside a moving, scaled panel or column), `ScreenAnchoredPlacement` (a free HUD box kept relative to a screen anchor), `PinnedPlacement` (top-left fixed, only size saved). Every built-in keeps an axis auto-sized until the player resizes it, and copies `contentScale`/`paddingScale`/`leftMargin` through.
+- **Frame protocol:** `beginFrame()` → `addSnapTarget(group, bounds)` for e.g. the panel → `track(module)` per module (draw it at the returned bounds; they follow a drag live) → `renderOverlay(context, mx, my)`. Forward `mouseClicked/Dragged/Released`. A container that lays modules out before drawing them reads `previewBounds(id)` / `livePreviews()` first (pass the map straight to `ComponentPersistence.resolveRelative`), and `activeGesture()` tells it which edge is moving.
+- **Builder:** `ModuleEditHost.builder(store or profile, placement)` with `.placement(id, strategy)`, `.activeWhen(controller::isActive)`, `.outlineColor`, `.sizeLabelColors`, `.sizeLabels`, `.outlineBoxes`, `.useSnapRegistry`, `.snapThreshold`, `.beforeCommit`, `.afterCommit`.
+- **Hub tab:** `new HubEntry(id, label, host.asComponent(id, (context, area, h) -> { /* lay out + h.track(...) + render */ }))` — the tab begins the frame, draws the overlay and owns clicks while editing. `HubPanel` now also exposes `selectedEntry()`/`selectedEntryId()`/`selectEntry(id)`, forwards `keyPressed`/`charTyped`, and wires its color picker through any `ContentWrapper` around an options panel.
+- **Edit toggle:** `EditModeToggle.forController(() -> windowBounds, controller)` or `EditModeToggle.builder(() -> windowBounds, isOn, onToggle)`; `.anchor(Anchor, dx, dy)`, `.scale`, `.visibleWhen`, `.lightColors(on, off)`, `.bodyColors`, `.housingBorderColor`.
+- **Profiles:** `ModuleProfile.scoped(store, "compact/")` gives a second copy of the same modules its own settings (`PersistenceProvider#scoped(prefix)`, one stable instance per prefix) and its own colors (`ColorScope.prefixed`). Wrap rendering and option-panel building in `profile.run(...)`; `MarieColors.resolveColor` and `PanelBuilder.colorKey(label, key)` slots then use the profile's colors, falling back to each color's registered default.
+- **Stored screen style:** `StandardPanelBuilder.storedOpacity(default)` + `storedBrightness()` keep background opacity and text/icon brightness in the store instead of a config file; read them with `MarieStoredStyle.backgroundOpacity/applyOpacity/withBrightness`.
+- **Your own screen:** `RenderContexts.of(guiGraphics, partialTick)` gives you a `RenderContext`. Call `RenderContexts.resetClip(context)` in a `finally` after the pass, and use `RenderContexts.graphics(context)` when you need the raw `GuiGraphics` (e.g. to draw an entity).
+
+### Example: two editable boxes, a placement strategy and the toggle
+
+Nothing here registers anything; open it with `Minecraft.getInstance().setScreen(new ExampleEditableScreen())`.
+
+```java
+package dev.marie.example;
+
+import dev.marie.framework.ui.PersistenceProvider;
+import dev.marie.framework.ui.RenderContext;
+import dev.marie.framework.ui.api.EditCapabilities;
+import dev.marie.framework.ui.api.EditModeToggle;
+import dev.marie.framework.ui.api.EditableModule;
+import dev.marie.framework.ui.api.MarieModuleSettings;
+import dev.marie.framework.ui.api.ModuleEditHost;
+import dev.marie.framework.ui.api.ModuleProfile;
+import dev.marie.framework.ui.api.MoveDrag;
+import dev.marie.framework.ui.api.PanelRelativePlacement;
+import dev.marie.framework.ui.api.PlacementStrategy;
+import dev.marie.framework.ui.api.RenderContexts;
+import dev.marie.framework.ui.component.ComponentState;
+import dev.marie.framework.ui.component.Constraint;
+import dev.marie.framework.ui.geometry.Bounds;
+import dev.marie.framework.ui.geometry.Size;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+/** A panel with two boxes the player can move, resize and (with Move Text on) drag the text of. */
+public final class ExampleEditableScreen extends Screen {
+
+    // Use your mod's real store; this one forgets everything on restart.
+    private static final PersistenceProvider STORE = new PersistenceProvider() {
+        private final Map<String, ComponentState> states = new HashMap<>();
+
+        @Override
+        public Optional<ComponentState> load(String id) {
+            return Optional.ofNullable(states.get(id));
+        }
+
+        @Override
+        public void save(String id, ComponentState state) {
+            states.put(id, state);
+        }
+    };
+
+    private final ModuleProfile profile = ModuleProfile.of(STORE);
+    private final Bounds panel = new Bounds(40, 40, 240, 150);
+    private final PlacementStrategy placement = PanelRelativePlacement.of(() -> panel, () -> 1.0d);
+    private boolean editing;
+
+    private final ModuleEditHost host = ModuleEditHost.builder(profile, placement)
+            .activeWhen(() -> editing)
+            .build();
+    private final EditModeToggle toggle = EditModeToggle.builder(() -> panel, () -> editing, () -> editing = !editing)
+            .build();
+    private final List<LabelBox> boxes = List.of(
+            new LabelBox("example.title", "Title", 10, 12),
+            new LabelBox("example.body", "Body text", 10, 50));
+
+    public ExampleEditableScreen() {
+        super(Component.literal("Example"));
+    }
+
+    @Override
+    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        RenderContext context = RenderContexts.of(graphics, partialTick);
+        try {
+            context.drawRoundedRect(panel.x(), panel.y(), panel.width(), panel.height(), 1, 0xCC101010, 0xFF505050);
+            host.beginFrame();
+            host.addSnapTarget("", panel);
+            for (LabelBox box : boxes) {
+                box.render(context, host.track(box));
+            }
+            host.renderOverlay(context, mouseX, mouseY);
+            toggle.render(context, mouseX, mouseY);
+        } finally {
+            RenderContexts.resetClip(context);
+        }
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        return toggle.mouseClicked(mouseX, mouseY, button) || host.mouseClicked(mouseX, mouseY, button)
+                || super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+        return host.mouseDragged(mouseX, mouseY, button) || super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        return host.mouseReleased(mouseX, mouseY, button) || super.mouseReleased(mouseX, mouseY, button);
+    }
+
+    /** A box with one line of text; its id doubles as its settings id, so the Move Text toggle and offsets apply to it. */
+    private final class LabelBox implements EditableModule {
+
+        private final String id;
+        private final String text;
+        private final int localX;
+        private final int localY;
+
+        LabelBox(String id, String text, int localX, int localY) {
+            this.id = id;
+            this.text = text;
+            this.localX = localX;
+            this.localY = localY;
+        }
+
+        @Override
+        public String id() {
+            return id;
+        }
+
+        @Override
+        public Size naturalSize() {
+            return new Size(90, 24);
+        }
+
+        @Override
+        public EditCapabilities editCapabilities() {
+            return EditCapabilities.full().withMoveModes(MoveDrag.Mode.TEXT);
+        }
+
+        @Override
+        public Bounds resolvedBounds() {
+            Bounds natural = new Bounds(panel.x() + localX, panel.y() + localY, 90, 24);
+            return placement.resolve(profile.store(), id, natural);
+        }
+
+        @Override
+        public int localHeight() {
+            return 24;
+        }
+
+        @Override
+        public Constraint constraint() {
+            return Constraint.preferred(90, 24);
+        }
+
+        @Override
+        public void render(RenderContext context, Bounds bounds) {
+            context.fillRect(bounds.x(), bounds.y(), bounds.width(), bounds.height(), 0xFF2A2A40);
+            // Drawing through withDisplaySettings applies the text offset and records the Move Text outline.
+            RenderContext styled = MarieModuleSettings.withDisplaySettings(context, profile.store(), id);
+            styled.drawText(text, bounds.x() + 4, bounds.y() + 8, 0xFFFFFFFF, 1f);
+        }
+    }
+}
+```
+
 ## Versioning
 
 ```java

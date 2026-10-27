@@ -10,5 +10,5 @@ import net.minecraft.network.chat.Component;
  * opens {@code content} in a small popup window above the hub (see {@link HubChildPopup}), the same
  * "click something, get a small closable popup" interaction the color picker already uses.
  */
-@ApiStatus.Internal
+@ApiStatus.Experimental
 public record HubChildEntry(String id, Component label, MarieComponent content) {}

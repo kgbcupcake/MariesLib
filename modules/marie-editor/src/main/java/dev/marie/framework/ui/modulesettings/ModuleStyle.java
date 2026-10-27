@@ -20,6 +20,7 @@ public final class ModuleStyle {
     private static final String BG_SHADE_SUFFIX = "#styleBgShade";
     private static final String BORDER_OPACITY_SUFFIX = "#styleBorderOpacity";
     private static final String BORDER_SHADE_SUFFIX = "#styleBorderShade";
+    private static final String STORED_OPACITY_SUFFIX = "#storedOpacity";
 
     private ModuleStyle() {}
 
@@ -55,8 +56,18 @@ public final class ModuleStyle {
         save(p, panelId, BORDER_SHADE_SUFFIX, value);
     }
 
+    /** An absolute background opacity (not a multiplier like {@link #backgroundOpacity}), e.g. a whole screen's, with the caller's own default. */
+    public static double storedOpacity(PersistenceProvider p, String panelId, double defaultValue) {
+        return p.load(panelId + STORED_OPACITY_SUFFIX).map(ComponentState::contentScale).orElse(defaultValue);
+    }
+
+    public static void setStoredOpacity(PersistenceProvider p, String panelId, double value) {
+        save(p, panelId, STORED_OPACITY_SUFFIX, value);
+    }
+
     /** Clears the module's own Background/Border opacity and shade, for a "reset this whole module" action. */
     public static void reset(PersistenceProvider p, String panelId) {
+        p.remove(panelId + STORED_OPACITY_SUFFIX);
         p.remove(panelId + BG_OPACITY_SUFFIX);
         p.remove(panelId + BG_SHADE_SUFFIX);
         p.remove(panelId + BORDER_OPACITY_SUFFIX);

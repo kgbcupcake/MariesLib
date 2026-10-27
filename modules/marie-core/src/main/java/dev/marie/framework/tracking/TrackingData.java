@@ -61,6 +61,7 @@ public class TrackingData {
             "source_memory",
             "category_memory",
             "family_memory",
+            "memory_saved_at",
             "recent_ids",
             "last_tick_time",
             "tracker_accumulators",
@@ -135,12 +136,18 @@ public class TrackingData {
             map.add(getValueCodecKey(key), Codec.FLOAT.encodeStart(ops, data.values.getOrDefault(key, 0f)));
             map.add("last_" + key, Codec.FLOAT.encodeStart(ops, data.lastValues.getOrDefault(key, 0f)));
         }
+        // Memory left over while diminishing returns is off, or from before an off period this data hasn't
+        // checked for yet, is already obsolete (it's cleared on the next check), so it isn't saved. Saved
+        // memory is stamped with when it was written, for decodeData.
+        boolean memoryValid = configuredDiminishingReturnsEnabled()
+                && data.seenDiminishingOffCount == FeatureFlagCache.diminishingReturnsOffCount();
         map.add("source_memory", Codec.unboundedMap(Codec.STRING, SourceMemoryEntry.CODEC)
-                .encodeStart(ops, data.sourceMemory));
+                .encodeStart(ops, memoryValid ? data.sourceMemory : Map.of()));
         map.add("category_memory", Codec.unboundedMap(Codec.STRING, SourceMemoryEntry.CODEC)
-                .encodeStart(ops, data.categoryMemory));
+                .encodeStart(ops, memoryValid ? data.categoryMemory : Map.of()));
         map.add("family_memory", Codec.unboundedMap(Codec.STRING, SourceMemoryEntry.CODEC)
-                .encodeStart(ops, data.familyMemory));
+                .encodeStart(ops, memoryValid ? data.familyMemory : Map.of()));
+        map.add("memory_saved_at", Codec.LONG.encodeStart(ops, System.currentTimeMillis()));
         map.add("recent_ids", Codec.list(Codec.STRING).encodeStart(ops, data.recentIds));
         map.add("last_tick_time", Codec.LONG.encodeStart(ops, data.lastTickTime));
         map.add("tracker_accumulators", Codec.unboundedMap(ResourceLocation.CODEC, Codec.FLOAT)
@@ -216,6 +223,13 @@ public class TrackingData {
         }
 
         data.lastTickTime = decodeLong(ops, map, "last_tick_time", 0L);
+
+        // Memory saved before diminishing returns was last switched off (e.g. the player was offline
+        // through an off/on toggle) is from before that off period, so it starts fresh too.
+        long lastOff = FeatureFlagCache.diminishingReturnsLastOffMillis();
+        if (lastOff > 0L && decodeLong(ops, map, "memory_saved_at", 0L) <= lastOff) {
+            data.clearSourceMemories();
+        }
 
         T trackerAccumulatorsVal = map.get("tracker_accumulators");
         if (trackerAccumulatorsVal != null) {
@@ -328,6 +342,9 @@ public class TrackingData {
     @ApiStatus.Experimental
     public long lastTickTime = 0L;
 
+    /** {@link FeatureFlagCache#diminishingReturnsOffCount()} as of this data's last memory check. Never serialized. */
+    private int seenDiminishingOffCount = FeatureFlagCache.diminishingReturnsOffCount();
+
     // Tracker system state — separate from values/total (value bars), which stay untouched.
     // MarieLib has no domain knowledge of what a tracker measures.
     @ApiStatus.Experimental
@@ -367,6 +384,7 @@ public class TrackingData {
         d.familyMemory.clear();
         d.familyMemory.putAll(src.familyMemory);
         d.lastTickTime = src.lastTickTime;
+        d.seenDiminishingOffCount = src.seenDiminishingOffCount;
         d.trackingAccumulators.clear();
         d.trackingAccumulators.putAll(src.trackingAccumulators);
         d.trackingHistory.clear();
@@ -487,9 +505,13 @@ public class TrackingData {
     @ApiStatus.Experimental
     public float recordSource(String sourceKey, String dominantCategory, String familyKey, long gameTimeMs) {
         if (!configuredDiminishingReturnsEnabled()) {
+            // Drop memory built up before the switch, so re-enabling starts fresh instead of
+            // resurrecting old penalties for sources consumed while it was off.
+            clearSourceMemories();
             this.lastTickTime = resolveCurrentTime(gameTimeMs);
             return 1.0f;
         }
+        forgetMemoryFromBeforeOffPeriod();
 
         int maxCount = configuredMemoryWindowCount();
         long streakWindowMs = configuredStreakWindowMs();
@@ -547,6 +569,21 @@ public class TrackingData {
     /**
      * Helper to update a memory map with streak-aware increment.
      */
+    /** Drops all source memory if diminishing returns was switched off since this data last checked, even with nothing eaten meanwhile. */
+    private void forgetMemoryFromBeforeOffPeriod() {
+        int offCount = FeatureFlagCache.diminishingReturnsOffCount();
+        if (offCount != seenDiminishingOffCount) {
+            seenDiminishingOffCount = offCount;
+            clearSourceMemories();
+        }
+    }
+
+    private void clearSourceMemories() {
+        sourceMemory.clear();
+        categoryMemory.clear();
+        familyMemory.clear();
+    }
+
     private void updateMemory(Map<String, SourceMemoryEntry> memory, String key, long gameTimeMs,
                               float baseIncrement, long streakWindowMs, float streakWeight) {
         SourceMemoryEntry entry = memory.getOrDefault(key, new SourceMemoryEntry(0f, gameTimeMs));
@@ -582,6 +619,7 @@ public class TrackingData {
         if (!configuredDiminishingReturnsEnabled()) {
             return 1.0f;
         }
+        forgetMemoryFromBeforeOffPeriod();
         long halfLifeMs = config().memoryWindowMinutes() * 60_000L;
         long gameTimeMs = resolveCurrentTime(0L);
         SourceMemoryEntry entry = sourceMemory.get(sourceKey);
@@ -731,6 +769,7 @@ public class TrackingData {
         if (!configuredDiminishingReturnsEnabled()) {
             return 1.0f;
         }
+        forgetMemoryFromBeforeOffPeriod();
         DiminishingReturnsConfig memCfg = config();
         long halfLifeMs = memCfg.memoryWindowMinutes() * 60_000L;
         double floor = memCfg.diminishingFloor();
@@ -892,6 +931,7 @@ public class TrackingData {
         if (!configuredDiminishingReturnsEnabled()) {
             return new MultiplierBreakdown(1f, 0f, 0f, 1f, 1f, 1f, 0f, 0f);
         }
+        forgetMemoryFromBeforeOffPeriod();
         DiminishingReturnsConfig memCfg = config();
         long halfLifeMs = memCfg.memoryWindowMinutes() * 60_000L;
         double noveltyBonus = memCfg.noveltyBonus();

@@ -59,6 +59,7 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
     private final DoubleSupplier trendCurrentSupplier;
     /** Nullable — the icon's box uses {@link #boxBorderColorSupplier} when absent. */
     private final IntSupplier iconBorderColorSupplier;
+    private boolean independentIconSize;
 
     public BarRowComponent(
             String id,
@@ -243,6 +244,16 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
         return visible;
     }
 
+    /**
+     * Sizes the icon from its own Icon size alone, never the Text size — for a row whose options
+     * panel was built with {@link dev.marie.framework.ui.api.StandardPanelBuilder#independentIconSize},
+     * so the icon matches what its Icon size slider shows. Without this an unset icon size follows Text size.
+     */
+    public BarRowComponent independentIconSize() {
+        this.independentIconSize = true;
+        return this;
+    }
+
     @Override
     public Constraint constraint() {
         return Constraint.preferred(resolvedBounds.width(), resolvedBounds.height());
@@ -250,7 +261,7 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
 
     @Override
     public void render(RenderContext baseContext, Bounds bounds) {
-        RenderContext context = MarieModuleSettings.withDisplaySettings(baseContext, store, id);
+        RenderContext context = MarieModuleSettings.withDisplaySettings(baseContext, store, id, !independentIconSize);
         if (!visible || MarieModuleSettings.isWindowHidden(store, id)) {
             return;
         }
@@ -264,7 +275,7 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
         // something instead of being silently ignored.
         double scale = contentScale;
         float textScale = (float) (scale * MarieModuleSettings.textScale(store, id));
-        float iconScale = (float) (scale * MarieModuleSettings.iconScale(store, id));
+        float iconScale = (float) (scale * MarieModuleSettings.iconScale(store, id, !independentIconSize));
         float barScale = (float) (scale * MarieModuleSettings.barScale(store, id));
 
         int boxFill = MarieModuleSettings.styledBackground(boxFillColorSupplier.getAsInt(), store, id);
@@ -306,7 +317,9 @@ public final class BarRowComponent implements MarieComponent, SelfPositioningMod
         // same "moves/sizes relative to the box, not the box itself" split iconInnerOffset already
         // gives "Move Icon" over "Move Icons".
         float iconInnerScale = (float) MarieModuleSettings.iconInnerScale(store, id);
-        context.drawItem(iconSupplier.get(), iconX + iconInnerOffX, iconY + iconInnerOffY, textScale * iconInnerScale);
+        // Independent: the wrapper adds no icon/text ratio, so the icon's own final scale goes straight in.
+        float itemScale = independentIconSize ? iconScale : textScale;
+        context.drawItem(iconSupplier.get(), iconX + iconInnerOffX, iconY + iconInnerOffY, itemScale * iconInnerScale);
 
         int labelX = bounds.x() + (int) Math.round(26 * scale);
         int labelY = bounds.y() + (int) Math.round(4 * scale);

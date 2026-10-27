@@ -5,6 +5,9 @@ import dev.marie.framework.api.marieapi.MarieAPIState;
 import dev.marie.framework.core.MarieCore;
 import net.minecraft.resources.ResourceLocation;
 
+import java.util.Optional;
+import java.util.function.Supplier;
+
 /**
  * Public facade for the MarieLib color subsystem: registering default color definitions and
  * resolving their effective, currently-in-effect ARGB value. Self-contained and separate from
@@ -17,6 +20,8 @@ public final class MarieColors {
 
     /** Loud fallback for an unregistered {@link ColorKey} — a real bug, never silently black/white. */
     private static final int UNREGISTERED_ARGB = 0xFFFF00FF;
+
+    private static final ThreadLocal<ColorScope> CURRENT_SCOPE = ThreadLocal.withInitial(() -> ColorScope.NONE);
 
     private MarieColors() {}
 
@@ -85,6 +90,56 @@ public final class MarieColors {
         if (key == null) {
             throw new IllegalArgumentException("resolveColor: key must not be null");
         }
+        return resolveColor(key, CURRENT_SCOPE.get());
+    }
+
+    /** Resolves {@code key} as {@code scope} sees it: its scoped value, else (if the scope inherits) the base value, else the base default. */
+    @ApiStatus.Experimental
+    public static int resolveColor(ColorKey key, ColorScope scope) {
+        if (key == null) {
+            throw new IllegalArgumentException("resolveColor: key must not be null");
+        }
+        ColorKey own = scope == null ? key : scope.scoped(key);
+        if (own.equals(key)) {
+            return resolveUnscoped(key);
+        }
+        Integer preview = ColorPreviewOverrides.getOverride(own);
+        if (preview != null) {
+            return preview;
+        }
+        Optional<Integer> stored = ColorRegistry.getArgb(colorRegistryKey(own));
+        if (stored.isPresent()) {
+            return stored.get();
+        }
+        return scope.inheritsBaseValue() ? resolveUnscoped(key) : defaultArgb(key);
+    }
+
+    /** The default ARGB {@code key} was registered with, ignoring any customization; the error color if unregistered. */
+    @ApiStatus.Experimental
+    public static int defaultArgb(ColorKey key) {
+        ColorDefinition definition = ColorDefinitionRegistry.get(key);
+        return definition != null ? definition.getDefaultArgb() : UNREGISTERED_ARGB;
+    }
+
+    /** Runs {@code action} with {@code scope} active for {@link #resolveColor(ColorKey)} and MariesLib color slots on this thread. */
+    @ApiStatus.Experimental
+    public static <T> T withColorScope(ColorScope scope, Supplier<T> action) {
+        ColorScope previous = CURRENT_SCOPE.get();
+        CURRENT_SCOPE.set(scope == null ? ColorScope.NONE : scope);
+        try {
+            return action.get();
+        } finally {
+            CURRENT_SCOPE.set(previous);
+        }
+    }
+
+    /** The scope {@link #withColorScope} made active on this thread, or {@link ColorScope#NONE}. */
+    @ApiStatus.Experimental
+    public static ColorScope currentColorScope() {
+        return CURRENT_SCOPE.get();
+    }
+
+    private static int resolveUnscoped(ColorKey key) {
         Integer preview = ColorPreviewOverrides.getOverride(key);
         if (preview != null) {
             return preview;

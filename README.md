@@ -1,10 +1,6 @@
-# MariesLib
-
-Shared development library for Marie's NeoForge mods.
-
-MariesLib contains reusable framework code shared between projects instead of being implemented separately in each mod.
-
-The library is intentionally domain-agnostic where possible. A consuming mod defines what its values, trackers, UI modules, compatibility rules, or gameplay systems mean; MariesLib provides the infrastructure they run on.
+> This is a shared development library for my NeoForge mods.
+>
+> It contains reusable systems that would otherwise have to be implemented separately in each project. It is intentionally focused on framework infrastructure rather than providing its own gameplay mechanics.
 
 ---
 
