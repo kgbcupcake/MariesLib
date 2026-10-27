@@ -2,13 +2,14 @@ package dev.marie.framework.ui.drag;
 
 import dev.marie.framework.api.ApiStatus;
 import dev.marie.framework.ui.PersistenceProvider;
-import dev.marie.framework.ui.drag.SnapRegistry;
 import dev.marie.framework.ui.component.Constraint;
 import dev.marie.framework.ui.component.MarieComponent;
 import dev.marie.framework.ui.geometry.Bounds;
 import dev.marie.framework.ui.geometry.Size;
 
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.BiConsumer;
 
 /**
@@ -309,15 +310,39 @@ public final class DraggableResizable {
         };
     }
 
+    private static ResizeMode allowedEdgeMode(int mx, int my, Bounds bounds, Set<Edge> edges) {
+        for (Edge edge : edges) {
+            if (within(mx, my, edgeHandleBounds(bounds, edge))) {
+                return switch (edge) {
+                    case LEFT -> ResizeMode.LEFT;
+                    case RIGHT -> ResizeMode.RIGHT;
+                    case TOP -> ResizeMode.TOP;
+                    case BOTTOM -> ResizeMode.BOTTOM;
+                };
+            }
+        }
+        return null;
+    }
+
     /**
      * Call from the target's mouseClicked, passing its current committed {@code bounds}. Starts a
      * resize gesture if (mx, my) hits the handle, else a drag gesture if it's inside the bounds.
      * Returns true if a gesture started.
      */
     public boolean mouseClicked(int mx, int my, Bounds bounds) {
-        ResizeMode mode = isOverResizeHandle(mx, my, bounds) ? ResizeMode.CORNER
-                : isOverResizeHandleBottomLeft(mx, my, bounds) ? ResizeMode.CORNER_BOTTOM_LEFT
-                : findEdgeMode(mx, my, bounds);
+        return mouseClicked(mx, my, bounds, true, true, true, EnumSet.allOf(Edge.class));
+    }
+
+    /**
+     * As {@link #mouseClicked(int, int, Bounds)}, but only the allowed gestures can start: a press on a
+     * disallowed handle falls through to a move (if {@code move} is allowed) instead of resizing.
+     */
+    @ApiStatus.Experimental
+    public boolean mouseClicked(int mx, int my, Bounds bounds, boolean move, boolean corner, boolean bottomLeftCorner,
+                                Set<Edge> edges) {
+        ResizeMode mode = corner && isOverResizeHandle(mx, my, bounds) ? ResizeMode.CORNER
+                : bottomLeftCorner && isOverResizeHandleBottomLeft(mx, my, bounds) ? ResizeMode.CORNER_BOTTOM_LEFT
+                : allowedEdgeMode(mx, my, bounds, edges);
         if (mode != null) {
             resizing = true;
             dragging = false;
@@ -331,7 +356,7 @@ public final class DraggableResizable {
             previewBounds = bounds;
             return true;
         }
-        if (bounds.contains(mx, my)) {
+        if (move && bounds.contains(mx, my)) {
             dragging = true;
             resizing = false;
             grabOffsetX = mx - bounds.x();
@@ -403,62 +428,16 @@ public final class DraggableResizable {
         }
     }
 
-    /**
-     * Snaps whichever of {@code rawPos}'s two edges (start, start+size) is nearer a candidate line,
-     * within {@link #snapThresholdPx}; the other edge follows along at the fixed {@code size}. Falls
-     * back to {@code rawPos} unsnapped if neither edge is close enough to anything.
-     */
     private int snapPosition(int rawPos, int size, List<Integer> lines) {
-        int nearStart = nearestLine(rawPos, lines);
-        int nearEnd = nearestLine(rawPos + size, lines);
-        int startDist = nearStart == Integer.MIN_VALUE ? Integer.MAX_VALUE : Math.abs(rawPos - nearStart);
-        int endDist = nearEnd == Integer.MIN_VALUE ? Integer.MAX_VALUE : Math.abs(rawPos + size - nearEnd);
-        if (startDist > snapThresholdPx && endDist > snapThresholdPx) {
-            return rawPos;
-        }
-        return startDist <= endDist ? nearStart : nearEnd - size;
+        return SnapMath.snapPosition(rawPos, size, lines, snapThresholdPx);
     }
 
     private int snapWidth(int rawWidth, int anchor, boolean growsPositive) {
-        return clampWidth(snapSize(clampWidth(rawWidth), anchor, growsPositive, snapXLines, snapWidths));
+        return clampWidth(SnapMath.snapSize(clampWidth(rawWidth), anchor, growsPositive, snapXLines, snapWidths, snapThresholdPx));
     }
 
     private int snapHeight(int rawHeight, int anchor, boolean growsPositive) {
-        return clampHeight(snapSize(clampHeight(rawHeight), anchor, growsPositive, snapYLines, snapHeights));
-    }
-
-    /**
-     * Snaps a resized extent measured from the fixed {@code anchor} edge: either its moving edge to
-     * the nearest edge line, or the size itself to the nearest candidate size — whichever is closer,
-     * within {@link #snapThresholdPx}. A tie goes to the size match. Unchanged if neither is close.
-     */
-    private int snapSize(int rawSize, int anchor, boolean growsPositive, List<Integer> edgeLines, List<Integer> sizes) {
-        int movingEdge = growsPositive ? anchor + rawSize : anchor - rawSize;
-        int nearEdge = nearestLine(movingEdge, edgeLines);
-        int edgeDist = nearEdge == Integer.MIN_VALUE ? Integer.MAX_VALUE : Math.abs(movingEdge - nearEdge);
-        int nearSize = nearestLine(rawSize, sizes);
-        int sizeDist = nearSize == Integer.MIN_VALUE ? Integer.MAX_VALUE : Math.abs(rawSize - nearSize);
-        if (sizeDist <= snapThresholdPx && sizeDist <= edgeDist) {
-            return nearSize;
-        }
-        if (edgeDist <= snapThresholdPx) {
-            return Math.abs(nearEdge - anchor);
-        }
-        return rawSize;
-    }
-
-    /** The candidate line closest to {@code value}, or {@code Integer.MIN_VALUE} if {@code lines} is empty. */
-    private static int nearestLine(int value, List<Integer> lines) {
-        int best = Integer.MIN_VALUE;
-        int bestDist = Integer.MAX_VALUE;
-        for (int line : lines) {
-            int dist = Math.abs(value - line);
-            if (dist < bestDist) {
-                bestDist = dist;
-                best = line;
-            }
-        }
-        return best;
+        return clampHeight(SnapMath.snapSize(clampHeight(rawHeight), anchor, growsPositive, snapYLines, snapHeights, snapThresholdPx));
     }
 
     /**
@@ -503,26 +482,8 @@ public final class DraggableResizable {
                 || lastCommitResizeMode == ResizeMode.CORNER_BOTTOM_LEFT);
     }
 
-    /**
-     * Clamps {@code b}'s position so it stays fully inside {@link #parentBounds}, leaving its size
-     * untouched; a no-op if {@link #parentBounds} is {@code null}. If {@code b} is wider/taller
-     * than the parent, it's pinned to the parent's near edge (top-left) and allowed to overflow the
-     * far edge, rather than producing an inverted clamp range.
-     */
     private Bounds clampToParent(Bounds b) {
-        if (parentBounds == null) {
-            return b;
-        }
-        int minX = parentBounds.x();
-        int minY = parentBounds.y();
-        int maxX = Math.max(minX, parentBounds.x() + parentBounds.width() - b.width());
-        int maxY = Math.max(minY, parentBounds.y() + parentBounds.height() - b.height());
-        int clampedX = Math.min(Math.max(b.x(), minX), maxX);
-        int clampedY = Math.min(Math.max(b.y(), minY), maxY);
-        if (clampedX == b.x() && clampedY == b.y()) {
-            return b;
-        }
-        return new Bounds(clampedX, clampedY, b.width(), b.height());
+        return SnapMath.clampToParent(b, parentBounds);
     }
 
     private int clampWidth(int width) {

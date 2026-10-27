@@ -1,7 +1,11 @@
 package dev.marie.framework.ui.api;
 
 import dev.marie.framework.api.ApiStatus;
+import dev.marie.framework.color.ColorKey;
+import dev.marie.framework.color.ColorScope;
+import dev.marie.framework.color.MarieColors;
 import dev.marie.framework.ui.PersistenceProvider;
+import dev.marie.framework.ui.toolbox.colorpicker.ColorKeySlots;
 import dev.marie.framework.ui.component.MarieComponent;
 import dev.marie.framework.ui.toolbox.BooleanSetter;
 import dev.marie.framework.ui.toolbox.ButtonOption;
@@ -144,6 +148,23 @@ public final class MarieToolbox {
          */
         public PanelBuilder color(String label, IntSupplier getter, IntConsumer setter, int defaultValue, Runnable onCommit, Runnable onCancel) {
             layout.addColorSlot(new ColorSlot(label, getter, setter, defaultValue, onCommit, onCancel));
+            return this;
+        }
+
+        /**
+         * A color slot bound to a registered {@link ColorKey}: previews live, saves to the color registry on
+         * release (or clears it at the default). It edits the key of the {@link ColorScope} active while this
+         * panel is built (see {@link MarieColors#withColorScope}), so a second profile's panel colors only itself.
+         */
+        @ApiStatus.Experimental
+        public PanelBuilder colorKey(String label, ColorKey key) {
+            return colorKey(label, key, MarieColors.currentColorScope());
+        }
+
+        /** As {@link #colorKey(String, ColorKey)}, editing {@code scope}'s copy of the color. */
+        @ApiStatus.Experimental
+        public PanelBuilder colorKey(String label, ColorKey key, ColorScope scope) {
+            layout.addColorSlot(ColorKeySlots.slot(label, key, scope));
             return this;
         }
 

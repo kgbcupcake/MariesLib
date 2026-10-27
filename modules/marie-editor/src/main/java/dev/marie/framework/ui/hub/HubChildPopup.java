@@ -179,6 +179,14 @@ final class HubChildPopup {
         return isLive() && body(bounds).contains((int) mouseX, (int) mouseY) && content.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
+    boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        return isLive() && content.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    boolean charTyped(char codePoint, int modifiers) {
+        return isLive() && content.charTyped(codePoint, modifiers);
+    }
+
     private static Bounds closeBounds(Bounds window) {
         return new Bounds(window.x() + window.width() - PAD - CLOSE_SIZE, window.y() + (TITLE_HEIGHT - CLOSE_SIZE) / 2 + 1,
                 CLOSE_SIZE, CLOSE_SIZE);

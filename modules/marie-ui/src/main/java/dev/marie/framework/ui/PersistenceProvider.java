@@ -27,4 +27,14 @@ public interface PersistenceProvider {
      */
     default void remove(String componentId) {
     }
+
+    /**
+     * A view of this store whose every key is prefixed with {@code prefix} — e.g. a second "profile"
+     * of the same modules that keeps its own settings. Always returns the same instance for the same
+     * provider and prefix, which matters because MariesLib caches offsets per provider instance.
+     */
+    @ApiStatus.Experimental
+    default PersistenceProvider scoped(String prefix) {
+        return dev.marie.framework.ui.persistence.ScopedPersistenceProvider.of(this, prefix);
+    }
 }

@@ -11,5 +11,5 @@ import net.minecraft.network.chat.Component;
  * the same "content embedded in a window body" contract {@code ScaleConfigPanel}'s hosted windows
  * already use.
  */
-@ApiStatus.Internal
+@ApiStatus.Experimental
 public record HubEntry(String id, Component label, MarieComponent content) implements HubSidebarEntry {}
