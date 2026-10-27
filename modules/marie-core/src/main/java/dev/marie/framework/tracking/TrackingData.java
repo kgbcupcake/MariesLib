@@ -61,6 +61,7 @@ public class TrackingData {
             "source_memory",
             "category_memory",
             "family_memory",
+            "memory_saved_at",
             "recent_ids",
             "last_tick_time",
             "tracker_accumulators",
@@ -135,9 +136,11 @@ public class TrackingData {
             map.add(getValueCodecKey(key), Codec.FLOAT.encodeStart(ops, data.values.getOrDefault(key, 0f)));
             map.add("last_" + key, Codec.FLOAT.encodeStart(ops, data.lastValues.getOrDefault(key, 0f)));
         }
-        // Memory left over while diminishing returns is off is already obsolete (it's cleared on the next
-        // check), so it isn't saved; saved memory is stamped with when it was written, for decodeData.
-        boolean memoryValid = configuredDiminishingReturnsEnabled();
+        // Memory left over while diminishing returns is off, or from before an off period this data hasn't
+        // checked for yet, is already obsolete (it's cleared on the next check), so it isn't saved. Saved
+        // memory is stamped with when it was written, for decodeData.
+        boolean memoryValid = configuredDiminishingReturnsEnabled()
+                && data.seenDiminishingOffCount == FeatureFlagCache.diminishingReturnsOffCount();
         map.add("source_memory", Codec.unboundedMap(Codec.STRING, SourceMemoryEntry.CODEC)
                 .encodeStart(ops, memoryValid ? data.sourceMemory : Map.of()));
         map.add("category_memory", Codec.unboundedMap(Codec.STRING, SourceMemoryEntry.CODEC)

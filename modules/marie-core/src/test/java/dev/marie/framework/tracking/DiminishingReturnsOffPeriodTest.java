@@ -108,4 +108,14 @@ class DiminishingReturnsOffPeriodTest {
 
         assertEquals(2.0f, restored.getMemoryEntry(ITEM).applicationCount(), 1e-4f);
     }
+
+    @Test
+    void autosaveAfterOffPeriodBeforeEatingDropsMemory() {
+        eat();
+        eat();
+        syncDiminishingReturns(false);
+        syncDiminishingReturns(true);
+
+        assertNull(load(save(data)).getMemoryEntry(ITEM));
+    }
 }
