@@ -104,6 +104,11 @@ public final class EditHostCore {
         return bounds;
     }
 
+    /** Where {@code module}'s saved placement puts it, with its own {@code resolvedBounds()} as the natural bounds. */
+    public Bounds resolveSaved(EditableModule module) {
+        return config.placementFor(module).resolve(store(), module.id(), module.resolvedBounds());
+    }
+
     public void addSnapTarget(String group, Bounds bounds) {
         snapTargets.add(new SnapTarget(group == null ? "" : group, bounds));
     }

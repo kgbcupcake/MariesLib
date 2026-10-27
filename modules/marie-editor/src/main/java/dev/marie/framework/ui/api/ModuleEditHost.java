@@ -5,6 +5,7 @@ import dev.marie.framework.ui.PersistenceProvider;
 import dev.marie.framework.ui.RenderContext;
 import dev.marie.framework.ui.component.MarieComponent;
 import dev.marie.framework.ui.drag.DraggableResizable;
+import dev.marie.framework.ui.edithost.AdaptedEditableModule;
 import dev.marie.framework.ui.edithost.EditHostConfig;
 import dev.marie.framework.ui.edithost.EditHostCore;
 import dev.marie.framework.ui.edithost.HostTabContent;
@@ -71,9 +72,15 @@ public final class ModuleEditHost {
         core.beginFrame();
     }
 
-    /** Registers {@code module} for this frame at its {@link EditableModule#resolvedBounds()}; returns where to draw it. */
+    /**
+     * Registers {@code module} for this frame at its {@link EditableModule#resolvedBounds()}; returns where
+     * to draw it. A module wrapped with {@link EditableModule#of} only knows the wrapped module's own
+     * bounds, so it's placed through the host's placement strategy from what the host saved, using
+     * those bounds as its natural spot.
+     */
     public Bounds track(EditableModule module) {
-        return core.track(module, module.resolvedBounds());
+        Bounds at = module instanceof AdaptedEditableModule ? core.resolveSaved(module) : module.resolvedBounds();
+        return core.track(module, at);
     }
 
     /** Registers {@code module} for this frame, drawn at {@code drawnAt} unless it's being dragged; returns where to draw it. */
