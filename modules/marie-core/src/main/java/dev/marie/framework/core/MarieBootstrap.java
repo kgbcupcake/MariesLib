@@ -14,6 +14,7 @@ import dev.marie.framework.config.FeatureFlagCache;
 import dev.marie.framework.config.MarieModFeatureFlags;
 import dev.marie.framework.config.PresetRegistry;
 import dev.marie.framework.config.LockRegistry;
+import dev.marie.framework.handler.DiminishingReturnsOffTimeListener;
 import dev.marie.framework.handler.GameplayTriggerListener;
 import dev.marie.framework.handler.RecipeTriggerListener;
 import dev.marie.framework.handler.ReloadGuardListener;
@@ -236,6 +237,7 @@ public final class MarieBootstrap {
         NeoForge.EVENT_BUS.register(new ReloadGuardListener());
         NeoForge.EVENT_BUS.register(new RecipeTriggerListener());
         NeoForge.EVENT_BUS.register(new GameplayTriggerListener());
+        NeoForge.EVENT_BUS.register(new DiminishingReturnsOffTimeListener());
         // MariesLibCommand / MarieCommand (marie-commands) self-register via
         // @EventBusSubscriber — core has no compile-time dependency on marie-commands.
         KubeIntegration.registerEventBridge();

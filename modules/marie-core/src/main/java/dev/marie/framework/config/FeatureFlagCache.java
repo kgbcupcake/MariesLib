@@ -2,6 +2,9 @@ package dev.marie.framework.config;
 
 import dev.marie.framework.api.ApiStatus;
 
+import javax.annotation.Nullable;
+import java.util.function.LongConsumer;
+
 /**
  * Cached feature flag values for hot-path runtime reads (render/tick/effect loops).
  * Consuming mods call {@link #sync(MarieModFeatureFlags)} after config changes.
@@ -13,6 +16,8 @@ public final class FeatureFlagCache {
     private static volatile boolean initialized;
     private static volatile int diminishingReturnsOffCount;
     private static volatile long diminishingReturnsLastOffMillis;
+    @Nullable
+    private static volatile LongConsumer diminishingReturnsOffListener;
 
     private FeatureFlagCache() {}
 
@@ -23,7 +28,12 @@ public final class FeatureFlagCache {
     public static void sync(MarieModFeatureFlags flags) {
         if (current.enableDiminishingReturns() && !flags.enableDiminishingReturns()) {
             diminishingReturnsOffCount++;
-            diminishingReturnsLastOffMillis = System.currentTimeMillis();
+            long now = System.currentTimeMillis();
+            diminishingReturnsLastOffMillis = now;
+            LongConsumer listener = diminishingReturnsOffListener;
+            if (listener != null) {
+                listener.accept(now);
+            }
         }
         current = flags;
         initialized = true;
@@ -44,6 +54,19 @@ public final class FeatureFlagCache {
      */
     public static long diminishingReturnsLastOffMillis() {
         return diminishingReturnsLastOffMillis;
+    }
+
+    /**
+     * Replaces the switch-off time with the one saved for the world being played (0 once it stops), so it
+     * survives a restart and one world's toggles never reset another world's memory.
+     */
+    public static void setDiminishingReturnsLastOffMillis(long millis) {
+        diminishingReturnsLastOffMillis = millis;
+    }
+
+    /** Told the time of every switch-off from {@link #sync}, so the running world can save it; {@code null} for none. */
+    public static void setDiminishingReturnsOffListener(@Nullable LongConsumer listener) {
+        diminishingReturnsOffListener = listener;
     }
 
     public static MarieModFeatureFlags get() {
