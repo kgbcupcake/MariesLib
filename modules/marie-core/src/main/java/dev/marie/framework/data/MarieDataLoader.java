@@ -25,6 +25,7 @@ import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.tags.TagKey;
 import net.minecraft.util.profiling.ProfilerFiller;
+import net.neoforged.fml.ModList;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -176,7 +177,7 @@ public final class MarieDataLoader extends SimpleJsonResourceReloadListener {
                 callbacks.registerValue(def);
                 nextValues.add(fileId);
             } catch (Exception ex) {
-                warnMalformed(fileId, ex);
+                warnMalformed(filePath, ex);
             }
         }
 
@@ -191,7 +192,7 @@ public final class MarieDataLoader extends SimpleJsonResourceReloadListener {
                 registerSourceClassification(fileId, json);
                 nextSourceClassifications.add(fileId);
             } catch (Exception ex) {
-                warnMalformed(fileId, ex);
+                warnMalformed(filePath, ex);
             }
         }
 
@@ -206,7 +207,7 @@ public final class MarieDataLoader extends SimpleJsonResourceReloadListener {
                 registerFoodOverride(fileId, json);
                 nextFoodOverrides.add(fileId);
             } catch (Exception ex) {
-                warnMalformed(fileId, ex);
+                warnMalformed(filePath, ex);
             }
         }
 
@@ -222,7 +223,7 @@ public final class MarieDataLoader extends SimpleJsonResourceReloadListener {
                 callbacks.registerCustomEffect(def);
                 nextEffects.add(fileId);
             } catch (Exception ex) {
-                warnMalformed(fileId, ex);
+                warnMalformed(filePath, ex);
             }
         }
 
@@ -238,7 +239,7 @@ public final class MarieDataLoader extends SimpleJsonResourceReloadListener {
                 callbacks.registerValueSynergy(def);
                 nextSynergies.add(fileId);
             } catch (Exception ex) {
-                warnMalformed(fileId, ex);
+                warnMalformed(filePath, ex);
             }
         }
 
@@ -254,7 +255,7 @@ public final class MarieDataLoader extends SimpleJsonResourceReloadListener {
                 callbacks.registerSourcePairSynergy(def);
                 nextSourcePairSynergies.add(fileId);
             } catch (Exception ex) {
-                warnMalformed(fileId, ex);
+                warnMalformed(filePath, ex);
             }
         }
 
@@ -270,7 +271,7 @@ public final class MarieDataLoader extends SimpleJsonResourceReloadListener {
                 callbacks.registerMilestone(def);
                 nextMilestones.add(fileId);
             } catch (Exception ex) {
-                warnMalformed(fileId, ex);
+                warnMalformed(filePath, ex);
             }
         }
 
@@ -286,7 +287,7 @@ public final class MarieDataLoader extends SimpleJsonResourceReloadListener {
                 callbacks.registerTrackerMilestone(def);
                 nextTrackerMilestones.add(fileId);
             } catch (Exception ex) {
-                warnMalformed(fileId, ex);
+                warnMalformed(filePath, ex);
             }
         }
 
@@ -302,7 +303,7 @@ public final class MarieDataLoader extends SimpleJsonResourceReloadListener {
                 callbacks.registerTrackingProfile(def);
                 nextProfiles.add(fileId);
             } catch (Exception ex) {
-                warnMalformed(fileId, ex);
+                warnMalformed(filePath, ex);
             }
         }
 
@@ -318,7 +319,7 @@ public final class MarieDataLoader extends SimpleJsonResourceReloadListener {
                 callbacks.registerCompatEntry(def);
                 nextCompatEntries.add(fileId);
             } catch (Exception ex) {
-                warnMalformed(fileId, ex);
+                warnMalformed(filePath, ex);
             }
         }
 
@@ -332,7 +333,7 @@ public final class MarieDataLoader extends SimpleJsonResourceReloadListener {
             try {
                 applySourceFamilies(json);
             } catch (Exception ex) {
-                warnMalformed(fileId, ex);
+                warnMalformed(filePath, ex);
             }
         }
 
@@ -346,7 +347,7 @@ public final class MarieDataLoader extends SimpleJsonResourceReloadListener {
             try {
                 applyModuleLocks(json);
             } catch (Exception ex) {
-                warnMalformed(fileId, ex);
+                warnMalformed(filePath, ex);
             }
         }
 
@@ -392,10 +393,12 @@ public final class MarieDataLoader extends SimpleJsonResourceReloadListener {
                         }
                     }
                     if (matched == 0) {
-                        throw new IllegalArgumentException("Tag has no registered items: " + entry.rawTag());
+                        // usually just an optional mod that isn't installed, so a warning, not an error
+                        recordWarning(tagFilePath(entry.fileId()), DatapackSchema.KEY_TAG,
+                                "Tag has no registered items: " + entry.rawTag());
                     }
                 } catch (Exception ex) {
-                    warnMalformed(entry.fileId(), ex);
+                    warnMalformed(tagFilePath(entry.fileId()), ex);
                 }
             }
         }
@@ -505,6 +508,7 @@ public final class MarieDataLoader extends SimpleJsonResourceReloadListener {
 
         if (json.has(DatapackSchema.KEY_ITEM)) {
             ResourceLocation itemId = ResourceLocation.parse(getRequiredString(json, DatapackSchema.KEY_ITEM));
+            checkItemExists(itemId, datapackFilePath(DatapackSchema.SOURCE_CLASSIFICATIONS_DIR, fileId), DatapackSchema.KEY_ITEM);
             callbacks.registerSourceClassification(itemId, valueKey, amount);
             return;
         }
@@ -522,6 +526,7 @@ public final class MarieDataLoader extends SimpleJsonResourceReloadListener {
 
     private void registerFoodOverride(ResourceLocation fileId, JsonObject json) {
         ResourceLocation itemId = ResourceLocation.parse(getRequiredString(json, DatapackSchema.KEY_ITEM));
+        checkItemExists(itemId, datapackFilePath(DatapackSchema.FOOD_OVERRIDES_DIR, fileId), DatapackSchema.KEY_ITEM);
         int calories = getOptionalInt(json, DatapackSchema.KEY_CALORIES, 0);
         boolean enabled = getOptionalBoolean(json, DatapackSchema.KEY_ENABLED, true);
         Map<String, Float> nutrients = new LinkedHashMap<>();
@@ -722,8 +727,7 @@ public final class MarieDataLoader extends SimpleJsonResourceReloadListener {
         return json.has(key) ? json.get(key).getAsBoolean() : fallback;
     }
 
-    private static void warnMalformed(ResourceLocation fileId, Exception ex) {
-        String path = "data/" + fileId.getNamespace() + "/" + DatapackSchema.root() + "/" + fileId.getPath() + ".json";
+    private static void warnMalformed(String path, Exception ex) {
         String message = ex.getMessage();
         if (message != null && message.startsWith("Value already registered: ")) {
             String key = message.substring("Value already registered: ".length());
@@ -731,5 +735,32 @@ public final class MarieDataLoader extends SimpleJsonResourceReloadListener {
             return;
         }
         MarieCore.LOGGER.warn("[MarieLib] Skipping malformed datapack entry at {}: {}", path, message);
+        DatapackDiagnostics.getInstance().record(new DatapackDiagnostic(
+                DatapackDiagnostic.Severity.ERROR, path, "file", message != null ? message : ex.getClass().getSimpleName()));
+    }
+
+    private static void recordWarning(String path, String field, String message) {
+        MarieCore.LOGGER.warn("[MarieLib] {} > {}: {}", path, field, message);
+        DatapackDiagnostics.getInstance().record(new DatapackDiagnostic(
+                DatapackDiagnostic.Severity.WARN, path, field, message));
+    }
+
+    private static String tagFilePath(ResourceLocation fileId) {
+        return datapackFilePath(DatapackSchema.SOURCE_CLASSIFICATIONS_DIR, fileId);
+    }
+
+    /**
+     * Flags an item id that isn't registered even though its mod is loaded (almost always a typo).
+     * Ids from mods that aren't installed are normal for optional compat data and stay quiet.
+     */
+    public static void checkItemExists(ResourceLocation itemId, String path, String field) {
+        if (BuiltInRegistries.ITEM.containsKey(itemId)) return;
+        String ns = itemId.getNamespace();
+        boolean modLoaded = "minecraft".equals(ns) || ModList.get().isLoaded(ns);
+        if (modLoaded) {
+            recordWarning(path, field, "Unknown item '" + itemId + "' (mod '" + ns + "' is loaded, check the id)");
+        } else {
+            MarieCore.LOGGER.debug("[MarieLib] {} references {} from a mod that isn't installed", path, itemId);
+        }
     }
 }
