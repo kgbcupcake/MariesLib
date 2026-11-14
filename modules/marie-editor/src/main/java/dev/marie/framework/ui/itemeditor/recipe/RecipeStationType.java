@@ -36,26 +36,6 @@ public enum RecipeStationType {
     CUTTING_BOARD("farmersdelight:cutting", "farmersdelight:cutting_board"),
     /** Dungeon's Delight's own cooking-pot-alike recipe type and block (its "monster pot"), not Farmer's Delight's own {@link #COOKING_POT} — a separate {@code RecipeType}/block even though the mod is an addon for Farmer's Delight. */
     MONSTER_COOKING("dungeonsdelight:monster_cooking", "dungeonsdelight:monster_pot"),
-    // Create's own processing machines — e.g. its "createfood" addon crafts plated food items via
-    // these (a compacting/mixing/pressing/deploying recipe alongside a plain crafting-table one for
-    // the same output is common there), not Create's JEI-only "Automated Shapeless/Shaped Crafting"
-    // categories: those aren't a distinct Recipe/RecipeType at all, just Create's own 3D rendering of
-    // an ordinary minecraft:crafting recipe for its mechanical crafter, so there's nothing beyond the
-    // CRAFTING_TABLE entry below for RecipeDisplayLookup to find for those.
-    // Create's kinetic machines (unlike every entry above) split their model in two: the blockstate
-    // only bakes the static frame, and the part that actually makes the block recognizable — the
-    // Mixer's/Press's rotating head, the Millstone's grinding wheel, the Deployer's arm — is a
-    // separate PartialModel drawn by a BlockEntityRenderer, which needs a real placed block entity
-    // to animate and is invisible to BakedModel#getQuads entirely. RecipeStationBlockBox has no
-    // level/block entity to give it, so a 3D render of these would only ever show the bare frame —
-    // not wrong-sized so much as simply not the block a player would recognize — so these are
-    // marked {@link #prefersFlatIcon()} to use the flat item icon (the complete, correct sprite)
-    // instead of attempting a 3D render that structurally can't show the whole thing.
-    CREATE_MIXING("create:mixing", "create:mechanical_mixer", true),
-    CREATE_COMPACTING("create:compacting", "create:mechanical_press", true),
-    CREATE_PRESSING("create:pressing", "create:mechanical_press", true),
-    CREATE_MILLING("create:milling", "create:millstone", true),
-    CREATE_DEPLOYING("create:deploying", "create:deployer", true),
     CRAFTING_TABLE("minecraft:crafting", "minecraft:crafting_table");
 
     private final ResourceLocation recipeTypeId;

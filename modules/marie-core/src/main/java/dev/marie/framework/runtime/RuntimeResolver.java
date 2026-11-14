@@ -49,6 +49,9 @@ public final class RuntimeResolver {
     private static final int STAGE_RECIPE_INHERITANCE = 2;
     private static final int STAGE_NAMESPACE_PEER = 3;
     private static final int STAGE_HARD_FALLBACK = 4;
+    // appended after HARD_FALLBACK so existing 5-slot stage arrays keep their indices
+    private static final int STAGE_SYNTHETIC_RECIPE = 5;
+    private static final int STAGE_COUNT = 6;
 
     private static final RuntimeResolver INSTANCE = new RuntimeResolver();
 
@@ -395,16 +398,25 @@ public final class RuntimeResolver {
                 ? stages[STAGE_RECIPE_INHERITANCE].resolve(itemId, ctx)
                 : null;
 
+        // items with no recipe at all can still get a supplement from the synthetic-recipe slot
+        boolean synthetic = false;
+        if (recipeSupplement == null && "NO_RECIPE_FOUND".equals(ctx.recipeFailureReason())
+                && stages[STAGE_SYNTHETIC_RECIPE] != null) {
+            recipeSupplement = stages[STAGE_SYNTHETIC_RECIPE].resolve(itemId, ctx);
+            synthetic = recipeSupplement != null;
+        }
+
         if (traceOut != null) {
             if (recipeSupplement != null) {
                 Map<String, Object> recipeDetail = new LinkedHashMap<>();
-                recipeDetail.put("recipeFound", true);
+                recipeDetail.put("recipeFound", !synthetic);
+                recipeDetail.put("synthetic", synthetic);
                 recipeDetail.put("ingredientCount", recipeSupplement.values().size());
                 recipeDetail.put("timeout", false);
                 traceOut.add(new ClassificationTraceStep(
                         TraceStepId.RECIPE_LOOKUP,
                         TraceStepStatus.SUCCESS,
-                        "Recipe supplement found",
+                        synthetic ? "Synthetic recipe supplement found" : "Recipe supplement found",
                         recipeDetail));
             } else {
                 Map<String, Object> recipeDetail = new LinkedHashMap<>();
@@ -517,7 +529,8 @@ public final class RuntimeResolver {
                 || result.stage() == RuntimeCascadeStage.COMPOSITE
                 || result.stage() == RuntimeCascadeStage.COMPOSITE_RECIPE
                 || result.stage() == RuntimeCascadeStage.KEYWORD_SUFFIX_RECIPE
-                || result.stage() == RuntimeCascadeStage.RECIPE_INHERITANCE) {
+                || result.stage() == RuntimeCascadeStage.RECIPE_INHERITANCE
+                || result.stage() == RuntimeCascadeStage.SYNTHETIC_RECIPE) {
             namespacePeers.computeIfAbsent(itemId.getNamespace(), k -> new RunningAverage())
                     .add(result.values());
         }
@@ -539,7 +552,7 @@ public final class RuntimeResolver {
      * last-attached mod's array.
      */
     private static ResolutionStageHandler[] mergedRuntimeResolverStages() {
-        ResolutionStageHandler[] merged = new ResolutionStageHandler[STAGE_HARD_FALLBACK + 1];
+        ResolutionStageHandler[] merged = new ResolutionStageHandler[STAGE_COUNT];
         for (MarieContext modCtx : MarieModRegistry.getAll()) {
             ResolutionStageHandler[] stages = modCtx.runtimeResolverStages();
             for (int i = 0; i < stages.length && i < merged.length; i++) {

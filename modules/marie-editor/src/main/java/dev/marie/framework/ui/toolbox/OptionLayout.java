@@ -16,7 +16,9 @@ import java.util.List;
  * the selected tab's rows, stacked top to bottom. Its preferred height is the tallest tab's, so a
  * host that sizes to it never resizes when the selection changes. If a host gives it less room than
  * the selected tab needs, the rows clip and scroll with the mouse wheel (a thin scroll thumb shows
- * the position); while the rows fit, the wheel nudges the slider under the cursor instead.
+ * the position, and can be dragged directly — useful on a long paged list like the item editor's
+ * Browse Items, where scrolling the whole way by wheel alone is tedious); while the rows fit, the
+ * wheel nudges the slider under the cursor instead.
  *
  * <p>Draws no window chrome or title of its own — the host owns that; the panel title is only this
  * component's {@link #id()}.
@@ -38,6 +40,16 @@ public final class OptionLayout implements MarieComponent {
     /** While non-null, {@link #addRow} files rows into this section instead of the tab (see {@link #openSection}). */
     private SectionRow openSection;
     private java.util.function.Consumer<ColorSlot> colorSlotListener = slot -> {};
+
+    /** The thumb's clickable area from the last {@link #drawScrollThumb} — wider than its drawn {@link #SCROLL_TRACK_WIDTH} so it's not a 3px-wide target to land a click on. Zeroed out whenever nothing overflows, so a stale thumb from a previous frame's taller content can't still be grabbed. */
+    private Bounds thumbHitArea = new Bounds(0, 0, 0, 0);
+    /** The track geometry and scroll ceiling behind that same thumb, captured alongside it so {@link #mouseDragged} can convert a drag distance back into a scroll offset without recomputing layout mid-drag. */
+    private int thumbTrackHeight;
+    private int thumbHeight;
+    private int thumbMaxScroll;
+    private boolean draggingThumb;
+    private int dragStartMouseY;
+    private int dragStartScroll;
 
     public OptionLayout(String id) {
         this.id = id;
@@ -195,10 +207,11 @@ public final class OptionLayout implements MarieComponent {
         drawScrollThumb(context, rows);
     }
 
-    /** Outlined track and thumb in the gutter on the right edge of the row area, only while the rows overflow it. */
+    /** Outlined track and thumb in the gutter on the right edge of the row area, only while the rows overflow it — also records {@link #thumbHitArea}/{@link #thumbTrackHeight}/{@link #thumbHeight}/{@link #thumbMaxScroll} for {@link #mouseClicked}/{@link #mouseDragged} to grab it by. */
     private void drawScrollThumb(RenderContext context, List<OptionRow> rows) {
         int max = maxScroll(rows);
         if (max <= 0 || rowArea.height() <= 0) {
+            thumbHitArea = new Bounds(0, 0, 0, 0);
             return;
         }
         int total = stackHeight(rows);
@@ -210,6 +223,13 @@ public final class OptionLayout implements MarieComponent {
         context.fillRect(trackX, trackY, SCROLL_TRACK_WIDTH, trackH, OptionStyle.dimmed(OptionStyle.ACCENT));
         context.drawBorder(trackX, trackY, SCROLL_TRACK_WIDTH, trackH, 1, OptionStyle.ACCENT);
         context.fillRect(trackX, thumbY, SCROLL_TRACK_WIDTH, thumbH, OptionStyle.ACCENT);
+
+        // Hit area spans the whole gutter width, not just the thumb's own 3px — a thumb that thin is
+        // an unreasonably small target to land a mouse-down on otherwise.
+        thumbHitArea = new Bounds(rowArea.x() + rowArea.width() - SCROLL_GUTTER, thumbY, SCROLL_GUTTER, thumbH);
+        thumbTrackHeight = trackH;
+        thumbHeight = thumbH;
+        thumbMaxScroll = max;
     }
 
     @Override
@@ -225,6 +245,12 @@ public final class OptionLayout implements MarieComponent {
         }
         if (tabs.size() > 1 && tabRow.mouseClicked(mouseX, mouseY)) {
             scroll = 0;
+            return true;
+        }
+        if (thumbHitArea.contains((int) mouseX, (int) mouseY)) {
+            draggingThumb = true;
+            dragStartMouseY = (int) mouseY;
+            dragStartScroll = scroll;
             return true;
         }
         if (!rowArea.contains((int) mouseX, (int) mouseY)) {
@@ -262,6 +288,14 @@ public final class OptionLayout implements MarieComponent {
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+        if (draggingThumb) {
+            int range = thumbTrackHeight - thumbHeight;
+            if (range > 0) {
+                int scrollDelta = (int) Math.round((mouseY - dragStartMouseY) * thumbMaxScroll / (double) range);
+                scroll = Math.max(0, Math.min(thumbMaxScroll, dragStartScroll + scrollDelta));
+            }
+            return true;
+        }
         for (OptionRow row : selectedRows()) {
             if (row.mouseDragged(mouseX, mouseY)) {
                 return true;
@@ -272,6 +306,10 @@ public final class OptionLayout implements MarieComponent {
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (draggingThumb) {
+            draggingThumb = false;
+            return true;
+        }
         for (OptionRow row : selectedRows()) {
             if (row.mouseReleased(mouseX, mouseY)) {
                 return true;
