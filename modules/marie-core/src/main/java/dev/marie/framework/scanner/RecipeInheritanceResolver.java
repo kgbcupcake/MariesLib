@@ -76,6 +76,7 @@ public final class RecipeInheritanceResolver {
     private static final float DECAY_PER_LEVEL = 0.5f;
 
     private Map<ResourceLocation, List<ResourceLocation>> recipeIndex;
+    private Map<ResourceLocation, List<List<ResourceLocation>>> recipesByOutput = Map.of();
     @Nullable
     private volatile RecipeManager recipeManager;
     @Nullable
@@ -99,6 +100,7 @@ public final class RecipeInheritanceResolver {
             return new HashMap<>();
         }
         Map<ResourceLocation, List<ResourceLocation>> index = new HashMap<>();
+        Map<ResourceLocation, java.util.TreeMap<String, List<ResourceLocation>>> perRecipe = new HashMap<>();
         for (RecipeHolder<?> holder : recipeManager.getRecipes()) {
             Recipe<?> recipe = holder.value();
             try {
@@ -114,6 +116,7 @@ public final class RecipeInheritanceResolver {
                 if (recipeIngredients.size() > MAX_INGREDIENTS) {
                     continue;
                 }
+                List<ResourceLocation> single = new ArrayList<>();
                 for (Ingredient ingredient : recipeIngredients) {
                     ItemStack[] items = ingredient.getItems();
                     if (items.length == 0) {
@@ -124,11 +127,19 @@ public final class RecipeInheritanceResolver {
                         continue;
                     }
                     index.computeIfAbsent(outputId, k -> new ArrayList<>()).add(id);
+                    single.add(id);
+                }
+                if (!single.isEmpty()) {
+                    perRecipe.computeIfAbsent(outputId, k -> new java.util.TreeMap<>())
+                            .put(holder.id().toString(), List.copyOf(single));
                 }
             } catch (Exception ignored) {
             }
         }
         index.replaceAll((k, v) -> v.size() > MAX_INGREDIENTS ? v.subList(0, MAX_INGREDIENTS) : v);
+        Map<ResourceLocation, List<List<ResourceLocation>>> byOutput = new HashMap<>();
+        perRecipe.forEach((k, v) -> byOutput.put(k, List.copyOf(v.values())));
+        recipesByOutput = byOutput;
         return index;
     }
 
@@ -386,8 +397,14 @@ public final class RecipeInheritanceResolver {
         }
     }
 
+    /** All recipes' ingredients pooled together; see {@link #getRecipes} to count each recipe on its own. */
     public List<ResourceLocation> getIngredients(ResourceLocation itemId) {
         return recipeIndex.getOrDefault(itemId, List.of());
+    }
+
+    /** One ingredient list per recipe for {@code itemId}, ordered by recipe id; repeats within a recipe are kept. */
+    public List<List<ResourceLocation>> getRecipes(ResourceLocation itemId) {
+        return recipesByOutput.getOrDefault(itemId, List.of());
     }
 
     /**

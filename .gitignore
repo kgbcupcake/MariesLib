@@ -29,3 +29,4 @@ modules/marie-core/src/test/java/dev/marie/framework/api/marieapi/MarieAPIModSca
 DISCORD_CHANGELOG.md
 modules/marie-editor/logs/debug.log
 modules/marie-editor/logs/latest.log
+AGENTS.md
