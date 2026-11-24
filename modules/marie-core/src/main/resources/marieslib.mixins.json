@@ -3,7 +3,9 @@
   "minVersion": "0.8",
   "package": "dev.marie.framework.mixin",
   "compatibilityLevel": "JAVA_21",
-  "mixins": [],
+  "mixins": [
+    "CrashReportMixin"
+  ],
   "client": [],
   "injectors": {
     "defaultRequire": 1

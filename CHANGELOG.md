@@ -17,11 +17,21 @@
 - [MariesLib 0.1.0-beta.4 — 2026-06-16](#marieslib-010-beta4--2026-06-16)
 - [MariesLib 0.1.0-beta.3 — 2026-06-15](#marieslib-010-beta3--2026-06-15)
 - [MariesLib 0.1.0-beta.2 — 2026-06-13](#marieslib-010-beta2--2026-06-13)
-- [MariesLib 2.0.0 — 2026-06-11](#marieslib-200--2026-06-11)
+- [MariesLib 2.0.0        — 2026-06-11](#marieslib-200--2026-06-11)
 - [MariesLib 0.1.0-beta.2 — 2026-06-10](#marieslib-010-beta2--2026-06-10)
 - [MariesLib 0.1.0-beta.1 — 2026-06-10](#marieslib-010-beta1--2026-06-10)
 
 ## [Unreleased]
+
+### Added
+
+- New `marie-diagnostics` module (merged into the MariesLib jar like the others): Phase 1 of the crash diagnosis and reporting framework. Mods register a `DiagnosticProfile` (mod id, owned package prefixes, report retention, `DiagnosticProvider`s) through `DiagnosticsAPI.register` during mod loading, and submit failures at any time with `DiagnosticsAPI.reportFailure(modId, throwable | description, details)` (component, subsystem, `FailureCategory`, `Severity`, bounded context). Reports are schema-v1 JSON written atomically to `config/<modid>/crash-reports/incident-<time>-<id>.json`, with sections for incident, correlation, environment (Minecraft/NeoForge/FML/Java versions, loaded mods), session (session id, mod-list hash), failure (exception, cause chain, context, and stack-frame attribution: each matched frame listed once with the exception it came from, and `isMariesLib` true only for frames attributed to MariesLib itself, never a consuming mod), runtime (registered profiles and provider output), reserved `analysis` fields left empty, and a `diagnosticStatus` listing captured, failed and unavailable sections. Each section and each provider is isolated (providers run off-thread with a 250 ms limit and output caps), repeated failures are capped at 3 copies and 50 incidents per session, reports raised from inside diagnostics work are dropped, and each mod keeps its newest 20 reports by default. See `docs/diagnostics.md`.
+- Companion reports for Minecraft crashes: a new `CrashReportMixin` (MariesLib's first mixin) on `CrashReport#saveToFile` hands every genuine `ReportType.CRASH` save to marie-core's new `CrashReportHooks`/`CrashReportListener` seam, which marie-diagnostics plugs into. Minecraft's report gains a `MariesLib Incident: <id> (config/<path>)` System Details line, and the companion report records Minecraft's crash file name, so each points at the other. The report is filed under the first registered mod whose code is in the stack (deepest cause first), or `marieslib` when none is. Minecraft's report is always saved first and listener failures are only logged. Chunk-IO and network-protocol reports are not captured yet.
+- Dev-only (non-production) `/marieslib diagnostics devtest report|crash` commands and a `marieslib_devtest` profile for checking the pipeline in a dev client or server.
+
+### Changed
+
+- `ModScanCache`'s private temp-file-then-move JSON write moved to a shared `MarieFiles.writeAtomically`, now also used by diagnostics reports. No behavior change.
 
 ---
 

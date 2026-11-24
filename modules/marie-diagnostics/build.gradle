@@ -1,0 +1,24 @@
+plugins {
+    id 'net.neoforged.moddev' version '2.0.141'
+}
+
+neoForge {
+    version = project.neo_version
+}
+
+dependencies {
+    implementation project(':marie-core')
+
+    // The framework's core logic is Minecraft-free so it runs under plain JUnit; these are the
+    // only runtime libraries it needs outside the game.
+    testImplementation "com.google.code.gson:gson:2.10.1"
+    testImplementation "org.slf4j:slf4j-api:2.0.9"
+
+    testImplementation platform('org.junit:junit-bom:5.10.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
+}

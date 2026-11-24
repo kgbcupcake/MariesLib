@@ -8,14 +8,12 @@ import com.google.gson.JsonObject;
 import dev.marie.framework.api.ApiStatus;
 import dev.marie.framework.api.modscan.ModFileInfo;
 import dev.marie.framework.core.MarieCore;
+import dev.marie.framework.util.MarieFiles;
 
 import java.io.IOException;
 import java.io.Reader;
-import java.io.Writer;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -221,28 +219,11 @@ public final class ModScanCache {
     }
 
     private static boolean write(Path file, JsonObject json) {
-        Path tmp = null;
         try {
-            Files.createDirectories(file.getParent());
-            tmp = Files.createTempFile(file.getParent(), file.getFileName().toString(), ".tmp");
-            try (Writer w = Files.newBufferedWriter(tmp)) {
-                GSON.toJson(json, w);
-            }
-            try {
-                Files.move(tmp, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-            } catch (AtomicMoveNotSupportedException e) {
-                Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING);
-            }
+            MarieFiles.writeAtomically(file, w -> GSON.toJson(json, w));
             return true;
         } catch (IOException | RuntimeException e) {
             MarieCore.LOGGER.warn("[ModScan] Could not write {}: {}", file, e.toString());
-            if (tmp != null) {
-                try {
-                    Files.deleteIfExists(tmp);
-                } catch (IOException ignored) {
-                    // best effort
-                }
-            }
             return false;
         }
     }

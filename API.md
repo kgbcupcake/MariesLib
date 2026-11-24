@@ -588,6 +588,24 @@ public final class ExampleEditableScreen extends Screen {
 }
 ```
 
+## Diagnostics (marie-diagnostics) — `@Experimental`
+
+Crash and failure reporting for your mod. Register a profile while loading, report failures where you catch them, and MariesLib writes structured JSON reports to `config/<modid>/crash-reports/`. Minecraft crashes get a companion report automatically.
+
+```java
+DiagnosticsAPI.register(DiagnosticProfile.builder("mymod")
+        .packages("com.example.mymod")
+        .provider("registry", (ctx, section) -> section.entry("entries", MyRegistry.size()))
+        .build());
+
+DiagnosticsAPI.reportFailure("mymod", e, f -> f
+        .component("RecipeResolver")
+        .category(FailureCategory.DATA_PROCESSING)
+        .context("recipe", recipeId));
+```
+
+Full guide: [`docs/diagnostics.md`](docs/diagnostics.md).
+
 ## Versioning
 
 ```java
@@ -611,4 +629,5 @@ Quick orientation by module:
 - **marie-core** — `MarieAPI` facade, `MarieContext`, `MarieBootstrap`, all definition classes, events, scanner/classification classes, tag-audit classes, tracking classes.
 - **marie-commands**: KubeJS integration only, all `@Experimental`.
 - **marie-resources**: no public API surface; internal writer utilities only.
+- **marie-diagnostics** — `DiagnosticsAPI`, `DiagnosticProfile`, `DiagnosticProvider`, `DiagnosticSection`, `FailureSubmission`, `FailureCategory`, `Severity`, `ProviderContext`, `IncidentKind` (all `@Experimental`).
 - **marie-ui** — `GuiValueRenderer`, `MarieValueColors`, `TooltipColorRegistry`/`TooltipMessageRegistry`, `ForeignScreenDetector`, `DraggableResizable`, plus `ModuleRegistry`/`ComponentState`/`MarieComponent` (see the known-gap note above).

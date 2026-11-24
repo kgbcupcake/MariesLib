@@ -50,13 +50,14 @@ def commandsProject = project(':marie-commands')
 def uiProject = project(':marie-ui')
 def editorProject = project(':marie-editor')
 def configProject = project(':marie-config')
+def diagnosticsProject = project(':marie-diagnostics')
 
-// Aggregate the compiled output of all six subprojects into one jar.
+// Aggregate the compiled output of all seven subprojects into one jar.
 // marie-core's jar manifest is reused as the base since it carries the
 // NeoForge mod metadata (neoforge.mods.toml).
 tasks.register('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
     group = 'shadow'
-    description = 'Merges marie-core, marie-resources, marie-commands, marie-ui, marie-editor and marie-config into one jar.'
+    description = 'Merges marie-core, marie-resources, marie-commands, marie-ui, marie-editor, marie-config and marie-diagnostics into one jar.'
 
     dependsOn coreProject.tasks.named('classes')
     dependsOn resourcesProject.tasks.named('classes')
@@ -64,6 +65,7 @@ tasks.register('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.Sha
     dependsOn uiProject.tasks.named('classes')
     dependsOn editorProject.tasks.named('classes')
     dependsOn configProject.tasks.named('classes')
+    dependsOn diagnosticsProject.tasks.named('classes')
     dependsOn coreProject.tasks.named('jar')
 
     archiveBaseName.set('marieslib')
@@ -77,6 +79,7 @@ tasks.register('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.Sha
     from uiProject.sourceSets.main.output
     from editorProject.sourceSets.main.output
     from configProject.sourceSets.main.output
+    from diagnosticsProject.sourceSets.main.output
 
     // Merges same-path META-INF/services entries from different inputs (e.g. a real
     // ServiceLoader-based service one of MariesLib's own dependencies registers this way) instead
